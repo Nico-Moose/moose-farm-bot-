@@ -9,19 +9,23 @@
 <body>
   <main class="card">
     <h1>🌾 Моя ферма</h1>
+
     <div id="profile">Загрузка...</div>
 
     <section class="farm-grid">
-      <button disabled>🌱 Посадить<br><small>скоро</small></button>
-      <button disabled>💧 Полить<br><small>скоро</small></button>
-      <button disabled>🧺 Собрать<br><small>скоро</small></button>
-      <button disabled>⬆️ Улучшить<br><small>скоро</small></button>
+      <button id="collectBtn">🧺 Собрать<br><small>60 минут кулдаун</small></button>
+      <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
+      <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
+      <button id="testBalanceBtn">💰 +100k<br><small>тест</small></button>
     </section>
+
+    <div id="message"></div>
 
     <form method="post" action="/auth/logout">
       <button class="secondary" type="submit">Выйти</button>
     </form>
   </main>
+
   <script src="/app.js"></script>
 </body>
 </html>
