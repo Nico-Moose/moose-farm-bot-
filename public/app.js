@@ -14,6 +14,7 @@ function formatTime(ms) {
   const totalSeconds = Math.ceil(ms / 1000);
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
+
   return `${m}м ${String(s).padStart(2, '0')}с`;
 }
 
@@ -122,40 +123,19 @@ document.getElementById('testBalanceBtn').addEventListener('click', async () => 
   showMessage(`💰 Добавлено ${formatNumber(data.amount)} тестовых монет.`);
   await loadMe();
 });
+
 document.getElementById('syncWizebotBtn').addEventListener('click', async () => {
-  const raw = prompt(
-    'Вставь JSON из WizeBot для nico_moose:',
-    JSON.stringify({
-      farm: {
-        level: 120,
-        resources: {
-          parts: 0
-        }
-      },
-      farm_balance: 0,
-      upgrade_balance: 0
-    }, null, 2)
-  );
+  showMessage('🔄 Синхронизирую данные WizeBot...');
 
-  if (!raw) return;
-
-  let payload;
-
-  try {
-    payload = JSON.parse(raw);
-  } catch (error) {
-    showMessage('❌ Неверный JSON.');
-    return;
-  }
-
-  const data = await postJson('/api/farm/sync-wizebot', payload);
+  const data = await postJson('/api/farm/sync-wizebot');
 
   if (!data.ok) {
-    showMessage(`❌ Sync ошибка: ${data.error}`);
+    showMessage(`❌ Sync ошибка: ${data.message || data.error}`);
     return;
   }
 
-  showMessage('✅ WizeBot данные синхронизированы для Nico_Moose.');
+  showMessage('✅ WizeBot данные автоматически синхронизированы.');
   await loadMe();
 });
+
 loadMe();
