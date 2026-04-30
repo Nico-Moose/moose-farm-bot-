@@ -1,21 +1,16 @@
+const { getNicoMooseFarmData } = require('./wizebotApiService');
+
 const ALLOWED_LOGIN = 'nico_moose';
 
 function assertAllowedUser(login) {
   return String(login || '').toLowerCase() === ALLOWED_LOGIN;
 }
 
-function syncWizebotFarmToProfile({ login, profile, wizebotData }) {
+function applyWizebotDataToProfile({ login, profile, wizebotData }) {
   if (!assertAllowedUser(login)) {
     return {
       ok: false,
       error: 'sync_allowed_only_for_nico_moose'
-    };
-  }
-
-  if (!wizebotData || typeof wizebotData !== 'object') {
-    return {
-      ok: false,
-      error: 'invalid_wizebot_data'
     };
   }
 
@@ -39,8 +34,26 @@ function syncWizebotFarmToProfile({ login, profile, wizebotData }) {
   };
 }
 
+async function syncWizebotFarmToProfile({ login, profile }) {
+  if (!assertAllowedUser(login)) {
+    return {
+      ok: false,
+      error: 'sync_allowed_only_for_nico_moose'
+    };
+  }
+
+  const wizebotData = await getNicoMooseFarmData();
+
+  return applyWizebotDataToProfile({
+    login,
+    profile,
+    wizebotData
+  });
+}
+
 module.exports = {
   ALLOWED_LOGIN,
   assertAllowedUser,
+  applyWizebotDataToProfile,
   syncWizebotFarmToProfile
 };
