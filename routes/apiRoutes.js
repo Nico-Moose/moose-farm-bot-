@@ -103,7 +103,42 @@ router.post('/farm/test-balance', requireAuth, (req, res) => {
   });
 });
 
-router.post('/farm/sync-wizebot', requireAuth, (req, res) => {
+router.post('/farm/sync-wizebot', requireAuth, async (req, res) => {
+  try {
+    const twitchUser = req.session.twitchUser;
+    const profile = getProfile(twitchUser.id);
+
+    const result = await syncWizebotFarmToProfile({
+      login: twitchUser.login,
+      profile
+    });
+
+    if (!result.ok) {
+      return res.status(403).json(result);
+    }
+
+    const updatedProfile = updateProfile(result.profile);
+
+    logFarmEvent(twitchUser.id, 'sync_wizebot_api', {
+      imported: result.imported
+    });
+
+    res.json({
+      ok: true,
+      profile: updatedProfile,
+      imported: result.imported,
+      nextUpgrade: getNextUpgrade(updatedProfile)
+    });
+  } catch (error) {
+    console.error('[WIZEBOT SYNC] Error:', error);
+
+    res.status(500).json({
+      ok: false,
+      error: 'wizebot_sync_failed',
+      message: error.message
+    });
+  }
+});
   const twitchUser = req.session.twitchUser;
   const profile = getProfile(twitchUser.id);
 
