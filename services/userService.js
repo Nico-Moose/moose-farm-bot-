@@ -1,5 +1,21 @@
 const { getDb } = require('./dbService');
 
+function normalizeProfile(row) {
+  if (!row) return null;
+
+  return {
+    ...row,
+    level: Number(row.level ?? 0),
+    farm_balance: Number(row.farm_balance ?? row.coins ?? 0),
+    upgrade_balance: Number(row.upgrade_balance ?? 0),
+    total_income: Number(row.total_income ?? 0),
+    parts: Number(row.parts ?? 0),
+    last_collect_at: row.last_collect_at ? Number(row.last_collect_at) : null,
+    created_at: Number(row.created_at) || Date.now(),
+    updated_at: Number(row.updated_at) || Date.now(),
+  };
+}
+
 function upsertTwitchUser(user) {
   const db = getDb();
   const now = Date.now();
@@ -28,10 +44,28 @@ function upsertTwitchUser(user) {
     )
     VALUES (?, 0, 0, 0, 0, 0, ?, ?, ?)
   `).run(user.id, now, now, now);
+
+  db.prepare(`
+    UPDATE farm_profiles SET
+      farm_balance = COALESCE(farm_balance, coins, 0),
+      upgrade_balance = COALESCE(upgrade_balance, 0),
+      total_income = COALESCE(total_income, 0),
+      parts = COALESCE(parts, 0),
+      last_collect_at = COALESCE(last_collect_at, ?),
+      created_at = CASE
+        WHEN typeof(created_at) = 'integer' THEN created_at
+        ELSE ?
+      END,
+      updated_at = CASE
+        WHEN typeof(updated_at) = 'integer' THEN updated_at
+        ELSE ?
+      END
+    WHERE twitch_id = ?
+  `).run(now, now, now, user.id);
 }
 
 function getProfile(twitchId) {
-  return getDb().prepare(`
+  const row = getDb().prepare(`
     SELECT
       u.twitch_id,
       u.login,
@@ -39,6 +73,7 @@ function getProfile(twitchId) {
       u.avatar_url,
 
       f.level,
+      f.coins,
       f.farm_balance,
       f.upgrade_balance,
       f.total_income,
@@ -50,9 +85,13 @@ function getProfile(twitchId) {
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE u.twitch_id = ?
   `).get(twitchId);
+
+  return normalizeProfile(row);
 }
 
 function updateProfile(profile) {
+  const safe = normalizeProfile(profile);
+
   getDb().prepare(`
     UPDATE farm_profiles SET
       level = @level,
@@ -64,11 +103,11 @@ function updateProfile(profile) {
       updated_at = @updated_at
     WHERE twitch_id = @twitch_id
   `).run({
-    ...profile,
+    ...safe,
     updated_at: Date.now()
   });
 
-  return getProfile(profile.twitch_id);
+  return getProfile(safe.twitch_id);
 }
 
 function logFarmEvent(twitchId, type, payload = {}) {
