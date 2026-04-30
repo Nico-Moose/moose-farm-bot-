@@ -13,6 +13,10 @@ function normalizeProfile(row) {
     last_collect_at: row.last_collect_at ? Number(row.last_collect_at) : null,
     created_at: Number(row.created_at) || Date.now(),
     updated_at: Number(row.updated_at) || Date.now(),
+    license_level: Number(row.license_level ?? 0),
+    protection_level: Number(row.protection_level ?? 0),
+    raid_power: Number(row.raid_power ?? 0),
+    synced_from_wizebot_at: row.synced_from_wizebot_at ? Number(row.synced_from_wizebot_at) : null,
   };
 }
 
@@ -63,7 +67,6 @@ function getProfile(twitchId) {
       u.login,
       u.display_name,
       u.avatar_url,
-
       f.level,
       f.farm_balance,
       f.upgrade_balance,
@@ -71,11 +74,51 @@ function getProfile(twitchId) {
       f.parts,
       f.last_collect_at,
       f.created_at,
-      f.updated_at
+      f.updated_at,
+      f.farm_json,
+      f.resources_json,
+      f.buildings_json,
+      f.license_level,
+      f.protection_level,
+      f.raid_power,
+      f.turret_json,
+      f.synced_from_wizebot_at
     FROM twitch_users u
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE u.twitch_id = ?
   `).get(twitchId);
+
+  return normalizeProfile(row);
+}
+
+function getProfileByLogin(login) {
+  const row = getDb().prepare(`
+    SELECT
+      u.twitch_id,
+      u.login,
+      u.display_name,
+      u.avatar_url,
+      f.level,
+      f.farm_balance,
+      f.upgrade_balance,
+      f.total_income,
+      f.parts,
+      f.last_collect_at,
+      f.created_at,
+      f.updated_at,
+      f.farm_json,
+      f.resources_json,
+      f.buildings_json,
+      f.license_level,
+      f.protection_level,
+      f.raid_power,
+      f.turret_json,
+      f.synced_from_wizebot_at
+    FROM twitch_users u
+    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+    WHERE lower(u.login) = lower(?)
+    LIMIT 1
+  `).get(login);
 
   return normalizeProfile(row);
 }
@@ -91,11 +134,24 @@ function updateProfile(profile) {
       total_income = @total_income,
       parts = @parts,
       last_collect_at = @last_collect_at,
-      updated_at = @updated_at
+      updated_at = @updated_at,
+      farm_json = @farm_json,
+      resources_json = @resources_json,
+      buildings_json = @buildings_json,
+      license_level = @license_level,
+      protection_level = @protection_level,
+      raid_power = @raid_power,
+      turret_json = @turret_json,
+      synced_from_wizebot_at = @synced_from_wizebot_at
     WHERE twitch_id = @twitch_id
   `).run({
     ...safe,
-    updated_at: Date.now()
+    updated_at: Date.now(),
+    farm_json: safe.farm_json || null,
+    resources_json: safe.resources_json || null,
+    buildings_json: safe.buildings_json || null,
+    turret_json: safe.turret_json || null,
+    synced_from_wizebot_at: safe.synced_from_wizebot_at || null,
   });
 
   return getProfile(safe.twitch_id);
@@ -111,6 +167,7 @@ function logFarmEvent(twitchId, type, payload = {}) {
 module.exports = {
   upsertTwitchUser,
   getProfile,
+  getProfileByLogin,
   updateProfile,
-  logFarmEvent
+  logFarmEvent,
 };

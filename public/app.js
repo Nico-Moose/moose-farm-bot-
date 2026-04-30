@@ -14,12 +14,16 @@ function formatTime(ms) {
   const totalSeconds = Math.ceil(ms / 1000);
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
-
   return `${m}м ${String(s).padStart(2, '0')}с`;
 }
 
 function showMessage(text) {
   document.getElementById('message').textContent = text || '';
+}
+
+function formatSyncTime(ts) {
+  if (!ts) return 'ещё не было';
+  return new Date(Number(ts)).toLocaleString('ru-RU');
 }
 
 function render(data) {
@@ -39,6 +43,9 @@ function render(data) {
         💎 Ап-баланс: <b>${formatNumber(p.upgrade_balance)}</b><br>
         🔧 Запчасти: <b>${formatNumber(p.parts)}</b><br>
         📈 Доход всего: <b>${formatNumber(p.total_income)}</b><br>
+        🛡 Защита: <b>${p.protection_level || 0}</b><br>
+        ⚔️ Рейд-сила: <b>${p.raid_power || 0}</b><br>
+        🔄 WizeBot sync: <b>${formatSyncTime(p.synced_from_wizebot_at)}</b><br>
         ${next ? `⬆️ Следующий уровень ${next.level}: <b>${formatNumber(next.cost)}</b>` : '✅ Максимальный уровень'}
       </div>
     </div>
@@ -70,9 +77,9 @@ async function postJson(url, body = {}) {
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
 
   return res.json();
@@ -125,17 +132,7 @@ document.getElementById('testBalanceBtn').addEventListener('click', async () => 
 });
 
 document.getElementById('syncWizebotBtn').addEventListener('click', async () => {
-  showMessage('🔄 Синхронизирую данные WizeBot...');
-
-  const data = await postJson('/api/farm/sync-wizebot');
-
-  if (!data.ok) {
-    showMessage(`❌ Sync ошибка: ${data.message || data.error}`);
-    return;
-  }
-
-  showMessage('✅ WizeBot данные автоматически синхронизированы.');
-  await loadMe();
+  showMessage('ℹ️ Для синхронизации напиши в Twitch-чате: !синкферма. После ответа WizeBot обнови страницу или нажми F5.');
 });
 
 loadMe();

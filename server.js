@@ -4,14 +4,15 @@ const session = require('express-session');
 const { config } = require('./config');
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
+const bridgeRoutes = require('./routes/bridgeRoutes');
 
 function startWebServer() {
   const app = express();
 
   app.set('trust proxy', 1);
 
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   app.use(session({
     secret: config.sessionSecret,
@@ -20,7 +21,7 @@ function startWebServer() {
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: 'auto', // можно оставить так
+      secure: 'auto',
       maxAge: 1000 * 60 * 60 * 24 * 14,
     },
   }));
@@ -28,6 +29,7 @@ function startWebServer() {
   app.use(express.static(path.join(__dirname, 'public')));
   app.use('/auth', authRoutes);
   app.use('/api', apiRoutes);
+  app.use('/bridge', bridgeRoutes);
 
   app.get('/farm', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'farm.html'));

@@ -3,19 +3,15 @@ const express = require('express');
 const {
   getProfile,
   updateProfile,
-  logFarmEvent
+  logFarmEvent,
 } = require('../services/userService');
 
 const {
   getNextUpgrade,
   upgradeFarm,
   collectFarm,
-  addTestBalance
+  addTestBalance,
 } = require('../services/farmGameService');
-
-const {
-  syncWizebotFarmToProfile
-} = require('../services/wizebotSyncService');
 
 const router = express.Router();
 
@@ -34,7 +30,7 @@ router.get('/me', requireAuth, (req, res) => {
     ok: true,
     user: req.session.twitchUser,
     profile,
-    nextUpgrade: getNextUpgrade(profile)
+    nextUpgrade: getNextUpgrade(profile),
   });
 });
 
@@ -50,7 +46,7 @@ router.post('/farm/collect', requireAuth, (req, res) => {
 
   logFarmEvent(req.session.twitchUser.id, 'collect', {
     income: result.income,
-    minutes: result.minutes
+    minutes: result.minutes,
   });
 
   res.json({
@@ -58,7 +54,7 @@ router.post('/farm/collect', requireAuth, (req, res) => {
     income: result.income,
     minutes: result.minutes,
     profile: updatedProfile,
-    nextUpgrade: getNextUpgrade(updatedProfile)
+    nextUpgrade: getNextUpgrade(updatedProfile),
   });
 });
 
@@ -73,7 +69,7 @@ router.post('/farm/upgrade', requireAuth, (req, res) => {
     logFarmEvent(req.session.twitchUser.id, 'upgrade', {
       requested: count,
       upgraded: result.upgraded,
-      totalCost: result.totalCost
+      totalCost: result.totalCost,
     });
   }
 
@@ -82,7 +78,7 @@ router.post('/farm/upgrade', requireAuth, (req, res) => {
     upgraded: result.upgraded,
     totalCost: result.totalCost,
     profile: updatedProfile,
-    nextUpgrade: getNextUpgrade(updatedProfile)
+    nextUpgrade: getNextUpgrade(updatedProfile),
   });
 });
 
@@ -92,52 +88,23 @@ router.post('/farm/test-balance', requireAuth, (req, res) => {
   const updatedProfile = updateProfile(result.profile);
 
   logFarmEvent(req.session.twitchUser.id, 'test_balance', {
-    amount: result.amount
+    amount: result.amount,
   });
 
   res.json({
     ok: true,
     amount: result.amount,
     profile: updatedProfile,
-    nextUpgrade: getNextUpgrade(updatedProfile)
+    nextUpgrade: getNextUpgrade(updatedProfile),
   });
 });
 
-router.post('/farm/sync-wizebot', requireAuth, async (req, res) => {
-  try {
-    const twitchUser = req.session.twitchUser;
-    const profile = getProfile(twitchUser.id);
-
-    const result = await syncWizebotFarmToProfile({
-      login: twitchUser.login,
-      profile
-    });
-
-    if (!result.ok) {
-      return res.status(403).json(result);
-    }
-
-    const updatedProfile = updateProfile(result.profile);
-
-    logFarmEvent(twitchUser.id, 'sync_wizebot_api', {
-      imported: result.imported
-    });
-
-    res.json({
-      ok: true,
-      profile: updatedProfile,
-      imported: result.imported,
-      nextUpgrade: getNextUpgrade(updatedProfile)
-    });
-  } catch (error) {
-    console.error('[WIZEBOT SYNC] Error:', error);
-
-    res.status(500).json({
-      ok: false,
-      error: 'wizebot_sync_failed',
-      message: error.message
-    });
-  }
+router.post('/farm/sync-wizebot', requireAuth, (req, res) => {
+  res.status(400).json({
+    ok: false,
+    error: 'use_wizebot_bridge_command',
+    message: 'Авто-sync запускается из WizeBot-команды !синкферма. Эта кнопка только подсказывает действие.',
+  });
 });
 
 module.exports = router;
