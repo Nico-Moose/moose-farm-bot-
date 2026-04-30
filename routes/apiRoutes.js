@@ -139,31 +139,5 @@ router.post('/farm/sync-wizebot', requireAuth, async (req, res) => {
     });
   }
 });
-  const twitchUser = req.session.twitchUser;
-  const profile = getProfile(twitchUser.id);
-
-  const result = syncWizebotFarmToProfile({
-    login: twitchUser.login,
-    profile,
-    wizebotData: req.body
-  });
-
-  if (!result.ok) {
-    return res.status(403).json(result);
-  }
-
-  const updatedProfile = updateProfile(result.profile);
-
-  logFarmEvent(twitchUser.id, 'sync_wizebot_manual', {
-    imported: result.imported
-  });
-
-  res.json({
-    ok: true,
-    profile: updatedProfile,
-    imported: result.imported,
-    nextUpgrade: getNextUpgrade(updatedProfile)
-  });
-});
 
 module.exports = router;
