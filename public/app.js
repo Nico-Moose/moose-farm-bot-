@@ -82,11 +82,12 @@ document.getElementById('collectBtn').addEventListener('click', async () => {
 
   if (!data.ok && data.error === 'cooldown') {
     showMessage(`⏳ Сбор будет доступен через ${formatTime(data.remainingMs)}`);
+    await loadMe();
     return;
   }
 
-showMessage(`✅ Собрано: ${formatNumber(data.income)} монет за ${data.minutes} мин.`);
-await loadMe();
+  showMessage(`✅ Собрано: ${formatNumber(data.income)} монет за ${data.minutes} мин.`);
+  await loadMe();
 });
 
 document.getElementById('upgrade1Btn').addEventListener('click', async () => {
@@ -94,12 +95,12 @@ document.getElementById('upgrade1Btn').addEventListener('click', async () => {
 
   if (!data.ok) {
     showMessage('⛔ Не хватает монет для улучшения.');
-    render(data);
+    await loadMe();
     return;
   }
 
- showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost)}`);
-await loadMe();
+  showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost)}`);
+  await loadMe();
 });
 
 document.getElementById('upgrade10Btn').addEventListener('click', async () => {
@@ -107,19 +108,19 @@ document.getElementById('upgrade10Btn').addEventListener('click', async () => {
 
   if (!data.ok) {
     showMessage('⛔ Не хватает монет для улучшения.');
-    render(data);
+    await loadMe();
     return;
   }
 
   showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost)}`);
-await loadMe();
-return;
+  await loadMe();
+});
 
 document.getElementById('testBalanceBtn').addEventListener('click', async () => {
   const data = await postJson('/api/farm/test-balance');
 
   showMessage(`💰 Добавлено ${formatNumber(data.amount)} тестовых монет.`);
-  render(data);
+  await loadMe();
 });
 
 loadMe();
