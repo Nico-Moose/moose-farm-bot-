@@ -15,7 +15,7 @@ function startTwitchChatBot() {
     if (self) return;
     const text = message.trim().toLowerCase();
 
-    if (text === '!ферма' || text === '!farm') {
+ if (text === '!тестферма') {
       const login = tags.username;
       const url = `${config.publicBaseUrl}/?from=${encodeURIComponent(login)}`;
       await client.say(channel, `@${login}, твоя ферма здесь: ${url} 🌱 Войди через Twitch и играй на сайте.`);
