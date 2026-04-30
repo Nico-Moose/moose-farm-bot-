@@ -12,7 +12,7 @@ if (user !== 'nico_moose') {
 }
 
 const BRIDGE_URL = 'https://farm-moose.bothost.tech/bridge/wizebot-sync';
-const BRIDGE_SECRET = 'PASTE_YOUR_WIZEBOT_BRIDGE_SECRET_HERE';
+let SECRET = "moose_super_secret_2026";
 
 function readVar(key, fallback) {
   let val = JS.wizebot.get_var(key);
