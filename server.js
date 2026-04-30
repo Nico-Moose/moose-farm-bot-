@@ -9,6 +9,8 @@ const apiRoutes = require('./routes/apiRoutes');
 function startWebServer() {
   const app = express();
 
+  app.set('trust proxy', 1);
+
   app.use(cookieParser());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -19,7 +21,7 @@ function startWebServer() {
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: config.publicBaseUrl.startsWith('https://'),
+      secure: 'auto',
       maxAge: 1000 * 60 * 60 * 24 * 14,
     },
   }));
