@@ -12,39 +12,77 @@ function parseMaybeJson(value) {
   }
 }
 
-async function getCustomData(key) {
+async function getCustomDataRaw(key) {
   if (!config.wizebot?.apiKey) {
     throw new Error('WIZEBOT_API_KEY is missing');
   }
 
   const url = `${WIZEBOT_API_BASE}/custom-data/${config.wizebot.apiKey}/get/${encodeURIComponent(key)}`;
   const res = await fetch(url);
-  const data = await res.json();
+  const text = await res.text();
 
-  if (!data.success) {
-    throw new Error(`WizeBot custom-data get failed: ${key}`);
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = { success: false, raw: text };
   }
 
-  return parseMaybeJson(data.val);
+  console.log('[WIZEBOT GET]', key, data);
+
+  return data;
+}
+
+async function getCustomDataFirst(keys) {
+  const errors = [];
+
+  for (const key of keys) {
+    const data = await getCustomDataRaw(key);
+
+    if (data.success) {
+      return {
+        key,
+        value: parseMaybeJson(data.val)
+      };
+    }
+
+    errors.push({ key, data });
+  }
+
+  const err = new Error(`WizeBot custom-data not found: ${keys.join(', ')}`);
+  err.details = errors;
+  throw err;
 }
 
 async function getNicoMooseFarmData() {
-  const user = 'nico_moose';
+  const userVariants = [
+    'nico_moose',
+    'Nico_Moose',
+    'nico_Moose',
+    'NICO_MOOSE'
+  ];
 
-  const [farm, farmBalance, upgradeBalance] = await Promise.all([
-    getCustomData(`farm_${user}`),
-    getCustomData(`farm_virtual_balance_${user}`),
-    getCustomData(`farm_upgrade_balance_${user}`)
-  ]);
+  const farmKeys = userVariants.map((u) => `farm_${u}`);
+  const farmBalanceKeys = userVariants.map((u) => `farm_virtual_balance_${u}`);
+  const upgradeBalanceKeys = userVariants.map((u) => `farm_upgrade_balance_${u}`);
+
+  const farmResult = await getCustomDataFirst(farmKeys);
+  const farmBalanceResult = await getCustomDataFirst(farmBalanceKeys);
+  const upgradeBalanceResult = await getCustomDataFirst(upgradeBalanceKeys);
 
   return {
-    farm,
-    farm_balance: Number(farmBalance || 0),
-    upgrade_balance: Number(upgradeBalance || 0)
+    farm: farmResult.value,
+    farm_balance: Number(farmBalanceResult.value || 0),
+    upgrade_balance: Number(upgradeBalanceResult.value || 0),
+    foundKeys: {
+      farm: farmResult.key,
+      farm_balance: farmBalanceResult.key,
+      upgrade_balance: upgradeBalanceResult.key
+    }
   };
 }
 
 module.exports = {
-  getCustomData,
+  getCustomDataRaw,
   getNicoMooseFarmData
 };
