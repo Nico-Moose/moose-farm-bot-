@@ -6,7 +6,7 @@ function normalizeProfile(row) {
   return {
     ...row,
     level: Number(row.level ?? 0),
-    farm_balance: Number(row.farm_balance ?? row.coins ?? 0),
+    farm_balance: Number(row.farm_balance ?? 0),
     upgrade_balance: Number(row.upgrade_balance ?? 0),
     total_income: Number(row.total_income ?? 0),
     parts: Number(row.parts ?? 0),
@@ -47,21 +47,13 @@ function upsertTwitchUser(user) {
 
   db.prepare(`
     UPDATE farm_profiles SET
-      farm_balance = COALESCE(farm_balance, coins, 0),
+      farm_balance = COALESCE(farm_balance, 0),
       upgrade_balance = COALESCE(upgrade_balance, 0),
       total_income = COALESCE(total_income, 0),
       parts = COALESCE(parts, 0),
-      last_collect_at = COALESCE(last_collect_at, ?),
-      created_at = CASE
-        WHEN typeof(created_at) = 'integer' THEN created_at
-        ELSE ?
-      END,
-      updated_at = CASE
-        WHEN typeof(updated_at) = 'integer' THEN updated_at
-        ELSE ?
-      END
+      last_collect_at = COALESCE(last_collect_at, ?)
     WHERE twitch_id = ?
-  `).run(now, now, now, user.id);
+  `).run(now, user.id);
 }
 
 function getProfile(twitchId) {
@@ -73,7 +65,6 @@ function getProfile(twitchId) {
       u.avatar_url,
 
       f.level,
-      f.coins,
       f.farm_balance,
       f.upgrade_balance,
       f.total_income,
