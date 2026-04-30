@@ -1,15 +1,14 @@
 {
-  "name": "moose-farm-bot",
+  "name": "moose-farm-system",
   "version": "1.0.0",
-  "description": "Twitch chat bot + web login starter for Moose Farm",
+  "description": "Moose Farm System - separate SQLite website farm",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node --watch index.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.9.1",
-    "cookie-parser": "^1.4.7",
+    "better-sqlite3": "^11.8.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
