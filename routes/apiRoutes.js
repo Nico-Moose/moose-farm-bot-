@@ -1,7 +1,7 @@
 const express = require('express');
 const { getProfile, updateProfile, logFarmEvent } = require('../services/userService');
 const { getNextUpgrade, upgradeFarm, collectFarm, addTestBalance } = require('../services/farmGameService');
-
+const { syncWizebotFarmToProfile } = require('../services/wizebotSyncService');
 const router = express.Router();
 
 function requireAuth(req, res, next) {
