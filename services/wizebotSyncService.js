@@ -4,12 +4,6 @@ function assertAllowedUser(login) {
   return String(login || '').toLowerCase() === ALLOWED_LOGIN;
 }
 
-/**
- * ВАЖНО:
- * Сейчас это безопасный ручной sync.
- * Он НЕ подключается к WizeBot сам.
- * Ты вставляешь данные старой фермы, а сайт переносит их в SQLite только для nico_moose.
- */
 function syncWizebotFarmToProfile({ login, profile, wizebotData }) {
   if (!assertAllowedUser(login)) {
     return {
