@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Моя ферма — Moose Farm</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>🌾 Моя ферма</h1>
+    <div id="profile">Загрузка...</div>
+
+    <section class="farm-grid">
+      <button disabled>🌱 Посадить<br><small>скоро</small></button>
+      <button disabled>💧 Полить<br><small>скоро</small></button>
+      <button disabled>🧺 Собрать<br><small>скоро</small></button>
+      <button disabled>⬆️ Улучшить<br><small>скоро</small></button>
+    </section>
+
+    <form method="post" action="/auth/logout">
+      <button class="secondary" type="submit">Выйти</button>
+    </form>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
