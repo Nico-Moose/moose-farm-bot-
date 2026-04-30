@@ -85,8 +85,8 @@ document.getElementById('collectBtn').addEventListener('click', async () => {
     return;
   }
 
-  showMessage(`✅ Собрано: ${formatNumber(data.income)} монет за ${data.minutes} мин.`);
-  render(data);
+showMessage(`✅ Собрано: ${formatNumber(data.income)} монет за ${data.minutes} мин.`);
+await loadMe();
 });
 
 document.getElementById('upgrade1Btn').addEventListener('click', async () => {
@@ -98,8 +98,8 @@ document.getElementById('upgrade1Btn').addEventListener('click', async () => {
     return;
   }
 
-  showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost)}`);
-  render(data);
+ showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost)}`);
+await loadMe();
 });
 
 document.getElementById('upgrade10Btn').addEventListener('click', async () => {
@@ -112,8 +112,8 @@ document.getElementById('upgrade10Btn').addEventListener('click', async () => {
   }
 
   showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost)}`);
-  render(data);
-});
+await loadMe();
+return;
 
 document.getElementById('testBalanceBtn').addEventListener('click', async () => {
   const data = await postJson('/api/farm/test-balance');
