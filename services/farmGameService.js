@@ -4,52 +4,33 @@ const COLLECT_COOLDOWN_MS = 60 * 60 * 1000;
 
 function calcUpgradeCost(lvl) {
   if (lvl < 30) return 75 * lvl;
-
-  if (lvl < 60) {
-    return 75 * lvl + 5000 + (lvl - 30) * 400;
-  }
-
-  if (lvl === 60) {
-    return 300 * lvl + 1500;
-  }
-
-  if (lvl < 80) {
-    return 300 * 60 + 1500 + (lvl - 60) * 500;
-  }
-
-  if (lvl === 80) {
-    return 300 * 60 + 1500 + 20 * 500 + 2000;
-  }
-
-  if (lvl < 100) {
-    return 300 * 60 + 1500 + 20 * 500 + 2000 + (lvl - 80) * 1000;
-  }
-
-  if (lvl === 100) {
-    return 300 * 60 + 1500 + 20 * 500 + 2000 + 20 * 1000 + 1500;
-  }
+  if (lvl < 60) return 75 * lvl + 5000 + (lvl - 30) * 400;
+  if (lvl === 60) return 300 * lvl + 1500;
+  if (lvl < 80) return 300 * 60 + 1500 + (lvl - 60) * 500;
+  if (lvl === 80) return 300 * 60 + 1500 + 20 * 500 + 2000;
+  if (lvl < 100) return 300 * 60 + 1500 + 20 * 500 + 2000 + (lvl - 80) * 1000;
+  if (lvl === 100) return 300 * 60 + 1500 + 20 * 500 + 2000 + 20 * 1000 + 1500;
 
   return 300 * 60 + 1500 + 20 * 500 + 2000 + 20 * 1000 + 2000 + (lvl - 100) * 3000;
 }
 
 function getNextUpgrade(profile) {
-  if (!profile || profile.level >= MAX_LEVEL) {
-    return null;
-  }
+  if (!profile || profile.level >= MAX_LEVEL) return null;
 
-  const nextLevel = profile.level + 1;
+  const level = profile.level + 1;
 
   return {
-    level: nextLevel,
-    cost: calcUpgradeCost(nextLevel)
+    level,
+    cost: calcUpgradeCost(level)
   };
 }
 
 function upgradeFarm(profile, count = 1) {
-  const wanted = Math.min(
-    Math.max(parseInt(count, 10) || 1, 1),
-    MAX_UPGRADE_PER_CLICK
-  );
+  profile.level = Number(profile.level || 0);
+  profile.farm_balance = Number(profile.farm_balance || 0);
+  profile.upgrade_balance = Number(profile.upgrade_balance || 0);
+
+  const wanted = Math.min(Math.max(parseInt(count, 10) || 1, 1), MAX_UPGRADE_PER_CLICK);
 
   let upgraded = 0;
   let totalCost = 0;
@@ -58,8 +39,7 @@ function upgradeFarm(profile, count = 1) {
     const nextLevel = profile.level + 1;
     const cost = calcUpgradeCost(nextLevel);
 
-    let available = profile.farm_balance + profile.upgrade_balance;
-    if (available < cost) break;
+    if (profile.farm_balance + profile.upgrade_balance < cost) break;
 
     let need = cost;
 
@@ -71,8 +51,6 @@ function upgradeFarm(profile, count = 1) {
     profile.upgrade_balance -= fromUpgrade;
     need -= fromUpgrade;
 
-    if (need > 0) break;
-
     profile.level = nextLevel;
     totalCost += cost;
     upgraded++;
@@ -82,13 +60,16 @@ function upgradeFarm(profile, count = 1) {
     ok: upgraded > 0,
     upgraded,
     totalCost,
-    profile,
-    nextUpgrade: getNextUpgrade(profile)
+    profile
   };
 }
 
 function collectFarm(profile, now = Date.now()) {
-  const last = profile.last_collect_at || profile.created_at || now;
+  profile.level = Number(profile.level || 0);
+  profile.farm_balance = Number(profile.farm_balance || 0);
+  profile.total_income = Number(profile.total_income || 0);
+
+  const last = Number(profile.last_collect_at || profile.created_at || now);
   const diff = now - last;
 
   if (diff < COLLECT_COOLDOWN_MS) {
@@ -115,6 +96,7 @@ function collectFarm(profile, now = Date.now()) {
 }
 
 function addTestBalance(profile, amount = 100000) {
+  profile.farm_balance = Number(profile.farm_balance || 0);
   profile.farm_balance += amount;
 
   return {
