@@ -13,6 +13,10 @@ const config = {
     clientSecret: process.env.TWITCH_CLIENT_SECRET,
     redirectUri: process.env.TWITCH_REDIRECT_URI,
   },
+  wizebot: {
+    apiKey: process.env.WIZEBOT_API_KEY,
+    apiKeyRw: process.env.WIZEBOT_API_KEY_RW
+  }
 };
 
 function validateConfig() {
