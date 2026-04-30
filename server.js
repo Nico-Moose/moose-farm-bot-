@@ -1,7 +1,6 @@
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
-const cookieParser = require('cookie-parser');
 const { config } = require('./config');
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
@@ -11,9 +10,9 @@ function startWebServer() {
 
   app.set('trust proxy', 1);
 
-  app.use(cookieParser());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
   app.use(session({
     secret: config.sessionSecret,
     resave: false,
@@ -21,7 +20,7 @@ function startWebServer() {
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: 'auto',
+      secure: 'auto', // можно оставить так
       maxAge: 1000 * 60 * 60 * 24 * 14,
     },
   }));
