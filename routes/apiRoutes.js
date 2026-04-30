@@ -1,16 +1,6 @@
 const express = require('express');
-const {
-  getProfile,
-  updateProfile,
-  logFarmEvent
-} = require('../services/userService');
-
-const {
-  getNextUpgrade,
-  upgradeFarm,
-  collectFarm,
-  addTestBalance
-} = require('../services/farmGameService');
+const { getProfile, updateProfile, logFarmEvent } = require('../services/userService');
+const { getNextUpgrade, upgradeFarm, collectFarm, addTestBalance } = require('../services/farmGameService');
 
 const router = express.Router();
 
@@ -18,7 +8,6 @@ function requireAuth(req, res, next) {
   if (!req.session.twitchUser) {
     return res.status(401).json({ ok: false, error: 'not_logged_in' });
   }
-
   next();
 }
 
