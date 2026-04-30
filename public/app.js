@@ -122,5 +122,40 @@ document.getElementById('testBalanceBtn').addEventListener('click', async () => 
   showMessage(`💰 Добавлено ${formatNumber(data.amount)} тестовых монет.`);
   await loadMe();
 });
+document.getElementById('syncWizebotBtn').addEventListener('click', async () => {
+  const raw = prompt(
+    'Вставь JSON из WizeBot для nico_moose:',
+    JSON.stringify({
+      farm: {
+        level: 120,
+        resources: {
+          parts: 0
+        }
+      },
+      farm_balance: 0,
+      upgrade_balance: 0
+    }, null, 2)
+  );
 
+  if (!raw) return;
+
+  let payload;
+
+  try {
+    payload = JSON.parse(raw);
+  } catch (error) {
+    showMessage('❌ Неверный JSON.');
+    return;
+  }
+
+  const data = await postJson('/api/farm/sync-wizebot', payload);
+
+  if (!data.ok) {
+    showMessage(`❌ Sync ошибка: ${data.error}`);
+    return;
+  }
+
+  showMessage('✅ WizeBot данные синхронизированы для Nico_Moose.');
+  await loadMe();
+});
 loadMe();
