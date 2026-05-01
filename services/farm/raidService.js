@@ -1,14 +1,17 @@
 const { ensureFarmShape } = require('./profileShape');
 const { num } = require('./numberUtils');
 const { getTurretState } = require('./turretService');
+const { WIZEBOT } = require('./economyConfig');
+const { estimateHourlyIncome } = require('./incomeService');
+const { getProtectionPercent } = require('./economyMath');
 
-const RAID_COOLDOWN_MS = 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const PROTECTED_USERS = ['nico_moose', 'zhelizabethsm949', 'enotikpalaskyn01'];
 
 function getRaidCooldown(profile) {
   ensureFarmShape(profile);
   const centerLevel = num(profile.farm.buildings?.центр, 0);
-  const minutes = 60 - Math.min(centerLevel * 5, 45);
+  const minutes = WIZEBOT.RAID_BASE_COOLDOWN_MINUTES - Math.min(centerLevel * 5, WIZEBOT.RAID_CENTER_MAX_REDUCTION_MINUTES);
   return minutes * 60 * 1000;
 }
 
@@ -25,38 +28,27 @@ function getRaidStatus(profile) {
   };
 }
 
-function estimateHourlyIncome(profile) {
-  ensureFarmShape(profile);
-  const level = num(profile.level, 0);
-  const buildingsConf = profile.configs.buildings || {};
-  let buildingIncome = 0;
-
-  for (const [key, lvlRaw] of Object.entries(profile.farm.buildings || {})) {
-    const lvl = num(lvlRaw, 0);
-    const conf = buildingsConf[key];
-    if (!conf || lvl <= 0) continue;
-    if (conf.coinsPerHour) buildingIncome += num(conf.coinsPerHour, 0) * lvl;
-    if (conf.coinsPerLevel) buildingIncome += num(conf.coinsPerLevel, 0) * lvl;
-  }
-
-  let harvest = 0;
-  for (const p of profile.configs.plants || []) {
-    if (level >= num(p.level, 0)) harvest += (num(p.base, 0) + num(p.perLevel, 0) * Math.max(0, level - 1)) * num(p.multiplier, 0);
-  }
-  for (const a of profile.configs.animals || []) {
-    if (level >= num(a.level, 0)) harvest += (num(a.base, 0) + num(a.perLevel, 0) * Math.max(0, level - 1)) * num(a.multiplier, 0);
-  }
-
-  return Math.floor(level * 2 + buildingIncome + harvest);
+function nick(profile) {
+  return String(profile.login || profile.display_name || profile.twitch_id || '').toLowerCase();
 }
 
-function chooseTarget(attacker, candidates) {
-  const filtered = candidates.filter((p) => p.twitch_id !== attacker.twitch_id && num(p.level, 0) >= 60);
+function chooseTarget(attacker, candidates, now = Date.now()) {
+  const attackerNick = nick(attacker);
+  const filtered = candidates.filter((p) => {
+    ensureFarmShape(p);
+    const pNick = nick(p);
+    const shieldUntil = num(p.farm.shieldUntil || p.farm.shield_until, 0);
+    return p.twitch_id !== attacker.twitch_id &&
+      num(p.level, 0) >= 60 &&
+      pNick !== attackerNick &&
+      !PROTECTED_USERS.includes(pNick) &&
+      shieldUntil < now;
+  });
   if (!filtered.length) return null;
 
   const weighted = [];
   filtered
-    .map((p) => ({ profile: p, total: num(p.farm_balance, 0) + num(p.upgrade_balance, 0) }))
+    .map((p) => ({ profile: p, total: num(p.farm_balance, 0) + num(p.twitch_balance, 0) + num(p.upgrade_balance, 0) }))
     .sort((a, b) => b.total - a.total)
     .forEach((entry, index) => {
       let weight = 1;
@@ -65,12 +57,74 @@ function chooseTarget(attacker, candidates) {
       else if (index === 2) weight = 5;
       else if (index === 3) weight = 3.5;
       else if (index === 4) weight = 3.2;
-      else if (index < 10) weight = 2;
+      else if (index === 5) weight = 3.0;
+      else if (index === 6) weight = 2.6;
+      else if (index === 7) weight = 2.4;
+      else if (index === 8) weight = 2.2;
+      else if (index === 9) weight = 2;
       if (entry.total < 0) weight /= 8;
       for (let i = 0; i < Math.max(1, Math.round(weight * 10)); i++) weighted.push(entry.profile);
     });
 
   return weighted[Math.floor(Math.random() * weighted.length)] || filtered[0];
+}
+
+function getInactiveMs(profile, now) {
+  return now - num(profile.farm.lastWithdrawAt || profile.last_collect_at || profile.created_at || now, now);
+}
+
+function getPunishMultiplier(target, baseIncome, now) {
+  let punishMult = 1;
+  if (baseIncome < 1000) punishMult = Math.max(punishMult, 6);
+
+  const inactive = getInactiveMs(target, now);
+  if (inactive > 4 * WEEK_MS) punishMult = Math.max(punishMult, 8);
+  else if (inactive > 3 * WEEK_MS) punishMult = Math.max(punishMult, 6);
+  else if (inactive > 2 * WEEK_MS) punishMult = Math.max(punishMult, 4);
+  else if (inactive > WEEK_MS) punishMult = Math.max(punishMult, 2);
+
+  const permUsers = Array.isArray(target.farm.activePermUsers) ? target.farm.activePermUsers : [];
+  if (permUsers.includes(nick(target))) punishMult = Math.max(punishMult, 8);
+  return punishMult;
+}
+
+function getBonusRaid(target, attackerEfficiency) {
+  const buildings = target.farm.buildings || {};
+  const zavodLvl = num(buildings['завод'], 0);
+  const fabrikaLvl = num(buildings['фабрика'], 0);
+  const mineLvl = num(buildings['шахта'], 0);
+  const zavodBonus = zavodLvl * 2000;
+  const fabrikaBonus = fabrikaLvl * 4000;
+  const mineBonus = Math.floor((zavodBonus + fabrikaBonus) * (mineLvl / 100));
+  const total = zavodBonus + fabrikaBonus + mineBonus;
+  const percent = Math.floor(attackerEfficiency / 5);
+  return Math.floor(total * (percent / 100));
+}
+
+function applyTurretPenalty(attacker, target, income, targetTurret, turretChance) {
+  const turretTriggered = targetTurret.level > 0 && Math.random() * 100 <= turretChance;
+  if (!turretTriggered) {
+    return { turretTriggered: false, turretPenalty: 0, killedByTurret: false, shieldReduce: 0 };
+  }
+
+  const lossPercent = WIZEBOT.TURRET_PENALTIES[targetTurret.level - 1] || 0;
+  const rawLoss = Math.floor(income * lossPercent);
+  const attackerProtectionPercent = getProtectionPercent(attacker.protection_level);
+  let loss = Math.floor(rawLoss * (1 - attackerProtectionPercent / 100));
+  if (loss < 0) loss = 0;
+
+  const attackerShield = num(attacker.farm.resources?.shield, 0);
+  const shieldReduce = Math.min(loss, attackerShield);
+  loss -= shieldReduce;
+  attacker.farm.resources.shield = attackerShield - shieldReduce;
+  attacker.farm_balance = num(attacker.farm_balance, 0) - loss;
+
+  return {
+    turretTriggered: true,
+    turretPenalty: loss,
+    killedByTurret: loss >= income && income > 0,
+    shieldReduce
+  };
 }
 
 function performRaid(attacker, candidates) {
@@ -79,79 +133,74 @@ function performRaid(attacker, candidates) {
   if (!status.unlocked) return { ok: false, error: 'farm_level_too_low', requiredLevel: 30, attacker };
   if (status.remainingMs > 0) return { ok: false, error: 'cooldown', remainingMs: status.remainingMs, attacker };
 
-  const target = chooseTarget(attacker, candidates.map((p) => ensureFarmShape(p)));
+  const now = Date.now();
+  const normalizedCandidates = candidates.map((p) => ensureFarmShape(p));
+  const target = chooseTarget(attacker, normalizedCandidates, now);
   if (!target) return { ok: false, error: 'no_targets', attacker };
 
-  const now = Date.now();
   const attackerLevel = num(attacker.level, 0);
-  const raidPower = num(attacker.raid_power, 0);
-  const weaponBonus = num(attacker.farm.resources.weapon, 0);
+  const raidBoost = num(attacker.raid_power, 0);
+  const weaponBonus = num(attacker.farm.resources?.weapon, 0);
   attacker.farm.resources.weapon = 0;
 
-  const efficiency = Math.min(attackerLevel, 200) + Math.min(raidPower, 200) + weaponBonus;
-  let multiplier = Math.max(0.01, efficiency / 100);
-  let baseIncome = estimateHourlyIncome(target);
-  let punishMult = baseIncome < 1000 ? 6 : 1;
-
-  const lastCollect = num(target.last_collect_at || target.farm.lastWithdrawAt, 0);
-  const inactive = lastCollect ? now - lastCollect : 0;
-  if (inactive > 4 * WEEK_MS) punishMult = Math.max(punishMult, 8);
-  else if (inactive > 3 * WEEK_MS) punishMult = Math.max(punishMult, 6);
-  else if (inactive > 2 * WEEK_MS) punishMult = Math.max(punishMult, 4);
-  else if (inactive > WEEK_MS) punishMult = Math.max(punishMult, 2);
-
-  let stolen = Math.floor(baseIncome * multiplier * punishMult);
-  const protectionPercent = num(target.protection_level, 0) * 0.5;
+  const efficiency = Math.min(attackerLevel, 200) + Math.min(raidBoost, 200) + weaponBonus;
+  const raidMultiplier = efficiency / 100;
+  const baseIncome = estimateHourlyIncome(target);
+  const punishMult = getPunishMultiplier(target, baseIncome, now);
+  const inactive = getInactiveMs(target, now);
   const ignoreProtection = inactive > 4 * WEEK_MS;
+
+  let income = Math.floor(baseIncome * raidMultiplier * punishMult);
+
   let blockedByProtection = 0;
+  const protectionPercent = getProtectionPercent(target.protection_level);
   if (!ignoreProtection && protectionPercent > 0) {
-    blockedByProtection = Math.floor(stolen * (protectionPercent / 100));
-    stolen -= blockedByProtection;
+    blockedByProtection = Math.floor(income * (protectionPercent / 100));
+    income -= blockedByProtection;
   }
 
   let shieldUsed = 0;
   if (!ignoreProtection) {
-    const shield = num(target.farm.resources.shield, 0);
-    shieldUsed = Math.min(shield, stolen);
-    stolen -= shieldUsed;
+    const shield = num(target.farm.resources?.shield, 0);
+    shieldUsed = Math.min(income, shield);
+    income -= shieldUsed;
     target.farm.resources.shield = shield - shieldUsed;
   }
 
   const targetTurret = getTurretState(target);
-  const jammerLevel = num(attacker.farm.buildings?.глушилка, 0);
+  const jammerLevel = num(attacker.farm.buildings?.['глушилка'], 0);
   let turretChance = ignoreProtection ? 0 : Math.max(0, targetTurret.chance - jammerLevel * 5);
   turretChance = Math.min(100, turretChance);
-  const turretTriggered = targetTurret.level > 0 && Math.random() * 100 <= turretChance;
+  const turret = applyTurretPenalty(attacker, target, income, targetTurret, turretChance);
 
-  let turretPenalty = 0;
-  let killedByTurret = false;
-  if (turretTriggered) {
-    const penalties = [0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.60,0.70,0.80,0.90,1.00,1.10,1.25,1.50,1.75,2.00];
-    turretPenalty = Math.floor(stolen * (penalties[targetTurret.level - 1] || 0));
-    const attackerProtection = num(attacker.protection_level, 0) * 0.5;
-    turretPenalty = Math.floor(turretPenalty * (1 - attackerProtection / 100));
-    attacker.farm_balance = num(attacker.farm_balance, 0) - turretPenalty;
-    killedByTurret = turretPenalty >= stolen && stolen > 0;
-    if (killedByTurret) stolen = 0;
-  }
+  let stolen = Math.max(0, income);
+  if (turret.killedByTurret) stolen = 0;
 
-  stolen = Math.max(0, stolen);
+  const bonusStolen = getBonusRaid(target, efficiency);
+  const actualBonusStolen = turret.killedByTurret ? 0 : bonusStolen;
+
   target.farm_balance = num(target.farm_balance, 0) - stolen;
   attacker.farm_balance = num(attacker.farm_balance, 0) + stolen;
+
+  target.upgrade_balance = num(target.upgrade_balance, 0) - actualBonusStolen;
+  attacker.upgrade_balance = num(attacker.upgrade_balance, 0) + actualBonusStolen;
   attacker.farm.lastRaidAt = now;
 
   const log = {
     timestamp: now,
-    attacker: attacker.login || attacker.display_name || attacker.twitch_id,
-    target: target.login || target.display_name || target.twitch_id,
+    attacker: nick(attacker),
+    target: nick(target),
     strength: efficiency,
     punish_mult: punishMult,
     base_income: baseIncome,
     stolen,
     blocked: blockedByProtection + shieldUsed,
+    turret_refund: turret.turretPenalty,
+    bonus_stolen: actualBonusStolen,
+    turret_bonus: 0,
     turret_chance: turretChance,
-    turret_penalty: turretPenalty,
-    killed_by_turret: killedByTurret
+    killed_by_turret: turret.killedByTurret,
+    ignore_protection: ignoreProtection
   };
 
   attacker.farm.raidLogs = Array.isArray(attacker.farm.raidLogs) ? attacker.farm.raidLogs : [];
@@ -165,8 +214,10 @@ function performRaid(attacker, candidates) {
 }
 
 module.exports = {
-  RAID_COOLDOWN_MS,
+  RAID_COOLDOWN_MS: WIZEBOT.RAID_BASE_COOLDOWN_MINUTES * 60 * 1000,
+  WEEK_MS,
   getRaidStatus,
+  getRaidCooldown,
   estimateHourlyIncome,
   performRaid
 };

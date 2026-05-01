@@ -1,21 +1,8 @@
 const { ensureFarmShape } = require('./profileShape');
 const { num } = require('./numberUtils');
-const { spendCoins, spendParts } = require('./paymentService');
-
-const MAX_LEVEL = 120;
-const MAX_UPGRADE_PER_CLICK = 40;
-
-function calcUpgradeCost(lvl) {
-  if (lvl < 30) return 75 * lvl;
-  if (lvl < 60) return 75 * lvl + 5000 + (lvl - 30) * 400;
-  if (lvl === 60) return 300 * lvl + 1500;
-  if (lvl < 80) return 300 * 60 + 1500 + (lvl - 60) * 500;
-  if (lvl === 80) return 300 * 60 + 1500 + 20 * 500 + 2000;
-  if (lvl < 100) return 300 * 60 + 1500 + 20 * 500 + 2000 + (lvl - 80) * 1000;
-  if (lvl === 100) return 300 * 60 + 1500 + 20 * 500 + 2000 + 20 * 1000 + 1500;
-
-  return 300 * 60 + 1500 + 20 * 500 + 2000 + 20 * 1000 + 2000 + (lvl - 100) * 3000;
-}
+const { spendCoins, spendParts, getWallet } = require('./walletService');
+const { WIZEBOT } = require('./economyConfig');
+const { calcFarmUpgradeCost } = require('./economyMath');
 
 function getPartsRequired(profile, level) {
   const required = profile?.configs?.parts_required || {};
@@ -34,97 +21,94 @@ function isLicenseRequired(profile, level) {
 function getNextUpgrade(profile) {
   if (!profile) return null;
   ensureFarmShape(profile);
-
-  if (num(profile.level, 0) >= MAX_LEVEL) return null;
-
+  if (num(profile.level, 0) >= WIZEBOT.MAX_FARM_LEVEL) return null;
   const level = num(profile.level, 0) + 1;
-
+  const cost = calcFarmUpgradeCost(level);
+  const parts = getPartsRequired(profile, level);
+  const wallet = getWallet(profile);
   return {
     level,
-    cost: calcUpgradeCost(level),
-    parts: getPartsRequired(profile, level),
+    cost,
+    parts,
     licenseRequired: isLicenseRequired(profile, level),
     licenseCost: getLicenseCost(profile, level),
-    currentLicense: num(profile.license_level, 0)
+    currentLicense: num(profile.license_level, 0),
+    availableCoins: wallet.total,
+    availableParts: wallet.parts,
+    missingCoins: Math.max(0, cost - wallet.total),
+    missingParts: Math.max(0, parts - wallet.parts)
   };
 }
 
 function upgradeFarm(profile, count = 1) {
   ensureFarmShape(profile);
-
-  const wanted = Math.min(
-    Math.max(parseInt(count, 10) || 1, 1),
-    MAX_UPGRADE_PER_CLICK
-  );
-
+  const wanted = Math.min(Math.max(parseInt(count, 10) || 1, 1), WIZEBOT.MAX_FARM_UPGRADE_PER_ACTION);
   let upgraded = 0;
   let totalCost = 0;
   let totalParts = 0;
   let stopReason = null;
   let requiredLicense = null;
+  let lastNeed = null;
+  let spent = { farm_balance: 0, twitch_balance: 0, upgrade_balance: 0 };
 
-  while (upgraded < wanted && profile.level < MAX_LEVEL) {
-    const nextLevel = profile.level + 1;
-    const cost = calcUpgradeCost(nextLevel);
+  while (upgraded < wanted && num(profile.level, 0) < WIZEBOT.MAX_FARM_LEVEL) {
+    const nextLevel = num(profile.level, 0) + 1;
+    const cost = calcFarmUpgradeCost(nextLevel);
     const partsNeed = getPartsRequired(profile, nextLevel);
+    const wallet = getWallet(profile);
+    lastNeed = { level: nextLevel, cost, parts: partsNeed, wallet };
 
     if (isLicenseRequired(profile, nextLevel)) {
       stopReason = 'license_required';
-      requiredLicense = {
-        level: nextLevel,
-        cost: getLicenseCost(profile, nextLevel),
-        current: num(profile.license_level, 0)
-      };
+      requiredLicense = { level: nextLevel, cost: getLicenseCost(profile, nextLevel), current: num(profile.license_level, 0) };
       break;
     }
+    if (wallet.parts < partsNeed) { stopReason = 'not_enough_parts'; break; }
+    if (wallet.total < cost) { stopReason = 'not_enough_money'; break; }
 
-    if (num(profile.parts, 0) < partsNeed) {
-      stopReason = 'not_enough_parts';
-      break;
-    }
-
-    const available = num(profile.farm_balance, 0) + num(profile.upgrade_balance, 0);
-    if (available < cost) {
-      stopReason = 'not_enough_money';
-      break;
-    }
-
-    const coinResult = spendCoins(profile, cost);
-    if (!coinResult.ok) {
-      stopReason = 'not_enough_money';
-      break;
-    }
-
+    const coinResult = spendCoins(profile, cost, { mode: 'farm_upgrade' });
+    if (!coinResult.ok) { stopReason = 'not_enough_money'; break; }
     const partsResult = spendParts(profile, partsNeed);
-    if (!partsResult.ok) {
-      stopReason = 'not_enough_parts';
-      break;
-    }
+    if (!partsResult.ok) { stopReason = 'not_enough_parts'; break; }
 
+    spent.farm_balance += coinResult.spent.farm_balance;
+    spent.twitch_balance += coinResult.spent.twitch_balance;
+    spent.upgrade_balance += coinResult.spent.upgrade_balance;
     profile.level = nextLevel;
     profile.farm.level = nextLevel;
-
     totalCost += cost;
     totalParts += partsNeed;
     upgraded++;
   }
 
+  const wallet = getWallet(profile);
   return {
     ok: upgraded > 0,
     upgraded,
     totalCost,
     totalParts,
+    spent,
     stopReason,
     requiredLicense,
+    needed: lastNeed ? {
+      level: lastNeed.level,
+      cost: lastNeed.cost,
+      parts: lastNeed.parts,
+      availableCoins: lastNeed.wallet.total,
+      availableParts: lastNeed.wallet.parts,
+      missingCoins: Math.max(0, lastNeed.cost - lastNeed.wallet.total),
+      missingParts: Math.max(0, lastNeed.parts - lastNeed.wallet.parts)
+    } : null,
+    wallet,
     profile,
     nextUpgrade: getNextUpgrade(profile)
   };
 }
 
 module.exports = {
-  MAX_LEVEL,
-  MAX_UPGRADE_PER_CLICK,
-  calcUpgradeCost,
+  MAX_LEVEL: WIZEBOT.MAX_FARM_LEVEL,
+  MAX_UPGRADE_PER_CLICK: WIZEBOT.MAX_FARM_UPGRADE_PER_ACTION,
+  calcUpgradeCost: calcFarmUpgradeCost,
   getPartsRequired,
   getLicenseCost,
   isLicenseRequired,

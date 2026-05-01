@@ -1,16 +1,14 @@
 const { num } = require('./numberUtils');
 const { ensureFarmShape } = require('./profileShape');
-const { spendCoins, spendParts } = require('./paymentService');
+const { spendCoins, refundCoins, spendParts, getWallet } = require('./walletService');
+const { WIZEBOT } = require('./economyConfig');
+const {
+  getBuildingBuyCost,
+  getBuildingUpgradeCost,
+  getMaxBuildingLevel: calcMaxBuildingLevel
+} = require('./economyMath');
 
-const BUILDING_ORDER = [
-  'завод',
-  'фабрика',
-  'кузница',
-  'укрепления',
-  'шахта',
-  'глушилка',
-  'центр'
-];
+const BUILDING_ORDER = ['завод', 'фабрика', 'кузница', 'укрепления', 'шахта', 'глушилка', 'центр'];
 
 function getBuildingConfig(profile, key) {
   ensureFarmShape(profile);
@@ -22,94 +20,64 @@ function getBuildingLevel(profile, key) {
   return num(profile.farm.buildings[key], 0);
 }
 
-function getBuildingBuyCost(conf) {
-  return {
-    coins: num(conf.baseCost, 0),
-    parts: num(conf.partsBase, 0)
-  };
-}
-
-function getBuildingUpgradeCost(conf, nextLevel) {
-  return {
-    coins: num(conf.baseCost, 0) + (nextLevel - 1) * num(conf.costIncreasePerLevel, 0),
-    parts: num(conf.partsBase, 0) + (nextLevel - 1) * num(conf.partsPerLevel, 0)
-  };
-}
-
 function getMaxBuildingLevel(profile, key, conf) {
-  ensureFarmShape(profile);
-
-  const farmLevel = num(profile.level, 0);
-  const configMax = num(conf.maxLevel, 1000);
-
-  if (key === 'кузница') {
-    if (farmLevel < 50) return 0;
-    if (farmLevel < 60) return Math.min(configMax, 2);
-    if (farmLevel < 70) return Math.min(configMax, 5);
-    if (farmLevel < 80) return Math.min(configMax, 8);
-    if (farmLevel < 90) return Math.min(configMax, 10);
-    if (farmLevel < 100) return Math.min(configMax, 14);
-    return configMax;
-  }
-
-  if (farmLevel < 40) return Math.min(configMax, 5);
-  if (farmLevel < 50) return Math.min(configMax, 10);
-  if (farmLevel < 60) return Math.min(configMax, 22);
-  if (farmLevel < 70) return Math.min(configMax, 35);
-  if (farmLevel < 80) return Math.min(configMax, 60);
-  if (farmLevel < 90) return Math.min(configMax, 90);
-  if (farmLevel < 100) return Math.min(configMax, 120);
-  if (farmLevel < 110) return Math.min(configMax, 155);
-  if (farmLevel < 120) return Math.min(configMax, 200);
-  return configMax;
+  return calcMaxBuildingLevel(profile.level, key, conf?.maxLevel ?? 1000);
 }
 
 function checkCustomUpgradeRestrictions(profile, key, targetLevel) {
   const buildings = profile.farm.buildings || {};
-
-  function current(name) {
-    return num(buildings[name], 0);
-  }
+  const current = (name) => num(buildings[name], 0);
+  const check = (name, required) => ({ name, required, current: current(name), ok: current(name) >= required });
 
   if (key === 'фабрика' && targetLevel > 5 && current('завод') < 10) {
-    return 'factory_requires_zavod_10';
+    return { code: 'factory_requires_zavod_10', requirements: [check('завод', 10)] };
   }
 
   if (key === 'шахта') {
     if (targetLevel <= 25 && (current('завод') < 50 || current('фабрика') < 50)) {
-      return 'mine_requires_zavod_50_factory_50';
+      return { code: 'mine_requires_zavod_50_factory_50', requirements: [check('завод', 50), check('фабрика', 50)] };
     }
     if (targetLevel <= 50 && (current('завод') < 100 || current('фабрика') < 100)) {
-      return 'mine_requires_zavod_100_factory_100';
+      return { code: 'mine_requires_zavod_100_factory_100', requirements: [check('завод', 100), check('фабрика', 100)] };
     }
     if (targetLevel <= 75 && (current('завод') < 125 || current('фабрика') < 125)) {
-      return 'mine_requires_zavod_125_factory_125';
+      return { code: 'mine_requires_zavod_125_factory_125', requirements: [check('завод', 125), check('фабрика', 125)] };
     }
     if (targetLevel <= 100 && (current('завод') < 200 || current('фабрика') < 200)) {
-      return 'mine_requires_zavod_200_factory_200';
+      return { code: 'mine_requires_zavod_200_factory_200', requirements: [check('завод', 200), check('фабрика', 200)] };
     }
     if (targetLevel >= 200 && (current('завод') < 300 || current('фабрика') < 300)) {
-      return 'mine_requires_zavod_300_factory_300';
+      return { code: 'mine_requires_zavod_300_factory_300', requirements: [check('завод', 300), check('фабрика', 300)] };
     }
   }
 
   return null;
 }
 
+function addAffordability(cost, profile) {
+  const wallet = getWallet(profile);
+  return {
+    ...cost,
+    availableCoins: wallet.total,
+    availableParts: wallet.parts,
+    missingCoins: Math.max(0, num(cost.coins, 0) - wallet.total),
+    missingParts: Math.max(0, num(cost.parts, 0) - wallet.parts)
+  };
+}
+
 function getBuildingState(profile, key) {
   ensureFarmShape(profile);
-
   const conf = getBuildingConfig(profile, key);
   if (!conf) return null;
 
   const level = getBuildingLevel(profile, key);
   const maxLevel = getMaxBuildingLevel(profile, key, conf);
   const levelRequired = num(conf.levelRequired, 0);
-  const canAccess = profile.level >= levelRequired;
-
-  const buyCost = getBuildingBuyCost(conf);
+  const canAccess = num(profile.level, 0) >= levelRequired;
+  const buyCost = addAffordability(getBuildingBuyCost(conf), profile);
   const nextLevel = level + 1;
-  const upgradeCost = getBuildingUpgradeCost(conf, nextLevel);
+  const upgradeCostRaw = getBuildingUpgradeCost(conf, nextLevel);
+  const restriction = level > 0 ? checkCustomUpgradeRestrictions(profile, key, nextLevel) : null;
 
   return {
     key,
@@ -119,48 +87,43 @@ function getBuildingState(profile, key) {
     levelRequired,
     canAccess,
     isBuilt: level > 0,
-    canUpgrade: level > 0 && level < maxLevel,
+    canUpgrade: level > 0 && level < maxLevel && !restriction,
     buyCost,
     nextLevel,
-    upgradeCost
+    upgradeCost: addAffordability(upgradeCostRaw, profile),
+    restriction
   };
 }
 
 function listBuildings(profile) {
   ensureFarmShape(profile);
-
   const keys = [
     ...BUILDING_ORDER.filter((key) => profile.configs.buildings[key]),
     ...Object.keys(profile.configs.buildings).filter((key) => !BUILDING_ORDER.includes(key))
   ];
-
   return keys.map((key) => getBuildingState(profile, key)).filter(Boolean);
 }
 
 function buyBuilding(profile, key) {
   ensureFarmShape(profile);
-
   const conf = getBuildingConfig(profile, key);
   if (!conf) return { ok: false, error: 'building_not_found', profile };
 
   const state = getBuildingState(profile, key);
+  if (!state.canAccess) return { ok: false, error: 'farm_level_too_low', requiredLevel: state.levelRequired, state, profile };
+  if (state.isBuilt) return { ok: false, error: 'building_already_built', state, profile };
 
-  if (!state.canAccess) {
-    return { ok: false, error: 'farm_level_too_low', requiredLevel: state.levelRequired };
-  }
+  const cost = state.buyCost;
+  if (cost.missingCoins > 0) return { ok: false, error: 'not_enough_money', cost, profile };
+  if (cost.missingParts > 0) return { ok: false, error: 'not_enough_parts', cost, profile };
 
-  if (state.isBuilt) {
-    return { ok: false, error: 'building_already_built' };
-  }
+  const money = spendCoins(profile, cost.coins, { mode: 'building' });
+  if (!money.ok) return { ok: false, error: 'not_enough_money', cost: { ...cost, missingCoins: money.missing }, profile };
 
-  const money = spendCoins(profile, state.buyCost.coins);
-  if (!money.ok) return { ok: false, error: 'not_enough_money' };
-
-  const parts = spendParts(profile, state.buyCost.parts);
+  const parts = spendParts(profile, cost.parts);
   if (!parts.ok) {
-    profile.farm_balance += money.spent.farm_balance;
-    profile.upgrade_balance += money.spent.upgrade_balance;
-    return { ok: false, error: 'not_enough_parts' };
+    refundCoins(profile, money.spent);
+    return { ok: false, error: 'not_enough_parts', cost: { ...cost, missingParts: parts.missing }, profile };
   }
 
   profile.farm.buildings[key] = 1;
@@ -171,8 +134,9 @@ function buyBuilding(profile, key) {
     building: key,
     name: state.name,
     level: 1,
-    totalCost: state.buyCost.coins,
-    totalParts: state.buyCost.parts,
+    totalCost: cost.coins,
+    totalParts: cost.parts,
+    spent: money.spent,
     profile,
     buildings: listBuildings(profile)
   };
@@ -180,52 +144,47 @@ function buyBuilding(profile, key) {
 
 function upgradeBuilding(profile, key, count = 1) {
   ensureFarmShape(profile);
-
   const conf = getBuildingConfig(profile, key);
   if (!conf) return { ok: false, error: 'building_not_found', profile };
+  if (!profile.farm.buildings[key]) return { ok: false, error: 'building_not_built', profile };
 
-  if (!profile.farm.buildings[key]) {
-    return { ok: false, error: 'building_not_built', profile };
-  }
-
-  const wanted = Math.min(Math.max(parseInt(count, 10) || 1, 1), 40);
+  const wanted = Math.min(Math.max(parseInt(count, 10) || 1, 1), WIZEBOT.MAX_BUILDING_UPGRADE_PER_ACTION);
   let upgraded = 0;
   let totalCost = 0;
   let totalParts = 0;
   let stopReason = null;
+  let restriction = null;
+  let lastCost = null;
+  let spent = { farm_balance: 0, twitch_balance: 0, upgrade_balance: 0 };
 
   while (upgraded < wanted) {
     const currentLevel = getBuildingLevel(profile, key);
     const maxLevel = getMaxBuildingLevel(profile, key, conf);
-
-    if (currentLevel >= maxLevel) {
-      stopReason = 'max_level';
-      break;
-    }
+    if (currentLevel >= maxLevel) { stopReason = 'max_level'; break; }
 
     const nextLevel = currentLevel + 1;
-    const restriction = checkCustomUpgradeRestrictions(profile, key, nextLevel);
-    if (restriction) {
-      stopReason = restriction;
-      break;
-    }
+    restriction = checkCustomUpgradeRestrictions(profile, key, nextLevel);
+    if (restriction) { stopReason = restriction.code; break; }
 
-    const cost = getBuildingUpgradeCost(conf, nextLevel);
+    const rawCost = getBuildingUpgradeCost(conf, nextLevel);
+    const cost = addAffordability(rawCost, profile);
+    lastCost = { ...cost, level: nextLevel };
+    if (cost.missingCoins > 0) { stopReason = 'not_enough_money'; break; }
+    if (cost.missingParts > 0) { stopReason = 'not_enough_parts'; break; }
 
-    const money = spendCoins(profile, cost.coins);
-    if (!money.ok) {
-      stopReason = 'not_enough_money';
-      break;
-    }
-
+    const money = spendCoins(profile, cost.coins, { mode: 'building' });
+    if (!money.ok) { stopReason = 'not_enough_money'; lastCost.missingCoins = money.missing; break; }
     const parts = spendParts(profile, cost.parts);
     if (!parts.ok) {
-      profile.farm_balance += money.spent.farm_balance;
-      profile.upgrade_balance += money.spent.upgrade_balance;
+      refundCoins(profile, money.spent);
       stopReason = 'not_enough_parts';
+      lastCost.missingParts = parts.missing;
       break;
     }
 
+    spent.farm_balance += money.spent.farm_balance;
+    spent.twitch_balance += money.spent.twitch_balance;
+    spent.upgrade_balance += money.spent.upgrade_balance;
     profile.farm.buildings[key] = nextLevel;
     totalCost += cost.coins;
     totalParts += cost.parts;
@@ -240,8 +199,11 @@ function upgradeBuilding(profile, key, count = 1) {
     upgraded,
     totalCost,
     totalParts,
+    spent,
     stopReason,
     error: stopReason,
+    restriction,
+    cost: lastCost,
     profile,
     buildings: listBuildings(profile)
   };

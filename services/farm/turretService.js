@@ -1,6 +1,6 @@
 const { ensureFarmShape } = require('./profileShape');
 const { num } = require('./numberUtils');
-const { spendCoins, spendParts } = require('./paymentService');
+const { spendCoins, refundCoins, spendParts, getWallet } = require('./walletService');
 
 const DEFAULT_UPGRADES = [
   { chance: 5, cost: 15000, parts: 2500 },
@@ -31,22 +31,33 @@ function getUpgrades(profile) {
   return Array.isArray(arr) && arr.length ? arr : DEFAULT_UPGRADES;
 }
 
+function withAffordability(profile, next) {
+  if (!next) return null;
+  const wallet = getWallet(profile);
+  return {
+    level: next.level,
+    chance: next.chance,
+    cost: next.cost,
+    parts: next.parts,
+    availableCoins: wallet.total,
+    availableParts: wallet.parts,
+    missingCoins: Math.max(0, num(next.cost, 0) - wallet.total),
+    missingParts: Math.max(0, num(next.parts, 0) - wallet.parts)
+  };
+}
+
 function getTurretState(profile) {
   ensureFarmShape(profile);
   const upgrades = getUpgrades(profile);
   const level = Math.max(0, num(profile.turret.level, 0));
   const current = level > 0 ? upgrades[level - 1] : null;
-  const next = upgrades[level] || null;
+  const nextRaw = upgrades[level] || null;
+  const next = nextRaw ? { level: level + 1, chance: num(nextRaw.chance, 0), cost: num(nextRaw.cost, 0), parts: num(nextRaw.parts, 0) } : null;
   return {
     level,
     maxLevel: upgrades.length,
     chance: current ? num(current.chance, 0) : 0,
-    nextUpgrade: next ? {
-      level: level + 1,
-      chance: num(next.chance, 0),
-      cost: num(next.cost, 0),
-      parts: num(next.parts, 0)
-    } : null
+    nextUpgrade: withAffordability(profile, next)
   };
 }
 
@@ -57,31 +68,20 @@ function upgradeTurret(profile) {
 
   const cost = state.nextUpgrade.cost;
   const partsCost = state.nextUpgrade.parts;
+  if (state.nextUpgrade.missingCoins > 0) return { ok: false, error: 'not_enough_money', needed: cost, available: state.nextUpgrade.availableCoins, missing: state.nextUpgrade.missingCoins, profile, turret: state };
+  if (state.nextUpgrade.missingParts > 0) return { ok: false, error: 'not_enough_parts', needed: partsCost, available: state.nextUpgrade.availableParts, missing: state.nextUpgrade.missingParts, profile, turret: state };
 
-  const money = spendCoins(profile, cost);
-  if (!money.ok) {
-    return { ok: false, error: 'not_enough_money', needed: cost, available: money.available, profile, turret: state };
-  }
+  const money = spendCoins(profile, cost, { mode: 'turret' });
+  if (!money.ok) return { ok: false, error: 'not_enough_money', needed: cost, available: money.available, missing: money.missing, profile, turret: state };
 
   const parts = spendParts(profile, partsCost);
   if (!parts.ok) {
-    profile.farm_balance += money.spent.farm_balance;
-    profile.upgrade_balance += money.spent.upgrade_balance;
-    return { ok: false, error: 'not_enough_parts', needed: partsCost, available: parts.available, profile, turret: state };
+    refundCoins(profile, money.spent);
+    return { ok: false, error: 'not_enough_parts', needed: partsCost, available: parts.available, missing: parts.missing, profile, turret: state };
   }
 
   profile.turret.level = state.level + 1;
-  return {
-    ok: true,
-    level: profile.turret.level,
-    totalCost: cost,
-    totalParts: partsCost,
-    profile,
-    turret: getTurretState(profile)
-  };
+  return { ok: true, level: profile.turret.level, totalCost: cost, totalParts: partsCost, spent: money.spent, profile, turret: getTurretState(profile) };
 }
 
-module.exports = {
-  getTurretState,
-  upgradeTurret
-};
+module.exports = { DEFAULT_UPGRADES, getTurretState, upgradeTurret };
