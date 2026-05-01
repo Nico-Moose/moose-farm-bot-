@@ -156,6 +156,8 @@ function render(data) {
   renderLicense(data);
   renderMarket(data);
   renderCombat(data);
+  renderExtras(data);
+  renderInfo(data);
   renderBuildings(data);
 }
 
@@ -604,4 +606,138 @@ async function doRaid() {
   const log = data.log || {};
   showMessage(`🏴 Рейд на ${log.target}: украдено ${formatNumber(log.stolen)}💰 | сила ${formatNumber(log.strength)}% x${log.punish_mult} | блок ${formatNumber(log.blocked)}🛡${log.turret_penalty ? ` | турель: -${formatNumber(log.turret_penalty)}💰` : ''}`);
   await loadMe();
+}
+
+function prizeLabel(prize) {
+  if (!prize) return '';
+  const icon = prize.type === 'parts' ? '🔧' : '💎';
+  return formatNumber(prize.value) + icon + ' x' + Number(prize.multiplier || 1).toFixed(2);
+}
+
+function renderExtras(data) {
+  const box = document.getElementById('extrasBox');
+  if (!box) return;
+  const p = data.profile || {};
+  const cs = data.caseStatus || {};
+  const gamus = data.gamus || {};
+  const ranges = gamus.ranges || {};
+
+  const lastCases = (cs.history || []).slice(0, 5).map((h) => `<li>${new Date(h.date).toLocaleString('ru-RU')} — ${prizeLabel(h)} за ${formatNumber(h.cost)}💰</li>`).join('') || '<li>История пока пустая</li>';
+
+  box.innerHTML = `
+    <div class="combat-card">
+      <h3>🎰 Кейс</h3>
+      <p>Доступ: <b>${cs.unlocked ? 'да' : 'с 30 уровня фермы'}</b></p>
+      <p>Цена: <b>${formatNumber(cs.cost || 0)}💰</b> | множитель: <b>x${Number(cs.finalMultiplier || 1).toFixed(2)}</b></p>
+      <p>Кулдаун: <b>${cs.remainingMs ? formatTime(cs.remainingMs) : 'готово ✅'}</b></p>
+      <button id="openCaseBtn" ${!cs.unlocked || cs.remainingMs ? 'disabled' : ''}>🎰 Открыть кейс</button>
+      <details><summary>Последние кейсы</summary><ol>${lastCases}</ol></details>
+    </div>
+
+    <div class="combat-card">
+      <h3>🧠 GAMUS</h3>
+      <p>Тир: <b>${formatNumber(ranges.tierLevel || 0)}</b> | шахта: <b>${formatNumber(ranges.mineLevel || 0)}</b></p>
+      <p>Награда: <b>${formatNumber(ranges.minMoney || 0)}-${formatNumber(ranges.maxMoney || 0)}💎</b> / <b>${formatNumber(ranges.minParts || 0)}-${formatNumber(ranges.maxParts || 0)}🔧</b></p>
+      <p>Ресет: <b>06:00 МСК</b> | ${gamus.available ? 'готово ✅' : 'через ' + formatTime(gamus.remainingMs || 0)}</p>
+      <button id="gamusBtn" ${!gamus.available ? 'disabled' : ''}>🎁 Забрать GAMUS</button>
+    </div>
+
+    <div class="combat-card">
+      <h3>🌙 Оффсбор</h3>
+      <p>Урезанный сбор 50% как в WizeBot.</p>
+      <p>Баланс сейчас: <b>${formatNumber(p.farm_balance || 0)}🌾</b> / <b>${formatNumber(p.parts || 0)}🔧</b></p>
+      <button id="offCollectBtn">🌙 Оффсбор</button>
+    </div>
+  `;
+
+  document.getElementById('openCaseBtn')?.addEventListener('click', openCase);
+  document.getElementById('gamusBtn')?.addEventListener('click', claimGamus);
+  document.getElementById('offCollectBtn')?.addEventListener('click', offCollect);
+}
+
+function renderInfo(data) {
+  const infoBox = document.getElementById('infoBox');
+  const topsBox = document.getElementById('topsBox');
+  if (!infoBox) return;
+  const info = data.farmInfo || {};
+  const raidInfo = data.raidInfo || {};
+  const hourly = info.hourly || {};
+  const balances = info.balances || {};
+  const buildings = info.buildings || [];
+  const raidLogs = (raidInfo.logs || []).slice(0, 8);
+
+  infoBox.innerHTML = `
+    <div class="info-grid">
+      <div><b>💰 Балансы</b><br>🌾 ${formatNumber(balances.farm || 0)} / 💎 ${formatNumber(balances.upgrade || 0)} / 🔧 ${formatNumber(balances.parts || 0)}</div>
+      <div><b>📈 Доход/ч</b><br>Всего: ${formatNumber(hourly.total || 0)} | пассив ${formatNumber(hourly.passive || 0)} | урожай ${formatNumber((hourly.plants || 0) + (hourly.animals || 0))} | здания ${formatNumber(hourly.buildingCoins || 0)}</div>
+      <div><b>🏗 Здания</b><br>${buildings.length ? buildings.map((b) => `${b.config?.name || b.key}: ${b.level}`).join(' | ') : 'нет'}</div>
+      <div><b>🏴 Рейды</b><br>За 14д: ${formatNumber(raidInfo.twoWeeks?.stolen || 0)}💰 / ${formatNumber(raidInfo.twoWeeks?.bonus || 0)}💎 / ${formatNumber(raidInfo.twoWeeks?.count || 0)} шт.</div>
+    </div>
+    <details open><summary>Последние рейды</summary>
+      <ol>${raidLogs.length ? raidLogs.map((r) => `<li>${new Date(r.timestamp).toLocaleString('ru-RU')} — ${r.attacker} → ${r.target}: ${formatNumber(r.stolen)}💰, ${formatNumber(r.bonus_stolen || 0)}💎</li>`).join('') : '<li>Рейдов пока нет</li>'}</ol>
+    </details>
+    <button id="refreshTopBtn">🏆 Обновить топы</button>
+  `;
+  document.getElementById('refreshTopBtn')?.addEventListener('click', loadTops);
+  if (topsBox && !topsBox.dataset.loaded) loadTops();
+}
+
+async function openCase() {
+  const data = await postJson('/api/farm/case/open');
+  if (!data.ok) {
+    const labels = {
+      farm_level_too_low: `кейс доступен с ${data.requiredLevel || 30} уровня`,
+      cooldown: `кейс будет доступен через ${formatTime(data.remainingMs || 0)}`,
+      not_enough_money: `не хватает монет: сейчас ${formatNumber(data.available || 0)} / нужно ${formatNumber(data.needed || 0)}`
+    };
+    showMessage(`❌ Кейс не открыт: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+  showMessage(`🎰 Кейс: выигрыш ${prizeLabel(data.prize)}. Цена ${formatNumber(data.cost)}💰`);
+  await loadMe();
+}
+
+async function claimGamus() {
+  const data = await postJson('/api/farm/gamus/claim');
+  if (!data.ok) {
+    showMessage(data.error === 'cooldown' ? `⏳ GAMUS будет доступен через ${formatTime(data.remainingMs || 0)} (06:00 МСК)` : `❌ GAMUS: ${data.error}`);
+    await loadMe();
+    return;
+  }
+  showMessage(`🎁 GAMUS: +${formatNumber(data.money)}💎 и +${formatNumber(data.parts)}🔧 (тир ${data.tierLevel})`);
+  await loadMe();
+}
+
+async function offCollect() {
+  const data = await postJson('/api/farm/off-collect');
+  if (!data.ok) {
+    showMessage(data.error === 'cooldown' ? `⏳ Оффсбор будет доступен через ${formatTime(data.remainingMs || 0)}` : `❌ Оффсбор: ${data.error}`);
+    await loadMe();
+    return;
+  }
+  showMessage(`🌙 Оффсбор: +${formatNumber(data.income)}💰${data.partsIncome ? ` / +${formatNumber(data.partsIncome)}🔧` : ''}`);
+  await loadMe();
+}
+
+async function loadTops() {
+  const topsBox = document.getElementById('topsBox');
+  if (!topsBox) return;
+  try {
+    const res = await fetch('/api/farm/top?days=14');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'top_failed');
+    topsBox.dataset.loaded = '1';
+    const raids = (data.raidTop || []).slice(0, 10);
+    const players = (data.playerTop || []).slice(0, 10);
+    topsBox.innerHTML = `
+      <h3>🏆 Топы</h3>
+      <div class="tops-grid">
+        <div><b>🏴 Топ рейдов за ${data.days}д</b><ol>${raids.length ? raids.map((r) => `<li>${r.nick}: ${formatNumber(r.money)}💰 / ${formatNumber(r.bonus)}💎 (${r.attacks}⚔/${r.defends}🛡)</li>`).join('') : '<li>нет рейдов</li>'}</ol></div>
+        <div><b>💰 Топ игроков</b><ol>${players.length ? players.map((p) => `<li>${p.nick}: ${formatNumber(p.total)}💰 | ур. ${p.level} | 🔧${formatNumber(p.parts)}</li>`).join('') : '<li>нет игроков</li>'}</ol></div>
+      </div>
+    `;
+  } catch (error) {
+    topsBox.textContent = 'Не удалось загрузить топы';
+  }
 }

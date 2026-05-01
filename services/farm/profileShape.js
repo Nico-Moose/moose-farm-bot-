@@ -32,6 +32,11 @@ function ensureFarmShape(profile) {
 
   profile.turret = profile.turret || {};
 
+  profile.farm.caseHistory = Array.isArray(profile.farm.caseHistory) ? profile.farm.caseHistory : [];
+  profile.farm.raidLogs = Array.isArray(profile.farm.raidLogs) ? profile.farm.raidLogs : [];
+  profile.farm.resources.shield = num(profile.farm.resources.shield, 0);
+  profile.farm.resources.weapon = num(profile.farm.resources.weapon, 0);
+
   return profile;
 }
 

@@ -57,6 +57,27 @@ const {
   syncWizebotFarmToProfile
 } = require('../services/wizebotSyncService');
 
+const {
+  getCaseStatus,
+  openCase
+} = require('../services/farm/caseService');
+
+const {
+  getGamusStatus,
+  claimGamus
+} = require('../services/farm/gamusService');
+
+const {
+  offCollect
+} = require('../services/farm/offCollectService');
+
+const {
+  getFarmInfo,
+  getRaidInfo,
+  getTopRaids,
+  getTopProfiles
+} = require('../services/farm/infoService');
+
 const router = express.Router();
 
 function requireAuth(req, res, next) {
@@ -75,7 +96,11 @@ function profilePayload(profile) {
     market: getMarketState(profile),
     raidUpgrades: getRaidUpgradeStatus(profile),
     turret: getTurretState(profile),
-    raid: getRaidStatus(profile)
+    raid: getRaidStatus(profile),
+    caseStatus: getCaseStatus(profile),
+    gamus: getGamusStatus(profile),
+    farmInfo: getFarmInfo(profile),
+    raidInfo: getRaidInfo(profile)
   };
 }
 
@@ -353,6 +378,78 @@ router.post('/farm/raid', requireAuth, (req, res) => {
     ok: true,
     log: result.log,
     ...profilePayload(updatedAttacker)
+  });
+});
+
+router.post('/farm/case/open', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = openCase(profile);
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.ok) {
+    logFarmEvent(req.session.twitchUser.id, 'case_open', {
+      cost: result.cost,
+      prize: result.prize
+    });
+  }
+
+  res.json({
+    ...result,
+    ...profilePayload(updatedProfile)
+  });
+});
+
+router.post('/farm/gamus/claim', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = claimGamus(profile);
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.ok) {
+    logFarmEvent(req.session.twitchUser.id, 'gamus_claim', {
+      money: result.money,
+      parts: result.parts,
+      tierLevel: result.tierLevel
+    });
+  }
+
+  res.json({
+    ...result,
+    ...profilePayload(updatedProfile)
+  });
+});
+
+router.post('/farm/off-collect', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = offCollect(profile);
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.ok) {
+    logFarmEvent(req.session.twitchUser.id, 'off_collect', {
+      income: result.income,
+      partsIncome: result.partsIncome,
+      minutes: result.minutes
+    });
+  }
+
+  res.json({
+    ...result,
+    ...profilePayload(updatedProfile)
+  });
+});
+
+router.get('/farm/info', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  res.json({ ok: true, info: getFarmInfo(profile), raidInfo: getRaidInfo(profile) });
+});
+
+router.get('/farm/top', requireAuth, (req, res) => {
+  const days = [1, 7, 14].includes(Number(req.query.days)) ? Number(req.query.days) : 14;
+  const profiles = listProfiles();
+  res.json({
+    ok: true,
+    days,
+    raidTop: getTopRaids(profiles, days),
+    playerTop: getTopProfiles(profiles)
   });
 });
 
