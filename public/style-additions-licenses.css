@@ -1,0 +1,14 @@
+.license-section { margin: 24px 0; }
+.license-card {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 16px;
+  padding: 16px;
+}
+.license-card h2 { margin: 0 0 10px; }
+.license-card p { margin: 6px 0; }
+.warn { color: #ffe98a; font-weight: 700; }
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -8,13 +8,26 @@ const {
 
 const {
   getNextUpgrade,
-  upgradeFarm,
-  collectFarm,
-  addTestBalance,
-  listBuildings,
+  upgradeFarm
+} = require('../services/farm/upgradeService');
+
+const {
+  collectFarm
+} = require('../services/farm/collectService');
+
+const {
+  addTestBalance
+} = require('../services/farmGameService');
+
+const {
   buyBuilding,
   upgradeBuilding
-} = require('../services/farmGameService');
+} = require('../services/farm/buildingService');
+
+const {
+  getNextLicense,
+  buyNextLicense
+} = require('../services/farm/licenseService');
 
 const {
   syncWizebotFarmToProfile
@@ -30,36 +43,24 @@ function requireAuth(req, res, next) {
   next();
 }
 
-function getUserProfile(req) {
-  return getProfile(req.session.twitchUser.id);
-}
+router.get('/me', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
 
-function buildState(req, profile) {
-  return {
+  res.json({
     ok: true,
     user: req.session.twitchUser,
     profile,
     nextUpgrade: getNextUpgrade(profile),
-    buildings: listBuildings(profile)
-  };
-}
-
-router.get('/me', requireAuth, (req, res) => {
-  const profile = getUserProfile(req);
-  res.json(buildState(req, profile));
+    nextLicense: getNextLicense(profile)
+  });
 });
 
 router.post('/farm/collect', requireAuth, (req, res) => {
-  const profile = getUserProfile(req);
+  const profile = getProfile(req.session.twitchUser.id);
   const result = collectFarm(profile);
 
   if (!result.ok) {
-    return res.json({
-      ...result,
-      profile,
-      nextUpgrade: getNextUpgrade(profile),
-      buildings: listBuildings(profile)
-    });
+    return res.json(result);
   }
 
   const updatedProfile = updateProfile(result.profile);
@@ -77,12 +78,12 @@ router.post('/farm/collect', requireAuth, (req, res) => {
     minutes: result.minutes,
     profile: updatedProfile,
     nextUpgrade: getNextUpgrade(updatedProfile),
-    buildings: listBuildings(updatedProfile)
+    nextLicense: getNextLicense(updatedProfile)
   });
 });
 
 router.post('/farm/upgrade', requireAuth, (req, res) => {
-  const profile = getUserProfile(req);
+  const profile = getProfile(req.session.twitchUser.id);
   const count = req.body.count || 1;
 
   const result = upgradeFarm(profile, count);
@@ -93,8 +94,7 @@ router.post('/farm/upgrade', requireAuth, (req, res) => {
       requested: count,
       upgraded: result.upgraded,
       totalCost: result.totalCost,
-      totalParts: result.totalParts,
-      stopReason: result.stopReason
+      totalParts: result.totalParts
     });
   }
 
@@ -104,14 +104,15 @@ router.post('/farm/upgrade', requireAuth, (req, res) => {
     totalCost: result.totalCost,
     totalParts: result.totalParts,
     stopReason: result.stopReason,
+    requiredLicense: result.requiredLicense,
     profile: updatedProfile,
     nextUpgrade: getNextUpgrade(updatedProfile),
-    buildings: listBuildings(updatedProfile)
+    nextLicense: getNextLicense(updatedProfile)
   });
 });
 
 router.post('/farm/test-balance', requireAuth, (req, res) => {
-  const profile = getUserProfile(req);
+  const profile = getProfile(req.session.twitchUser.id);
   const result = addTestBalance(profile, 100000);
   const updatedProfile = updateProfile(result.profile);
 
@@ -124,88 +125,97 @@ router.post('/farm/test-balance', requireAuth, (req, res) => {
     amount: result.amount,
     profile: updatedProfile,
     nextUpgrade: getNextUpgrade(updatedProfile),
-    buildings: listBuildings(updatedProfile)
+    nextLicense: getNextLicense(updatedProfile)
   });
 });
 
-router.post('/farm/buildings/:key/buy', requireAuth, (req, res) => {
-  const profile = getUserProfile(req);
-  const key = req.params.key;
+router.post('/farm/building/buy', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const key = req.body.key;
+
   const result = buyBuilding(profile, key);
 
   if (!result.ok) {
-    return res.json({
-      ok: false,
-      error: result.error,
-      requiredLevel: result.requiredLevel,
-      profile,
-      nextUpgrade: getNextUpgrade(profile),
-      buildings: listBuildings(profile)
-    });
+    return res.json(result);
   }
 
   const updatedProfile = updateProfile(result.profile);
 
   logFarmEvent(req.session.twitchUser.id, 'building_buy', {
     building: result.building,
-    level: result.level,
-    costCoins: result.costCoins,
-    costParts: result.costParts
+    cost: result.cost,
+    parts: result.parts
   });
 
   res.json({
     ok: true,
-    action: 'buy',
     building: result.building,
-    level: result.level,
-    costCoins: result.costCoins,
-    costParts: result.costParts,
+    name: result.name,
+    cost: result.cost,
+    parts: result.parts,
     profile: updatedProfile,
     nextUpgrade: getNextUpgrade(updatedProfile),
-    buildings: listBuildings(updatedProfile)
+    nextLicense: getNextLicense(updatedProfile)
   });
 });
 
-router.post('/farm/buildings/:key/upgrade', requireAuth, (req, res) => {
-  const profile = getUserProfile(req);
-  const key = req.params.key;
+router.post('/farm/building/upgrade', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const key = req.body.key;
   const count = req.body.count || 1;
+
   const result = upgradeBuilding(profile, key, count);
 
-  if (!result.ok) {
-    return res.json({
-      ok: false,
-      error: result.stopReason || result.error,
-      stopReason: result.stopReason,
-      upgraded: result.upgraded || 0,
-      profile,
-      nextUpgrade: getNextUpgrade(profile),
-      buildings: listBuildings(profile)
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.upgraded > 0) {
+    logFarmEvent(req.session.twitchUser.id, 'building_upgrade', {
+      building: result.building,
+      requested: count,
+      upgraded: result.upgraded,
+      totalCost: result.totalCost,
+      totalParts: result.totalParts
     });
+  }
+
+  res.json({
+    ok: result.ok,
+    building: result.building,
+    name: result.name,
+    upgraded: result.upgraded,
+    totalCost: result.totalCost,
+    totalParts: result.totalParts,
+    error: result.error,
+    profile: updatedProfile,
+    nextUpgrade: getNextUpgrade(updatedProfile),
+    nextLicense: getNextLicense(updatedProfile)
+  });
+});
+
+router.post('/farm/license/buy', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = buyNextLicense(profile);
+
+  if (!result.ok) {
+    return res.json(result);
   }
 
   const updatedProfile = updateProfile(result.profile);
 
-  logFarmEvent(req.session.twitchUser.id, 'building_upgrade', {
-    building: result.building,
-    requested: count,
-    upgraded: result.upgraded,
-    totalCoins: result.totalCoins,
-    totalParts: result.totalParts,
-    stopReason: result.stopReason
+  logFarmEvent(req.session.twitchUser.id, 'license_buy', {
+    licenseLevel: result.licenseLevel,
+    cost: result.cost,
+    spent: result.spent
   });
 
   res.json({
     ok: true,
-    action: 'upgrade',
-    building: result.building,
-    upgraded: result.upgraded,
-    totalCoins: result.totalCoins,
-    totalParts: result.totalParts,
-    stopReason: result.stopReason,
+    licenseLevel: result.licenseLevel,
+    cost: result.cost,
+    spent: result.spent,
     profile: updatedProfile,
     nextUpgrade: getNextUpgrade(updatedProfile),
-    buildings: listBuildings(updatedProfile)
+    nextLicense: getNextLicense(updatedProfile)
   });
 });
 
@@ -234,7 +244,7 @@ router.post('/farm/sync-wizebot', requireAuth, async (req, res) => {
       profile: updatedProfile,
       imported: result.imported,
       nextUpgrade: getNextUpgrade(updatedProfile),
-      buildings: listBuildings(updatedProfile)
+      nextLicense: getNextLicense(updatedProfile)
     });
   } catch (error) {
     console.error('[WIZEBOT SYNC] Error:', error);
