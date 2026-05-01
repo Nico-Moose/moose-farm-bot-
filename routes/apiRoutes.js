@@ -4,7 +4,8 @@ const {
   getProfile,
   updateProfile,
   logFarmEvent,
-  listProfiles
+  listProfiles,
+  listFarmEvents
 } = require('../services/userService');
 
 const {
@@ -435,6 +436,18 @@ router.post('/farm/off-collect', requireAuth, (req, res) => {
     ...result,
     ...profilePayload(updatedProfile)
   });
+});
+
+
+router.get('/farm/history', requireAuth, (req, res) => {
+  const type = String(req.query.type || '').trim();
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '100', 10) || 100));
+  const events = listFarmEvents({
+    twitchId: req.session.twitchUser.id,
+    type,
+    limit
+  });
+  res.json({ ok: true, events });
 });
 
 router.get('/farm/info', requireAuth, (req, res) => {

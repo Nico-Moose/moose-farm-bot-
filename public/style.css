@@ -305,3 +305,44 @@ button.danger {
   background: #d33;
   color: white;
 }
+
+.history-section {
+  margin-top: 22px;
+}
+.history-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.history-controls select,
+.history-controls button,
+.admin-card select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.28);
+  color: #fff;
+}
+.events-list {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.event-row {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  line-height: 1.45;
+}
+.event-row small {
+  opacity: 0.68;
+}
+.admin-events-box {
+  margin-top: 10px;
+  max-height: 360px;
+  overflow: auto;
+}

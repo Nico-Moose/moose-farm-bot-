@@ -1,4 +1,5 @@
 let state = null;
+let didInitialWizebotPageSync = false;
 
 function formatNumber(num) {
   num = Number(num) || 0;
@@ -299,8 +300,26 @@ async function loadMe() {
       location.href = '/';
       return;
     }
-    const data = await res.json();
+
+    let data = await res.json();
+
+    // Авто-sync WizeBot при полном обновлении страницы.
+    // Работает только для Nico_Moose и не ломает страницу, если WizeBot API ключ не задан.
+    if (!didInitialWizebotPageSync && isAdminUser(data.user) && !location.search.includes('nosync=1')) {
+      didInitialWizebotPageSync = true;
+      try {
+        const syncData = await postJson('/api/farm/sync-wizebot', { source: 'page_load' });
+        if (syncData && syncData.ok) {
+          data = syncData;
+          showMessage('🔄 WizeBot синхронизирован при обновлении страницы.');
+        }
+      } catch (syncError) {
+        console.warn('[AUTO WIZEBOT SYNC]', syncError);
+      }
+    }
+
     render(data);
+    loadHistory().catch((err) => console.warn('[HISTORY]', err));
   } catch (error) {
     document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
     console.error(error);
@@ -1001,9 +1020,210 @@ async function initAdminPanelGuard() {
 
     panel.classList.remove("hidden");
     bindAdminPanel();
+    bindExtendedAdminPanel();
+    loadAdminChecklist().catch(() => {});
   } catch (_) {
     panel.remove();
   }
 }
 
 document.addEventListener("DOMContentLoaded", initAdminPanelGuard);
+
+
+function eventTypeLabel(type) {
+  const map = {
+    upgrade: 'Ап фермы',
+    building_buy: 'Покупка здания',
+    building_upgrade: 'Ап здания',
+    market_buy_parts: 'Рынок: покупка',
+    market_sell_parts: 'Рынок: продажа',
+    raid_power_upgrade: 'Ап рейд-силы',
+    protection_upgrade: 'Ап защиты',
+    turret_upgrade: 'Ап турели',
+    raid: 'Рейд',
+    case_open: 'Кейс',
+    gamus_claim: 'GAMUS',
+    off_collect: 'Оффсбор',
+    collect: 'Сбор',
+    license_buy: 'Лицензия',
+    admin_farm_balance: 'Админ: баланс фермы',
+    admin_upgrade_balance: 'Админ: бонусный баланс',
+    admin_parts: 'Админ: запчасти',
+    admin_set_level: 'Админ: уровень',
+    admin_set_protection: 'Админ: защита',
+    admin_set_raid_power: 'Админ: рейд-сила',
+    admin_reset_raid_cooldown: 'Админ: сброс КД',
+    admin_delete_buildings: 'Админ: удаление построек',
+    admin_delete_farm: 'Админ: удаление фермы',
+    admin_transfer_farm: 'Админ: перенос фермы',
+    admin_clear_debt: 'Админ: списание долга',
+    admin_reset_cases: 'Админ: сброс кейсов',
+    admin_reset_gamus: 'Админ: сброс GAMUS',
+    admin_set_market_stock: 'Админ: склад рынка'
+  };
+  return map[type] || type || 'событие';
+}
+
+function describePayload(payload = {}) {
+  if (!payload || typeof payload !== 'object') return '';
+  const parts = [];
+  if (payload.building) parts.push('здание: ' + payload.building);
+  if (payload.upgraded !== undefined) parts.push('+' + payload.upgraded + ' ур.');
+  if (payload.totalCost !== undefined) parts.push(formatNumber(payload.totalCost) + '💰');
+  if (payload.totalParts !== undefined) parts.push(formatNumber(payload.totalParts) + '🔧');
+  if (payload.amount !== undefined) parts.push('изменение: ' + formatNumber(payload.amount));
+  if (payload.next !== undefined) parts.push('итог: ' + formatNumber(payload.next));
+  if (payload.income !== undefined) parts.push('доход: ' + formatNumber(payload.income));
+  if (payload.partsIncome !== undefined) parts.push('запчасти: ' + formatNumber(payload.partsIncome));
+  if (payload.cost !== undefined) parts.push('цена: ' + formatNumber(payload.cost));
+  if (payload.money !== undefined) parts.push('монеты: ' + formatNumber(payload.money));
+  if (payload.parts !== undefined) parts.push('детали: ' + formatNumber(payload.parts));
+  if (payload.oldLogin && payload.newLogin) parts.push(payload.oldLogin + ' → ' + payload.newLogin);
+  if (payload.stock !== undefined) parts.push('склад: ' + formatNumber(payload.stock));
+  if (payload.debt !== undefined) parts.push('долг: ' + formatNumber(payload.debt));
+  return parts.join(' | ') || JSON.stringify(payload).slice(0, 180);
+}
+
+function renderEventsList(events) {
+  if (!events || !events.length) return '<p>Событий пока нет.</p>';
+  return '<div class="events-list">' + events.map((event) => {
+    const date = new Date(Number(event.created_at || Date.now())).toLocaleString('ru-RU');
+    const who = event.login ? ' @' + event.login : '';
+    return '<div class="event-row"><b>' + eventTypeLabel(event.type) + '</b>' + who + '<br><small>' + date + '</small><div>' + describePayload(event.payload) + '</div></div>';
+  }).join('') + '</div>';
+}
+
+async function loadHistory() {
+  const box = document.getElementById('historyBox');
+  if (!box) return;
+  const type = document.getElementById('historyType')?.value || '';
+  const url = '/api/farm/history?limit=100' + (type ? '&type=' + encodeURIComponent(type) : '');
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'history_failed');
+  box.innerHTML = renderEventsList(data.events || []);
+}
+
+function renderAdminEvents(events) {
+  const box = document.getElementById('admin-events-box');
+  if (!box) return;
+  box.innerHTML = renderEventsList(events || []);
+}
+
+async function loadAdminEvents() {
+  const login = document.getElementById('admin-events-login')?.value?.trim()?.toLowerCase() || '';
+  const type = document.getElementById('admin-events-type')?.value || '';
+  const params = new URLSearchParams({ limit: '120' });
+  if (login) params.set('login', login);
+  if (type) params.set('type', type);
+  const data = await adminGet('events?' + params.toString());
+  renderAdminEvents(data.events || []);
+}
+
+async function loadAdminChecklist() {
+  const data = await adminGet('checklist');
+  const box = document.getElementById('admin-status');
+  if (!box || !data.checks) return;
+  const text = 'Чеклист 1:1: ' + data.checks.map((c) => c.title).join(' / ');
+  if (!box.textContent) box.textContent = text;
+}
+
+function bindExtendedAdminPanel() {
+  const panel = document.getElementById('admin-panel');
+  if (!panel || panel.dataset.extendedBound === '1') return;
+  panel.dataset.extendedBound = '1';
+
+  const loginOrError = () => {
+    const login = adminLoginValue();
+    if (!login) {
+      setAdminStatus('Укажи ник игрока', true);
+      return null;
+    }
+    return login;
+  };
+
+  document.getElementById('admin-transfer-farm')?.addEventListener('click', async () => {
+    try {
+      const oldLogin = document.getElementById('admin-transfer-from')?.value?.trim()?.toLowerCase();
+      const newLogin = document.getElementById('admin-transfer-to')?.value?.trim()?.toLowerCase();
+      if (!oldLogin || !newLogin) return setAdminStatus('Укажи старый и новый ник', true);
+      if (!confirm('Перенести ферму ' + oldLogin + ' → ' + newLogin + '?')) return;
+      const data = await adminPost('transfer-farm', { oldLogin, newLogin });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-set-market-stock')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const stock = document.getElementById('admin-market-stock')?.value;
+      const data = await adminPost('set-market-stock', { login, stock });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-clear-debt')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const data = await adminPost('clear-debt', { login });
+      setAdminStatus(data.message);
+      await refreshAdminPlayer();
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-clear-all-debts')?.addEventListener('click', async () => {
+    try {
+      if (!confirm('Списать долги всем игрокам с отрицательным фермерским балансом?')) return;
+      const data = await adminPost('clear-debt', {});
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-reset-gamus')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const data = await adminPost('reset-gamus', { login });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-reset-cases')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const data = await adminPost('reset-cases', { login });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-reset-cases-all')?.addEventListener('click', async () => {
+    try {
+      if (!confirm('Сбросить кейсы всем игрокам?')) return;
+      const data = await adminPost('reset-cases', {});
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-load-events')?.addEventListener('click', async () => {
+    try {
+      await loadAdminEvents();
+      setAdminStatus('Админ-журнал загружен');
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('historyRefreshBtn')?.addEventListener('click', () => {
+    loadHistory().catch((e) => showMessage('❌ История: ' + e.message));
+  });
+  document.getElementById('historyType')?.addEventListener('change', () => {
+    loadHistory().catch((e) => showMessage('❌ История: ' + e.message));
+  });
+});

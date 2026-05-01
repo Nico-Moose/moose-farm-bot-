@@ -44,6 +44,27 @@
       <div id="topsBox" class="info-card"></div>
     </section>
 
+
+    <section class="history-section">
+      <h2>📜 Истории и журнал</h2>
+      <div class="history-controls">
+        <select id="historyType">
+          <option value="">Все события</option>
+          <option value="upgrade">Апы фермы</option>
+          <option value="building_buy">Покупки зданий</option>
+          <option value="building_upgrade">Апы зданий</option>
+          <option value="market_buy_parts">Рынок: покупка</option>
+          <option value="market_sell_parts">Рынок: продажа</option>
+          <option value="raid">Рейды</option>
+          <option value="case_open">Кейсы</option>
+          <option value="gamus_claim">GAMUS</option>
+          <option value="off_collect">Оффсбор</option>
+        </select>
+        <button id="historyRefreshBtn">Обновить журнал</button>
+      </div>
+      <div id="historyBox" class="info-card">Загрузка истории...</div>
+    </section>
+
     <section class="buildings-section">
       <h2>🏗 Здания</h2>
       <div id="buildings" class="buildings-grid"></div>
@@ -101,6 +122,41 @@
       <button id="admin-delete-farm" class="danger">Удалить ферму</button>
     </div>
   </div>
+
+
+    <div class="admin-card">
+      <h3>Расширенная админка</h3>
+      <input id="admin-transfer-from" placeholder="старый ник" />
+      <input id="admin-transfer-to" placeholder="новый ник" />
+      <button id="admin-transfer-farm">Перенести ферму</button>
+
+      <input id="admin-market-stock" placeholder="склад рынка" />
+      <button id="admin-set-market-stock">Установить склад рынка</button>
+
+      <button id="admin-clear-debt">Списать долг игрока</button>
+      <button id="admin-clear-all-debts">Списать долги всем</button>
+      <button id="admin-reset-gamus">Сбросить GAMUS</button>
+      <button id="admin-reset-cases">Сбросить кейсы игрока</button>
+      <button id="admin-reset-cases-all">Сбросить кейсы всем</button>
+    </div>
+
+    <div class="admin-card">
+      <h3>Админ-журнал</h3>
+      <input id="admin-events-login" placeholder="фильтр по нику, можно пусто" />
+      <select id="admin-events-type">
+        <option value="">Все типы</option>
+        <option value="admin_farm_balance">Админ: фермерский баланс</option>
+        <option value="admin_upgrade_balance">Админ: бонусный баланс</option>
+        <option value="admin_parts">Админ: запчасти</option>
+        <option value="admin_transfer_farm">Админ: перенос фермы</option>
+        <option value="admin_clear_debt">Админ: долги</option>
+        <option value="admin_set_market_stock">Админ: склад</option>
+        <option value="admin_reset_cases">Админ: кейсы</option>
+        <option value="admin_reset_gamus">Админ: GAMUS</option>
+      </select>
+      <button id="admin-load-events">Показать журнал</button>
+      <div id="admin-events-box" class="admin-events-box"></div>
+    </div>
 
   <div id="admin-status" class="admin-status"></div>
 </section>

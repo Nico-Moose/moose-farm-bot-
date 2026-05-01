@@ -157,10 +157,48 @@ function logFarmEvent(twitchId, type, payload = {}) {
   `).run(twitchId, type, JSON.stringify(payload), Date.now());
 }
 
+function listFarmEvents({ twitchId = null, login = '', type = '', limit = 100 } = {}) {
+  limit = Math.min(200, Math.max(1, parseInt(limit, 10) || 100));
+
+  let sql = `
+    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
+    FROM farm_events e
+    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
+  `;
+  const where = [];
+  const params = [];
+
+  if (twitchId) {
+    where.push(`e.twitch_id = ?`);
+    params.push(twitchId);
+  }
+
+  if (login) {
+    where.push(`LOWER(u.login) = ?`);
+    params.push(String(login).toLowerCase().replace(/^@/, ''));
+  }
+
+  if (type) {
+    where.push(`e.type = ?`);
+    params.push(type);
+  }
+
+  if (where.length) sql += ` WHERE ` + where.join(' AND ');
+  sql += ` ORDER BY e.created_at DESC LIMIT ?`;
+  params.push(limit);
+
+  return getDb().prepare(sql).all(...params).map((event) => {
+    let payload = {};
+    try { payload = JSON.parse(event.payload || '{}'); } catch (_) {}
+    return { ...event, payload };
+  });
+}
+
 module.exports = {
   upsertTwitchUser,
   getProfile,
   updateProfile,
   listProfiles,
-  logFarmEvent
+  logFarmEvent,
+  listFarmEvents
 };
