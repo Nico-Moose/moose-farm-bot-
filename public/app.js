@@ -1177,6 +1177,7 @@ function bindExtendedAdminPanel() {
       const data = await adminPost('reset-gamus', { login });
       renderAdminPlayer(data.profile);
       setAdminStatus(data.message);
+      await loadMe();
     } catch (e) { setAdminStatus(e.message, true); }
   });
 
@@ -1187,6 +1188,7 @@ function bindExtendedAdminPanel() {
       const data = await adminPost('reset-cases', { login });
       renderAdminPlayer(data.profile);
       setAdminStatus(data.message);
+      await loadMe();
     } catch (e) { setAdminStatus(e.message, true); }
   });
 
@@ -1195,6 +1197,7 @@ function bindExtendedAdminPanel() {
       if (!confirm('Сбросить кейсы всем игрокам?')) return;
       const data = await adminPost('reset-cases', {});
       setAdminStatus(data.message);
+      await loadMe();
     } catch (e) { setAdminStatus(e.message, true); }
   });
 

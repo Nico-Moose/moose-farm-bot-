@@ -503,13 +503,20 @@ module.exports = function (db) {
     if (!login) return res.status(400).json({ ok: false, error: 'Нужен login' });
     const profile = getProfileByLogin(db, login);
     if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+
     const farm = profile.farm || {};
+
+    // Реальный кулдаун GAMUS считается из profile.farm.lastGamusAt.
+    // Старый вариант сбрасывал farm.gamus.lastClaimAt, но сервис его не использует.
+    farm.lastGamusAt = 0;
+
+    // Совместимость со старыми/промежуточными ключами.
     delete farm.gamusLastClaimAt;
     delete farm.gamus_bonus_ts;
-    farm.gamus = farm.gamus || {};
-    farm.gamus.lastClaimAt = 0;
+    if (farm.gamus) farm.gamus.lastClaimAt = 0;
+
     saveFarmObject(profile.twitch_id, farm);
-    logAdminEvent(db, profile.twitch_id, 'admin_reset_gamus', {});
+    logAdminEvent(db, profile.twitch_id, 'admin_reset_gamus', { resetLastGamusAt: true });
     res.json({ ok: true, message: `GAMUS сброшен для ${login}`, profile: getProfileByLogin(db, login) });
   });
 
@@ -523,6 +530,7 @@ module.exports = function (db) {
       farm.cases.totalSpent = 0;
       farm.cases.totalCoins = 0;
       farm.cases.totalParts = 0;
+      farm.lastCaseAt = 0;
       farm.caseCooldownUntil = 0;
       saveFarmObject(profile.twitch_id, farm);
       logAdminEvent(db, profile.twitch_id, 'admin_reset_cases', { login: profile.login });
