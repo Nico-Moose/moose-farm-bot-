@@ -16,7 +16,26 @@ module.exports = function (db) {
   });
 
   router.use(requireAdmin);
+// 👤 посмотреть игрока
+router.get("/player/:nick", (req, res) => {
+  const nick = String(req.params.nick || "")
+    .toLowerCase()
+    .replace(/^@/, "");
 
+  const row = db
+    .prepare("SELECT value FROM variables WHERE key = ?")
+    .get("farm_" + nick);
+
+  if (!row) {
+    return res.status(404).json({ error: "farm not found" });
+  }
+
+  res.json({
+    ok: true,
+    nick,
+    farm: JSON.parse(row.value),
+  });
+});
   // 💰 баланс
   router.post("/balance", (req, res) => {
     const nick = String(req.body.nick || "").toLowerCase().replace(/^@/, "");
