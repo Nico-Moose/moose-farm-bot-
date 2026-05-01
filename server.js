@@ -30,7 +30,9 @@ function startWebServer() {
   app.use('/auth', authRoutes);
   app.use('/api', apiRoutes);
   app.use('/bridge', bridgeRoutes);
-app.use("/api/admin", adminRoutes);
+const { getDb } = require("./services/dbService");
+
+app.use("/api/admin", adminRoutes(getDb()));
   app.get('/farm', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'farm.html'));
   });
