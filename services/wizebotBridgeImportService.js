@@ -1,8 +1,6 @@
 const { getDb } = require('./dbService');
 const { getNextUpgrade, listBuildings } = require('./farmGameService');
 
-const ALLOWED_LOGIN = 'nico_moose';
-
 function decodeHtml(text) {
   return String(text || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -62,6 +60,10 @@ async function fetchLongtextJson(url) {
   return extractJson(html);
 }
 
+function normalizeLogin(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function normalizeNumber(value) {
   return Number(value || 0) || 0;
 }
@@ -74,6 +76,10 @@ function normalizeTurret(raw) {
   } catch (_) {
     return {};
   }
+}
+
+function makeWizebotTwitchId(login) {
+  return `wizebot_${normalizeLogin(login)}`;
 }
 
 function loadProfileByTwitchId(twitchId) {
@@ -104,11 +110,101 @@ function loadProfileByTwitchId(twitchId) {
   `).get(twitchId);
 }
 
-function importPayloadToSqlite(payload) {
-  const login = String(payload.login || '').toLowerCase();
+function ensureTwitchUserAndProfile({ login, displayName }) {
+  const db = getDb();
+  const normalizedLogin = normalizeLogin(login);
+  const safeDisplayName = displayName || login || normalizedLogin;
 
-  if (login !== ALLOWED_LOGIN) {
-    return { ok: false, error: 'sync_allowed_only_for_nico_moose' };
+  if (!normalizedLogin) {
+    throw new Error('missing_login');
+  }
+
+  let userRow = db.prepare(`
+    SELECT twitch_id
+    FROM twitch_users
+    WHERE LOWER(login) = ?
+    LIMIT 1
+  `).get(normalizedLogin);
+
+  if (!userRow) {
+    const twitchId = makeWizebotTwitchId(normalizedLogin);
+
+    db.prepare(`
+      INSERT INTO twitch_users (
+        twitch_id,
+        login,
+        display_name,
+        avatar_url
+      )
+      VALUES (?, ?, ?, ?)
+    `).run(
+      twitchId,
+      normalizedLogin,
+      safeDisplayName,
+      null
+    );
+
+    userRow = { twitch_id: twitchId };
+  } else {
+    db.prepare(`
+      UPDATE twitch_users
+      SET
+        login = ?,
+        display_name = COALESCE(NULLIF(?, ''), display_name)
+      WHERE twitch_id = ?
+    `).run(
+      normalizedLogin,
+      safeDisplayName,
+      userRow.twitch_id
+    );
+  }
+
+  const profileRow = db.prepare(`
+    SELECT twitch_id
+    FROM farm_profiles
+    WHERE twitch_id = ?
+    LIMIT 1
+  `).get(userRow.twitch_id);
+
+  if (!profileRow) {
+    const now = Date.now();
+
+    db.prepare(`
+      INSERT INTO farm_profiles (
+        twitch_id,
+        level,
+        farm_balance,
+        upgrade_balance,
+        total_income,
+        parts,
+        last_collect_at,
+        created_at,
+        updated_at,
+        farm_json,
+        configs_json,
+        license_level,
+        protection_level,
+        raid_power,
+        turret_json,
+        last_wizebot_sync_at
+      )
+      VALUES (?, 0, 0, 0, 0, 0, 0, ?, ?, '{}', '{}', 0, 0, 0, '{}', 0)
+    `).run(
+      userRow.twitch_id,
+      now,
+      now
+    );
+  }
+
+  return userRow;
+}
+
+function importPayloadToSqlite(payload) {
+  const login = normalizeLogin(payload.login);
+  const displayName = payload.display_name || payload.login || login;
+
+  if (!login) {
+    return { ok: false, error: 'missing_login' };
   }
 
   const db = getDb();
@@ -121,16 +217,10 @@ function importPayloadToSqlite(payload) {
   const configs = payload.configs || {};
   const turret = normalizeTurret(payload.turret);
 
-  const userRow = db.prepare(`
-    SELECT twitch_id
-    FROM twitch_users
-    WHERE LOWER(login) = ?
-    LIMIT 1
-  `).get(login);
-
-  if (!userRow) {
-    return { ok: false, error: 'site_user_not_found_login_with_twitch_first' };
-  }
+  const userRow = ensureTwitchUserAndProfile({
+    login,
+    displayName
+  });
 
   const imported = {
     level: normalizeNumber(farm.level),
@@ -177,7 +267,10 @@ function importPayloadToSqlite(payload) {
   `).run(
     userRow.twitch_id,
     'sync_wizebot_full_longtext',
-    JSON.stringify({ imported }),
+    JSON.stringify({
+      login,
+      imported
+    }),
     now
   );
 
@@ -199,11 +292,24 @@ function importPayloadToSqlite(payload) {
 }
 
 async function importWizebotPayloadByLogin({ login, url }) {
-  if (String(login || '').toLowerCase() !== ALLOWED_LOGIN) {
-    return { ok: false, error: 'sync_allowed_only_for_nico_moose' };
+  const expectedLogin = normalizeLogin(login);
+
+  if (!expectedLogin) {
+    return { ok: false, error: 'missing_login' };
   }
 
   const payload = await fetchLongtextJson(url);
+  const payloadLogin = normalizeLogin(payload.login);
+
+  if (payloadLogin && payloadLogin !== expectedLogin) {
+    return {
+      ok: false,
+      error: `login_mismatch_payload_${payloadLogin}_expected_${expectedLogin}`
+    };
+  }
+
+  payload.login = expectedLogin;
+
   return importPayloadToSqlite(payload);
 }
 
