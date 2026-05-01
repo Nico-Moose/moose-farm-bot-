@@ -69,7 +69,6 @@ function migrate(database) {
   addColumn('total_income', 'total_income INTEGER NOT NULL DEFAULT 0');
   addColumn('parts', 'parts INTEGER NOT NULL DEFAULT 0');
   addColumn('last_collect_at', 'last_collect_at INTEGER');
-
   addColumn('farm_json', `farm_json TEXT NOT NULL DEFAULT '{}'`);
   addColumn('configs_json', `configs_json TEXT NOT NULL DEFAULT '{}'`);
   addColumn('license_level', 'license_level INTEGER NOT NULL DEFAULT 0');

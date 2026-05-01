@@ -1,5 +1,5 @@
 const { getDb } = require('./dbService');
-const { getNextUpgrade } = require('./farmGameService');
+const { getNextUpgrade, listBuildings } = require('./farmGameService');
 
 const ALLOWED_LOGIN = 'nico_moose';
 
@@ -66,84 +66,18 @@ function normalizeNumber(value) {
   return Number(value || 0) || 0;
 }
 
-function importPayloadToSqlite(payload) {
-  const login = String(payload.login || '').toLowerCase();
-
-  if (login !== ALLOWED_LOGIN) {
-    return { ok: false, error: 'sync_allowed_only_for_nico_moose' };
+function normalizeTurret(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch (_) {
+    return {};
   }
+}
 
-  const db = getDb();
-  const now = Date.now();
-
-  const farm = payload.farm || {};
-  const resources = farm.resources || {};
-  const configs = payload.configs || {};
-  const turret = payload.turret || {};
-
-  const userRow = db.prepare(`
-    SELECT twitch_id
-    FROM twitch_users
-    WHERE LOWER(login) = ?
-    LIMIT 1
-  `).get(login);
-
-  if (!userRow) {
-    return { ok: false, error: 'site_user_not_found_login_with_twitch_first' };
-  }
-
-  const imported = {
-    level: normalizeNumber(farm.level),
-    farm_balance: normalizeNumber(payload.farm_balance),
-    upgrade_balance: normalizeNumber(payload.upgrade_balance),
-    total_income: normalizeNumber(payload.total_income),
-    parts: normalizeNumber(resources.parts),
-    last_collect_at: normalizeNumber(payload.last_collect_at) || now,
-    license_level: normalizeNumber(payload.license_level),
-    protection_level: normalizeNumber(payload.protection_level),
-    raid_power: normalizeNumber(payload.raid_power)
-  };
-
-  db.prepare(`
-    UPDATE farm_profiles SET
-      level = @level,
-      farm_balance = @farm_balance,
-      upgrade_balance = @upgrade_balance,
-      total_income = @total_income,
-      parts = @parts,
-      last_collect_at = @last_collect_at,
-
-      farm_json = @farm_json,
-      configs_json = @configs_json,
-      license_level = @license_level,
-      protection_level = @protection_level,
-      raid_power = @raid_power,
-      turret_json = @turret_json,
-      last_wizebot_sync_at = @last_wizebot_sync_at,
-
-      updated_at = @updated_at
-    WHERE twitch_id = @twitch_id
-  `).run({
-    ...imported,
-    farm_json: JSON.stringify(farm),
-    configs_json: JSON.stringify(configs),
-    turret_json: JSON.stringify(turret),
-    last_wizebot_sync_at: now,
-    updated_at: now,
-    twitch_id: userRow.twitch_id
-  });
-
-  db.prepare(`
-    INSERT INTO farm_events (twitch_id, type, payload, created_at)
-    VALUES (?, ?, ?, ?)
-  `).run(
-    userRow.twitch_id,
-    'sync_wizebot_full_longtext',
-    JSON.stringify({ imported }),
-    now
-  );
-
-  const profile = db.prepare(`
+function loadProfileByTwitchId(twitchId) {
+  return getDb().prepare(`
     SELECT
       u.twitch_id,
       u.login,
@@ -167,13 +101,100 @@ function importPayloadToSqlite(payload) {
     FROM twitch_users u
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE u.twitch_id = ?
-  `).get(userRow.twitch_id);
+  `).get(twitchId);
+}
+
+function importPayloadToSqlite(payload) {
+  const login = String(payload.login || '').toLowerCase();
+
+  if (login !== ALLOWED_LOGIN) {
+    return { ok: false, error: 'sync_allowed_only_for_nico_moose' };
+  }
+
+  const db = getDb();
+  const now = Date.now();
+
+  const farm = payload.farm || {};
+  farm.resources = farm.resources || {};
+  farm.buildings = farm.buildings || {};
+
+  const configs = payload.configs || {};
+  const turret = normalizeTurret(payload.turret);
+
+  const userRow = db.prepare(`
+    SELECT twitch_id
+    FROM twitch_users
+    WHERE LOWER(login) = ?
+    LIMIT 1
+  `).get(login);
+
+  if (!userRow) {
+    return { ok: false, error: 'site_user_not_found_login_with_twitch_first' };
+  }
+
+  const imported = {
+    level: normalizeNumber(farm.level),
+    farm_balance: normalizeNumber(payload.farm_balance),
+    upgrade_balance: normalizeNumber(payload.upgrade_balance),
+    total_income: normalizeNumber(payload.total_income),
+    parts: normalizeNumber(farm.resources.parts),
+    last_collect_at: normalizeNumber(payload.last_collect_at) || now,
+    license_level: normalizeNumber(payload.license_level),
+    protection_level: normalizeNumber(payload.protection_level),
+    raid_power: normalizeNumber(payload.raid_power)
+  };
+
+  db.prepare(`
+    UPDATE farm_profiles SET
+      level = @level,
+      farm_balance = @farm_balance,
+      upgrade_balance = @upgrade_balance,
+      total_income = @total_income,
+      parts = @parts,
+      last_collect_at = @last_collect_at,
+      farm_json = @farm_json,
+      configs_json = @configs_json,
+      license_level = @license_level,
+      protection_level = @protection_level,
+      raid_power = @raid_power,
+      turret_json = @turret_json,
+      last_wizebot_sync_at = @last_wizebot_sync_at,
+      updated_at = @updated_at
+    WHERE twitch_id = @twitch_id
+  `).run({
+    ...imported,
+    farm_json: JSON.stringify(farm),
+    configs_json: JSON.stringify(configs),
+    turret_json: JSON.stringify(turret),
+    last_wizebot_sync_at: now,
+    updated_at: now,
+    twitch_id: userRow.twitch_id
+  });
+
+  db.prepare(`
+    INSERT INTO farm_events (twitch_id, type, payload, created_at)
+    VALUES (?, ?, ?, ?)
+  `).run(
+    userRow.twitch_id,
+    'sync_wizebot_full_longtext',
+    JSON.stringify({ imported }),
+    now
+  );
+
+  const rawProfile = loadProfileByTwitchId(userRow.twitch_id);
+  const profile = {
+    ...rawProfile,
+    farm,
+    configs,
+    turret
+  };
 
   return {
     ok: true,
     imported,
     profile,
-    nextUpgrade: getNextUpgrade(profile)
+    nextUpgrade: getNextUpgrade(profile),
+    buildings: listBuildings(profile)
   };
 }
 

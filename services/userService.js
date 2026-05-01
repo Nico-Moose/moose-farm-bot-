@@ -1,41 +1,26 @@
 const { getDb } = require('./dbService');
-
-function parseJsonSafe(raw, fallback) {
-  try {
-    return JSON.parse(raw || '');
-  } catch (_) {
-    return fallback;
-  }
-}
+const { parseJsonSafe } = require('./farm/numberUtils');
 
 function normalizeProfile(row) {
   if (!row) return null;
 
-  const farm = parseJsonSafe(row.farm_json, {});
-  const configs = parseJsonSafe(row.configs_json, {});
-  const turret = parseJsonSafe(row.turret_json, {});
-
   return {
     ...row,
-
     level: Number(row.level ?? 0),
     farm_balance: Number(row.farm_balance ?? 0),
     upgrade_balance: Number(row.upgrade_balance ?? 0),
     total_income: Number(row.total_income ?? 0),
     parts: Number(row.parts ?? 0),
     last_collect_at: row.last_collect_at ? Number(row.last_collect_at) : null,
-
     license_level: Number(row.license_level ?? 0),
     protection_level: Number(row.protection_level ?? 0),
     raid_power: Number(row.raid_power ?? 0),
     last_wizebot_sync_at: row.last_wizebot_sync_at ? Number(row.last_wizebot_sync_at) : null,
-
-    farm,
-    configs,
-    turret,
-
+    farm: parseJsonSafe(row.farm_json, {}),
+    configs: parseJsonSafe(row.configs_json, {}),
+    turret: parseJsonSafe(row.turret_json, {}),
     created_at: Number(row.created_at) || Date.now(),
-    updated_at: Number(row.updated_at) || Date.now(),
+    updated_at: Number(row.updated_at) || Date.now()
   };
 }
 
@@ -76,7 +61,6 @@ function getProfile(twitchId) {
       u.login,
       u.display_name,
       u.avatar_url,
-
       f.level,
       f.farm_balance,
       f.upgrade_balance,
@@ -85,7 +69,6 @@ function getProfile(twitchId) {
       f.last_collect_at,
       f.created_at,
       f.updated_at,
-
       f.farm_json,
       f.configs_json,
       f.license_level,
@@ -102,7 +85,13 @@ function getProfile(twitchId) {
 }
 
 function updateProfile(profile) {
-  const safe = normalizeProfile(profile);
+  const safe = normalizeProfile({
+    ...profile,
+    farm_json: JSON.stringify(profile.farm || {}),
+    configs_json: JSON.stringify(profile.configs || {}),
+    turret_json: JSON.stringify(profile.turret || {})
+  });
+
   const now = Date.now();
 
   getDb().prepare(`
@@ -113,14 +102,12 @@ function updateProfile(profile) {
       total_income = @total_income,
       parts = @parts,
       last_collect_at = @last_collect_at,
-
       farm_json = @farm_json,
       configs_json = @configs_json,
       license_level = @license_level,
       protection_level = @protection_level,
       raid_power = @raid_power,
       turret_json = @turret_json,
-
       updated_at = @updated_at
     WHERE twitch_id = @twitch_id
   `).run({
