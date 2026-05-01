@@ -1,0 +1,77 @@
+// WizeBot command: !сайтфермапуш [login] [debug]
+// Назначение: применяет состояние фермы с сайта в WizeBot через JS.wizebot.set_var().
+// Это нужно, чтобы !ферма, !рейд, !турель и другие старые команды видели значения сайта.
+// Команду вызывает сайт автоматически через Twitch chat после действия игрока.
+// ВАЖНО: SECRET должен совпадать с WIZEBOT_BRIDGE_SECRET в .env сайта.
+
+let caller = (JS.datas('nick') || JS.wizebot.command.user_name() || '').toLowerCase();
+let displayName = JS.datas('display_name') || JS.wizebot.command.display_name() || caller;
+let target = (JS.wizebot.command.args(1) || caller || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+let debug = String(JS.wizebot.command.args(2) || '').toLowerCase() === 'debug';
+
+// Доступ: Nico_Moose и технический бот сайта. Если имя вашего Twitch-бота другое — добавь его сюда.
+let allowed = ['nico_moose', 'moosefarmbot', 'moose_farm_bot', 'farmmoosebot'];
+if (allowed.indexOf(caller) === -1) {
+  JS.utils.stop();
+}
+
+if (!target) {
+  if (debug) JS.wizebot.send_chat_message(`❌ ${displayName}, нет login для сайт-пуша.`);
+  JS.utils.stop();
+}
+
+const BASE_URL = 'https://farm-moose.bothost.tech';
+const SECRET = 'moose_super_secret_2026';
+const URL = BASE_URL + '/bridge/web-master-state?login=' + encodeURIComponent(target) + '&secret=' + encodeURIComponent(SECRET);
+
+function safeSet(key, value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'object') {
+    JS.wizebot.set_var(key, JSON.stringify(value));
+  } else {
+    JS.wizebot.set_var(key, String(value));
+  }
+  return true;
+}
+
+function ensureFarmPlayer(login) {
+  let list = [];
+  try { list = JSON.parse(JS.wizebot.get_var('farm_players') || '[]'); } catch (_) { list = []; }
+  if (!Array.isArray(list)) list = [];
+  if (list.indexOf(login) === -1) {
+    list.push(login);
+    JS.wizebot.set_var('farm_players', JSON.stringify(list));
+  }
+}
+
+async function run() {
+  try {
+    let res = await fetch(URL, { method: 'GET' });
+    let text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch (_) { data = {}; }
+
+    if (!res.ok || !data.ok || !data.vars) {
+      if (debug) JS.wizebot.send_chat_message(`❌ ${displayName}, сайт-пуш ошибка: ${data.error || res.status}`);
+      JS.utils.stop();
+    }
+
+    let keys = Object.keys(data.vars || {});
+    let applied = 0;
+    for (let i = 0; i < keys.length; i++) {
+      let key = keys[i];
+      if (safeSet(key, data.vars[key])) applied++;
+    }
+
+    ensureFarmPlayer(data.login || target);
+
+    if (debug) {
+      let s = data.summary || {};
+      JS.wizebot.send_chat_message(`✅ сайт → WizeBot применён: ${target}, ур.${s.level}, 💰${s.twitch_balance}, 🌾${s.farm_balance}, 💎${s.upgrade_balance}, 🔧${s.parts}, ключей:${applied}`);
+    }
+  } catch (e) {
+    if (debug) JS.wizebot.send_chat_message(`❌ ${displayName}, сайт-пуш failed: ${e.message || e}`);
+  }
+}
+
+run();

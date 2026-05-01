@@ -87,6 +87,40 @@ function getProfile(twitchId) {
   return normalizeProfile(row);
 }
 
+function getProfileByLogin(login) {
+  const normalizedLogin = String(login || '').trim().toLowerCase().replace(/^@/, '');
+  if (!normalizedLogin) return null;
+
+  const row = getDb().prepare(`
+    SELECT
+      u.twitch_id,
+      u.login,
+      u.display_name,
+      u.avatar_url,
+      f.level,
+      f.farm_balance,
+      f.twitch_balance,
+      f.upgrade_balance,
+      f.total_income,
+      f.parts,
+      f.last_collect_at,
+      f.created_at,
+      f.updated_at,
+      f.farm_json,
+      f.configs_json,
+      f.license_level,
+      f.protection_level,
+      f.raid_power,
+      f.turret_json,
+      f.last_wizebot_sync_at
+    FROM twitch_users u
+    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+    WHERE LOWER(u.login) = ?
+  `).get(normalizedLogin);
+
+  return normalizeProfile(row);
+}
+
 function updateProfile(profile) {
   const safe = normalizeProfile({
     ...profile,
@@ -215,6 +249,7 @@ function listFarmEvents({ twitchId = null, login = '', type = '', limit = 100 } 
 module.exports = {
   upsertTwitchUser,
   getProfile,
+  getProfileByLogin,
   updateProfile,
   markWizebotSyncAt,
   listProfiles,
