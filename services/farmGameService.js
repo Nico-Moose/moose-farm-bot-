@@ -158,7 +158,7 @@ function upgradeFarm(profile, count = 1) {
 function collectFarm(profile, now = Date.now()) {
   ensureFarmShape(profile);
 
-  const last = num(profile.last_collect_at || profile.created_at || now);
+  const last = profile.last_collect_at || profile.created_at || now;
   const diff = now - last;
 
   if (diff < COLLECT_COOLDOWN_MS) {
@@ -170,43 +170,78 @@ function collectFarm(profile, now = Date.now()) {
   }
 
   const minutes = Math.min(60, Math.floor(diff / 60000));
+  const hours = minutes / 60;
 
-  const levelIncome = profile.level * 2 * (minutes / 60);
-  let buildingIncome = 0;
+  let income = 0;
   let partsIncome = 0;
 
-  const buildings = profile.farm.buildings || {};
+  const plants = profile.configs?.plants || [];
+  const animals = profile.configs?.animals || [];
+  const buildings = profile.farm?.buildings || {};
   const buildingsConfig = profile.configs?.buildings || {};
 
-  for (const key of Object.keys(buildings)) {
-    if (key === 'шахта') continue;
+  // 🌱 РАСТЕНИЯ
+  for (const plant of plants) {
+    if (profile.level < plant.level) continue;
 
-    const lvl = num(buildings[key]);
+    const level = profile.level;
+
+    const value =
+      (plant.base + plant.perLevel * level) *
+      plant.multiplier *
+      level;
+
+    income += value * hours;
+  }
+
+  // 🐄 ЖИВОТНЫЕ
+  for (const animal of animals) {
+    if (profile.level < animal.level) continue;
+
+    const level = profile.level;
+
+    const value =
+      (animal.base + animal.perLevel * level) *
+      animal.multiplier *
+      level;
+
+    income += value * hours;
+  }
+
+  // 🏗 ЗДАНИЯ
+  for (const key of Object.keys(buildings)) {
+    const lvl = Number(buildings[key]) || 0;
     const conf = buildingsConfig[key];
 
     if (!conf || lvl <= 0) continue;
 
-    if (conf.coinsPerHour !== undefined) {
-      buildingIncome += num(conf.coinsPerHour) * lvl * (minutes / 60);
+    // 💰 доход
+    if (conf.coinsPerHour) {
+      income += conf.coinsPerHour * lvl * hours;
     }
 
-    if (conf.coinsPerLevel !== undefined) {
-      buildingIncome += num(conf.coinsPerLevel) * lvl;
+    if (conf.coinsPerLevel) {
+      income += conf.coinsPerLevel * lvl;
     }
 
+    // 🔧 завод (запчасти)
     if (key === 'завод') {
-      const baseProduction = num(conf.baseProduction);
-      const perLevel = num(conf.perLevel);
-      partsIncome += Math.floor((baseProduction + perLevel * (lvl - 1)) * (minutes / 60));
+      const base = Number(conf.baseProduction) || 0;
+      const per = Number(conf.perLevel) || 0;
+
+      partsIncome += Math.floor((base + per * (lvl - 1)) * hours);
     }
   }
 
-  const income = Math.round(levelIncome + buildingIncome);
+  income = Math.floor(income);
 
   profile.farm_balance += income;
   profile.total_income += income;
+
   profile.parts += partsIncome;
-  profile.farm.resources.parts = num(profile.farm.resources.parts) + partsIncome;
+  profile.farm.resources.parts =
+    (profile.farm.resources.parts || 0) + partsIncome;
+
   profile.last_collect_at = now;
 
   return {
