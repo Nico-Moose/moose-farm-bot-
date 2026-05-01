@@ -2,25 +2,97 @@ let state = null;
 
 function formatNumber(num) {
   num = Number(num) || 0;
+  const sign = num < 0 ? '-' : '';
+  const abs = Math.abs(num);
 
-  if (num >= 1_000_000_000_000) return (num / 1_000_000_000_000).toFixed(1).replace('.0', '') + 'трлн';
-  if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1).replace('.0', '') + 'млрд';
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace('.0', '') + 'кк';
-  if (num >= 1_000) return (num / 1_000).toFixed(1).replace('.0', '') + 'к';
+  if (abs >= 1_000_000_000_000) return sign + (abs / 1_000_000_000_000).toFixed(1).replace('.0', '') + 'трлн';
+  if (abs >= 1_000_000_000) return sign + (abs / 1_000_000_000).toFixed(1).replace('.0', '') + 'млрд';
+  if (abs >= 1_000_000) return sign + (abs / 1_000_000).toFixed(1).replace('.0', '') + 'кк';
+  if (abs >= 1_000) return sign + (abs / 1_000).toFixed(1).replace('.0', '') + 'к';
 
-  return String(Math.floor(num));
+  return sign + String(Math.floor(abs));
 }
 
 function formatTime(ms) {
   const totalSeconds = Math.ceil(ms / 1000);
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
-
   return `${m}м ${String(s).padStart(2, '0')}с`;
 }
 
 function showMessage(text) {
-  document.getElementById('message').textContent = text || '';
+  const el = document.getElementById('message');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = text ? 'message-panel' : '';
+}
+
+function currentCoins(profile) {
+  return Number(profile?.farm_balance || 0) + Number(profile?.upgrade_balance || 0);
+}
+
+function resourceStatus(profile, needCoins = 0, needParts = 0) {
+  const coins = currentCoins(profile);
+  const parts = Number(profile?.parts || 0);
+  const missingCoins = Math.max(0, Number(needCoins || 0) - coins);
+  const missingParts = Math.max(0, Number(needParts || 0) - parts);
+
+  return {
+    coins,
+    parts,
+    missingCoins,
+    missingParts,
+    coinsOk: missingCoins <= 0,
+    partsOk: missingParts <= 0
+  };
+}
+
+function formatNeedLine(profile, needCoins = 0, needParts = 0) {
+  const st = resourceStatus(profile, needCoins, needParts);
+  const coinLine = `💰 Сейчас: ${formatNumber(st.coins)} / нужно: ${formatNumber(needCoins)}${st.coinsOk ? ' ✅' : ` ❌ не хватает ${formatNumber(st.missingCoins)}`}`;
+  const partsLine = Number(needParts || 0) > 0
+    ? `🔧 Сейчас: ${formatNumber(st.parts)} / нужно: ${formatNumber(needParts)}${st.partsOk ? ' ✅' : ` ❌ не хватает ${formatNumber(st.missingParts)}`}`
+    : `🔧 Сейчас: ${formatNumber(st.parts)}`;
+  return `${coinLine}\n${partsLine}`;
+}
+
+function renderQuickStatus(data) {
+  let box = document.getElementById('quickStatus');
+  const profile = data.profile;
+  const next = data.nextUpgrade;
+
+  if (!box) {
+    box = document.createElement('section');
+    box.id = 'quickStatus';
+    box.className = 'quick-status';
+    const profileEl = document.getElementById('profile');
+    profileEl?.insertAdjacentElement('afterend', box);
+  }
+
+  const coins = currentCoins(profile);
+  const parts = Number(profile.parts || 0);
+  let upgradeText = '✅ Ферма уже на максимальном уровне';
+
+  if (next) {
+    const st = resourceStatus(profile, next.cost, next.parts);
+    const missing = [];
+    if (!st.coinsOk) missing.push(`💰 ${formatNumber(st.missingCoins)}`);
+    if (!st.partsOk) missing.push(`🔧 ${formatNumber(st.missingParts)}`);
+    upgradeText = missing.length
+      ? `⬆️ Следующий ап: нужно ${formatNumber(next.cost)}💰${next.parts ? ` и ${formatNumber(next.parts)}🔧` : ''}. Не хватает: ${missing.join(' / ')}`
+      : `⬆️ Следующий ап доступен: ${formatNumber(next.cost)}💰${next.parts ? ` / ${formatNumber(next.parts)}🔧` : ''}`;
+  }
+
+  box.innerHTML = `
+    <div><b>Текущие ресурсы</b></div>
+    <div class="quick-status-grid">
+      <span>💰 Всего монет: <b>${formatNumber(coins)}</b></span>
+      <span>🌾 Ферма: <b>${formatNumber(profile.farm_balance)}</b></span>
+      <span>💎 Ап-баланс: <b>${formatNumber(profile.upgrade_balance)}</b></span>
+      <span>🔧 Запчасти: <b>${formatNumber(parts)}</b></span>
+    </div>
+    <div class="quick-status-upgrade">${upgradeText}</div>
+  `;
 }
 
 function buildingErrorLabel(code, data = {}) {
@@ -72,6 +144,8 @@ function render(data) {
     </div>
   `;
 
+  renderQuickStatus(data);
+
   const upgrade1Text = document.getElementById('upgrade1Text');
   if (upgrade1Text) {
     upgrade1Text.textContent = next
@@ -101,19 +175,20 @@ function renderLicense(data) {
     return;
   }
 
+  const st = resourceStatus(p, next.cost, 0);
   box.innerHTML = `
     <div class="license-card">
       <h2>🎟 Лицензии</h2>
       <p>Сейчас открыто до: <b>${p.license_level ? p.license_level : 39}</b> уровня</p>
       <p>Следующая лицензия: <b>${next.level}</b> уровень</p>
       <p>Цена: <b>${formatNumber(next.cost)}💰</b></p>
+      <p class="resource-line">У тебя: <b>${formatNumber(st.coins)}💰</b>${st.coinsOk ? ' ✅' : ` ❌ не хватает ${formatNumber(st.missingCoins)}💰`}</p>
       <button id="buyLicenseBtn">🎟 Купить лицензию до ${next.level}</button>
     </div>
   `;
 
   document.getElementById('buyLicenseBtn').addEventListener('click', buyLicense);
 }
-
 
 function renderMarket(data) {
   const box = document.getElementById('marketBox');
@@ -127,6 +202,7 @@ function renderMarket(data) {
   box.innerHTML = `
     <p>📦 Склад рынка: <b>${formatNumber(stock)}🔧</b></p>
     <p>🟢 Продажа: <b>1🔧 = ${formatNumber(sellPrice)}💎</b> | 🔵 Покупка: <b>1🔧 = ${formatNumber(buyPrice)}💎</b></p>
+    <p class="resource-line">У тебя: <b>${formatNumber(data.profile.upgrade_balance)}💎</b> / <b>${formatNumber(data.profile.parts)}🔧</b></p>
     <div class="market-actions">
       <input id="marketQty" type="number" min="1" step="1" value="100" />
       <button id="marketBuyBtn">🔵 Купить 🔧</button>
@@ -157,14 +233,27 @@ function renderBuildings(data) {
     const conf = buildingsConfig[key];
     const lvl = Number(owned[key] || 0);
     const isBuilt = lvl > 0;
-    const canBuyByLevel = Number(p.level || 0) >= Number(conf.levelRequired || 0);
     const maxLevel = Number(conf.maxLevel || 0);
+    const buyCoins = Number(conf.baseCost || 0);
+    const buyParts = Number(conf.partsBase || 0);
+    const nextLevel = lvl + 1;
+    const upgradeCoins = buyCoins + Math.max(0, nextLevel - 1) * Number(conf.costIncreasePerLevel || 0);
+    const upgradeParts = buyParts + Math.max(0, nextLevel - 1) * Number(conf.partsPerLevel || 0);
+    const shownCoins = isBuilt ? upgradeCoins : buyCoins;
+    const shownParts = isBuilt ? upgradeParts : buyParts;
+    const st = resourceStatus(p, shownCoins, shownParts);
+    const shortage = [];
+    if (!st.coinsOk) shortage.push(`💰-${formatNumber(st.missingCoins)}`);
+    if (!st.partsOk) shortage.push(`🔧-${formatNumber(st.missingParts)}`);
 
     return `
       <div class="building-card">
         <h3>${conf.name || key}</h3>
         <p>${isBuilt ? `<b>ур. ${lvl}/${maxLevel}</b>` : '<b>не построено</b>'}</p>
-        <p>Цена: <b>${formatNumber(conf.baseCost || 0)}💰</b> / <b>${formatNumber(conf.partsBase || 0)}🔧</b></p>
+        <p>${isBuilt ? `Следующий ап до <b>${nextLevel}</b> ур.` : 'Покупка здания'}</p>
+        <p>Цена: <b>${formatNumber(shownCoins)}💰</b> / <b>${formatNumber(shownParts)}🔧</b></p>
+        <p class="resource-line">У тебя: <b>${formatNumber(st.coins)}💰</b> / <b>${formatNumber(st.parts)}🔧</b></p>
+        ${shortage.length ? `<p class="shortage">Не хватает: ${shortage.join(' / ')}</p>` : '<p class="okline">Ресурсов хватает ✅</p>'}
         <p>Доступно с ур. фермы: <b>${conf.levelRequired || 0}</b></p>
         ${!isBuilt
           ? `<button data-building-buy="${key}" data-required-level="${conf.levelRequired || 0}">🏗 Купить</button>`
@@ -203,12 +292,10 @@ function renderBuildings(data) {
 async function loadMe() {
   try {
     const res = await fetch('/api/me');
-
     if (res.status === 401) {
       location.href = '/';
       return;
     }
-
     const data = await res.json();
     render(data);
   } catch (error) {
@@ -220,9 +307,7 @@ async function loadMe() {
 async function postJson(url, body = {}) {
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
 
@@ -247,13 +332,13 @@ async function buyLicense() {
 
   if (!data.ok) {
     if (data.error === 'not_enough_money') {
-      showMessage(`⛔ Не хватает монет на лицензию. Нужно: ${formatNumber(data.needed)}💰`);
+      const p = data.profile || state?.profile || {};
+      showMessage(`⛔ Не хватает монет на лицензию.\n${formatNeedLine(p, data.needed || data.cost || 0, 0)}`);
     } else if (data.error === 'all_licenses_bought') {
       showMessage('✅ Все лицензии уже куплены.');
     } else {
       showMessage(`❌ Ошибка лицензии: ${data.error}`);
     }
-
     await loadMe();
     return;
   }
@@ -261,7 +346,6 @@ async function buyLicense() {
   showMessage(`🎟 Куплена лицензия до ${data.licenseLevel} уровня за ${formatNumber(data.cost)}💰`);
   await loadMe();
 }
-
 
 async function marketTrade(action) {
   const qty = Number(document.getElementById('marketQty')?.value || 0);
@@ -272,11 +356,10 @@ async function marketTrade(action) {
       invalid_quantity: 'укажи количество больше 0',
       quantity_too_large: `слишком большое число, максимум ${formatNumber(data.maxQty || 0)}🔧`,
       not_enough_parts: `не хватает запчастей: ${formatNumber(data.available || 0)}/${formatNumber(data.needed || 0)}🔧`,
-      not_enough_upgrade_balance: 'не хватает 💎 ап-баланса',
+      not_enough_upgrade_balance: `не хватает 💎 ап-баланса: сейчас ${formatNumber(data.available || 0)} / нужно ${formatNumber(data.needed || 0)}`,
       market_stock_empty: 'склад рынка пуст',
       not_enough_market_stock: 'на складе рынка недостаточно запчастей'
     };
-
     showMessage(`❌ Рынок: ${labels[data.error] || data.error}`);
     await loadMe();
     return;
@@ -295,7 +378,12 @@ async function buyBuilding(key) {
   const data = await postJson('/api/farm/building/buy', { key });
 
   if (!data.ok) {
-    showMessage(`❌ Здание не куплено: ${buildingErrorLabel(data.error || data.stopReason, data)}`);
+    const p = data.profile || state?.profile || {};
+    const b = (data.buildings || []).find((item) => item.key === key);
+    const needCoins = Number(data.totalCost || b?.buyCost?.coins || 0);
+    const needParts = Number(data.totalParts || b?.buyCost?.parts || 0);
+    const details = needCoins || needParts ? `\n${formatNeedLine(p, needCoins, needParts)}` : '';
+    showMessage(`❌ Здание не куплено: ${buildingErrorLabel(data.error || data.stopReason, data)}${details}`);
     await loadMe();
     return;
   }
@@ -308,13 +396,34 @@ async function upgradeBuilding(key, count) {
   const data = await postJson('/api/farm/building/upgrade', { key, count });
 
   if (!data.ok) {
-    showMessage(`❌ Здание не улучшено: ${buildingErrorLabel(data.error || data.stopReason, data)}`);
+    const p = data.profile || state?.profile || {};
+    const b = (data.buildings || []).find((item) => item.key === key);
+    const needCoins = Number(b?.upgradeCost?.coins || data.nextCost || 0);
+    const needParts = Number(b?.upgradeCost?.parts || data.nextParts || 0);
+    const details = needCoins || needParts ? `\n${formatNeedLine(p, needCoins, needParts)}` : '';
+    showMessage(`❌ Здание не улучшено: ${buildingErrorLabel(data.error || data.stopReason, data)}${details}`);
     await loadMe();
     return;
   }
 
   showMessage(`⬆️ ${data.name || data.building}: +${data.upgraded} ур. Потрачено: ${formatNumber(data.totalCost)}💰 / ${formatNumber(data.totalParts)}🔧`);
   await loadMe();
+}
+
+function farmUpgradeErrorMessage(data) {
+  if (data.stopReason === 'license_required' || data.error === 'license_required') {
+    const req = data.requiredLicense;
+    return req
+      ? `🎟 Нужна лицензия до ${req.level} уровня. Цена: ${formatNumber(req.cost)}💰`
+      : '🎟 Нужна лицензия для следующего уровня.';
+  }
+
+  const p = data.profile || state?.profile || {};
+  const next = data.nextUpgrade || state?.nextUpgrade;
+  const reason = data.stopReason || data.error || 'не хватает ресурсов';
+  const label = reason === 'not_enough_money' ? 'не хватает монет' : reason === 'not_enough_parts' ? 'не хватает запчастей' : reason;
+  const details = next ? `\n${formatNeedLine(p, next.cost, next.parts)}` : '';
+  return `⛔ Не удалось улучшить ферму: ${label}${details}`;
 }
 
 document.getElementById('collectBtn').addEventListener('click', async () => {
@@ -334,12 +443,7 @@ document.getElementById('upgrade1Btn').addEventListener('click', async () => {
   const data = await postJson('/api/farm/upgrade', { count: 1 });
 
   if (!data.ok) {
-    if (data.stopReason === 'license_required' || data.error === 'license_required') {
-      showMessage('🎟 Нужна лицензия для следующего уровня.');
-    } else {
-      showMessage(`⛔ Не удалось улучшить ферму: ${data.stopReason || data.error || 'не хватает ресурсов'}`);
-    }
-
+    showMessage(farmUpgradeErrorMessage(data));
     await loadMe();
     return;
   }
@@ -352,12 +456,7 @@ document.getElementById('upgrade10Btn').addEventListener('click', async () => {
   const data = await postJson('/api/farm/upgrade', { count: 10 });
 
   if (!data.ok) {
-    if (data.stopReason === 'license_required' || data.error === 'license_required') {
-      showMessage('🎟 Нужна лицензия для следующего уровня.');
-    } else {
-      showMessage(`⛔ Не удалось улучшить ферму: ${data.stopReason || data.error || 'не хватает ресурсов'}`);
-    }
-
+    showMessage(farmUpgradeErrorMessage(data));
     await loadMe();
     return;
   }
@@ -368,7 +467,6 @@ document.getElementById('upgrade10Btn').addEventListener('click', async () => {
 
 document.getElementById('testBalanceBtn').addEventListener('click', async () => {
   const data = await postJson('/api/farm/test-balance');
-
   showMessage(`💰 Добавлено ${formatNumber(data.amount)} тестовых монет.`);
   await loadMe();
 });

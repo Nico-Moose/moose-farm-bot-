@@ -21,7 +21,8 @@ const {
 
 const {
   buyBuilding,
-  upgradeBuilding
+  upgradeBuilding,
+  listBuildings
 } = require('../services/farm/buildingService');
 
 const {
@@ -73,7 +74,11 @@ router.post('/farm/collect', requireAuth, (req, res) => {
   const result = collectFarm(profile);
 
   if (!result.ok) {
-    return res.json(result);
+    return res.json({
+      ...result,
+      buildings: result.buildings || [],
+      ...profilePayload(profile)
+    });
   }
 
   const updatedProfile = updateProfile(result.profile);
@@ -143,7 +148,11 @@ router.post('/farm/building/buy', requireAuth, (req, res) => {
   const result = buyBuilding(profile, key);
 
   if (!result.ok) {
-    return res.json(result);
+    return res.json({
+      ...result,
+      buildings: listBuildings(profile),
+      ...profilePayload(profile)
+    });
   }
 
   const updatedProfile = updateProfile(result.profile);
@@ -249,7 +258,10 @@ router.post('/farm/license/buy', requireAuth, (req, res) => {
   const result = buyNextLicense(profile);
 
   if (!result.ok) {
-    return res.json(result);
+    return res.json({
+      ...result,
+      ...profilePayload(profile)
+    });
   }
 
   const updatedProfile = updateProfile(result.profile);
