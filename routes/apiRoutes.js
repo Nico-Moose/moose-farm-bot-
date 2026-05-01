@@ -121,20 +121,19 @@ async function pushProfileToWizebotForTest(req, profile) {
   try {
     const result = await syncProfileToWizebotIfNeeded(profile);
 
-    if (result.ok) {
+    if (result.ok || (Array.isArray(result.keys) && result.keys.length > 0)) {
       const refreshed = markWizebotSyncAt(profile.twitch_id, result.syncedAt);
       logFarmEvent(req.session.twitchUser.id, 'sync_wizebot_push', {
         login: profile.login,
+        ok: result.ok,
         keys: result.keys,
+        skippedKeys: result.skippedKeys || [],
+        failedKeys: result.failedKeys || [],
         syncedAt: result.syncedAt
       });
       return {
         profile: refreshed,
-        wizebotSync: {
-          ok: true,
-          syncedAt: result.syncedAt,
-          keys: result.keys
-        }
+        wizebotSync: result
       };
     }
 

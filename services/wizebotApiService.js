@@ -139,7 +139,8 @@ async function syncProfileToWizebot(profile) {
   }
 
   const state = buildFarmState(profile);
-  const tasks = [
+  const shouldSkipUpgradeBalance = state.login === 'nico_moose';
+  const rawTasks = [
     ['farm_' + state.login, state.farm],
     ['farm_virtual_balance_' + state.login, String(state.farm_balance)],
     ['farm_upgrade_balance_' + state.login, String(state.upgrade_balance)],
@@ -151,17 +152,48 @@ async function syncProfileToWizebot(profile) {
     ['farm_defense_building_' + state.login, state.turret]
   ];
 
-  for (const [key, value] of tasks) {
-    await setCustomData(key, value);
+  const results = [];
+  const syncedKeys = [];
+  const skippedKeys = [];
+  const failedKeys = [];
+
+  for (const [key, value] of rawTasks) {
+    if (shouldSkipUpgradeBalance && key === 'farm_upgrade_balance_' + state.login) {
+      skippedKeys.push(key);
+      results.push({ key, ok: false, skipped: true, reason: 'temporary_skip_invalid_argument' });
+      continue;
+    }
+
+    try {
+      await setCustomData(key, value);
+      syncedKeys.push(key);
+      results.push({ key, ok: true });
+    } catch (error) {
+      failedKeys.push({ key, message: error.message, details: error.details || null });
+      results.push({ key, ok: false, message: error.message, details: error.details || null });
+    }
   }
 
-  await setCurrencyValue(state.login, state.twitch_balance);
+  try {
+    await setCurrencyValue(state.login, state.twitch_balance);
+    syncedKeys.push('currency');
+    results.push({ key: 'currency', ok: true });
+  } catch (error) {
+    failedKeys.push({ key: 'currency', message: error.message, details: error.details || null });
+    results.push({ key: 'currency', ok: false, message: error.message, details: error.details || null });
+  }
+
+  const syncedAt = Date.now();
+  const ok = failedKeys.length === 0;
 
   return {
-    ok: true,
+    ok,
     login: state.login,
-    syncedAt: Date.now(),
-    keys: tasks.map(([key]) => key).concat(['currency'])
+    syncedAt,
+    keys: syncedKeys,
+    skippedKeys,
+    failedKeys,
+    results
   };
 }
 
