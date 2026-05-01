@@ -61,6 +61,7 @@ function render(data) {
   }
 
   renderLicense(data);
+  renderMarket(data);
   renderBuildings(data);
 }
 
@@ -92,6 +93,30 @@ function renderLicense(data) {
   `;
 
   document.getElementById('buyLicenseBtn').addEventListener('click', buyLicense);
+}
+
+
+function renderMarket(data) {
+  const box = document.getElementById('marketBox');
+  if (!box) return;
+
+  const market = data.market || {};
+  const stock = Number(market.stock || 0);
+  const sellPrice = Number(market.sellPrice || 10);
+  const buyPrice = Number(market.buyPrice || 20);
+
+  box.innerHTML = `
+    <p>📦 Склад рынка: <b>${formatNumber(stock)}🔧</b></p>
+    <p>🟢 Продажа: <b>1🔧 = ${formatNumber(sellPrice)}💎</b> | 🔵 Покупка: <b>1🔧 = ${formatNumber(buyPrice)}💎</b></p>
+    <div class="market-actions">
+      <input id="marketQty" type="number" min="1" step="1" value="100" />
+      <button id="marketBuyBtn">🔵 Купить 🔧</button>
+      <button id="marketSellBtn">🟢 Продать 🔧</button>
+    </div>
+  `;
+
+  document.getElementById('marketBuyBtn').addEventListener('click', () => marketTrade('buy'));
+  document.getElementById('marketSellBtn').addEventListener('click', () => marketTrade('sell'));
 }
 
 function renderBuildings(data) {
@@ -199,6 +224,35 @@ async function buyLicense() {
   await loadMe();
 }
 
+
+async function marketTrade(action) {
+  const qty = Number(document.getElementById('marketQty')?.value || 0);
+  const data = await postJson(`/api/farm/market/${action}`, { qty });
+
+  if (!data.ok) {
+    const labels = {
+      invalid_quantity: 'укажи количество больше 0',
+      quantity_too_large: `слишком большое число, максимум ${formatNumber(data.maxQty || 0)}🔧`,
+      not_enough_parts: `не хватает запчастей: ${formatNumber(data.available || 0)}/${formatNumber(data.needed || 0)}🔧`,
+      not_enough_upgrade_balance: 'не хватает 💎 ап-баланса',
+      market_stock_empty: 'склад рынка пуст',
+      not_enough_market_stock: 'на складе рынка недостаточно запчастей'
+    };
+
+    showMessage(`❌ Рынок: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+
+  if (action === 'buy') {
+    showMessage(`🔵 Куплено ${formatNumber(data.qty)}🔧 за ${formatNumber(data.totalCost)}💎${data.limited ? ' (сколько хватило)' : ''}`);
+  } else {
+    showMessage(`🟢 Продано ${formatNumber(data.qty)}🔧 за ${formatNumber(data.totalCost)}💎`);
+  }
+
+  await loadMe();
+}
+
 async function buyBuilding(key) {
   const data = await postJson('/api/farm/building/buy', { key });
 
@@ -208,7 +262,7 @@ async function buyBuilding(key) {
     return;
   }
 
-  showMessage(`✅ Куплено: ${data.name || data.building}`);
+  showMessage(`✅ Куплено: ${data.name || data.building}. Потрачено: ${formatNumber(data.totalCost)}💰 / ${formatNumber(data.totalParts)}🔧`);
   await loadMe();
 }
 

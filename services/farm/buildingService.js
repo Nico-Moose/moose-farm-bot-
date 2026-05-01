@@ -1,6 +1,6 @@
 const { num } = require('./numberUtils');
 const { ensureFarmShape } = require('./profileShape');
-const { spendMoney, spendParts } = require('./paymentService');
+const { spendCoins, spendParts } = require('./paymentService');
 
 const BUILDING_ORDER = [
   'завод',
@@ -153,13 +153,13 @@ function buyBuilding(profile, key) {
     return { ok: false, error: 'building_already_built' };
   }
 
-  const money = spendMoney(profile, state.buyCost.coins);
+  const money = spendCoins(profile, state.buyCost.coins);
   if (!money.ok) return { ok: false, error: 'not_enough_money' };
 
   const parts = spendParts(profile, state.buyCost.parts);
   if (!parts.ok) {
-    profile.farm_balance += money.fromFarm;
-    profile.upgrade_balance += money.fromUpgrade;
+    profile.farm_balance += money.spent.farm_balance;
+    profile.upgrade_balance += money.spent.upgrade_balance;
     return { ok: false, error: 'not_enough_parts' };
   }
 
@@ -169,9 +169,10 @@ function buyBuilding(profile, key) {
     ok: true,
     action: 'buy',
     building: key,
+    name: state.name,
     level: 1,
-    costCoins: state.buyCost.coins,
-    costParts: state.buyCost.parts,
+    totalCost: state.buyCost.coins,
+    totalParts: state.buyCost.parts,
     profile,
     buildings: listBuildings(profile)
   };
@@ -189,7 +190,7 @@ function upgradeBuilding(profile, key, count = 1) {
 
   const wanted = Math.min(Math.max(parseInt(count, 10) || 1, 1), 40);
   let upgraded = 0;
-  let totalCoins = 0;
+  let totalCost = 0;
   let totalParts = 0;
   let stopReason = null;
 
@@ -211,7 +212,7 @@ function upgradeBuilding(profile, key, count = 1) {
 
     const cost = getBuildingUpgradeCost(conf, nextLevel);
 
-    const money = spendMoney(profile, cost.coins);
+    const money = spendCoins(profile, cost.coins);
     if (!money.ok) {
       stopReason = 'not_enough_money';
       break;
@@ -219,14 +220,14 @@ function upgradeBuilding(profile, key, count = 1) {
 
     const parts = spendParts(profile, cost.parts);
     if (!parts.ok) {
-      profile.farm_balance += money.fromFarm;
-      profile.upgrade_balance += money.fromUpgrade;
+      profile.farm_balance += money.spent.farm_balance;
+      profile.upgrade_balance += money.spent.upgrade_balance;
       stopReason = 'not_enough_parts';
       break;
     }
 
     profile.farm.buildings[key] = nextLevel;
-    totalCoins += cost.coins;
+    totalCost += cost.coins;
     totalParts += cost.parts;
     upgraded++;
   }
@@ -235,8 +236,9 @@ function upgradeBuilding(profile, key, count = 1) {
     ok: upgraded > 0,
     action: 'upgrade',
     building: key,
+    name: conf.name || key,
     upgraded,
-    totalCoins,
+    totalCost,
     totalParts,
     stopReason,
     profile,

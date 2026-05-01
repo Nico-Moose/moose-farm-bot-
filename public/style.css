@@ -43,3 +43,59 @@ h1 { margin-top: 0; font-size: 42px; }
 .profile { display: flex; gap: 16px; align-items: center; }
 .profile img { width: 72px; height: 72px; border-radius: 50%; }
 small { opacity: .75; }
+
+.market-section,
+.buildings-section,
+.license-section {
+  margin-top: 24px;
+}
+
+.market-card,
+.license-card,
+.building-card {
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.market-actions {
+  display: grid;
+  grid-template-columns: 1fr repeat(2, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.market-actions input {
+  min-width: 0;
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 18px;
+}
+
+.buildings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.building-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#message {
+  min-height: 28px;
+  margin-top: 20px;
+  font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .farm-grid,
+  .buildings-grid,
+  .market-actions {
+    grid-template-columns: 1fr;
+  }
+}

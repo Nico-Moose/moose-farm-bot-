@@ -25,6 +25,12 @@ const {
 } = require('../services/farm/buildingService');
 
 const {
+  getMarketState,
+  buyParts,
+  sellParts
+} = require('../services/farm/marketService');
+
+const {
   getNextLicense,
   buyNextLicense
 } = require('../services/farm/licenseService');
@@ -43,15 +49,22 @@ function requireAuth(req, res, next) {
   next();
 }
 
+function profilePayload(profile) {
+  return {
+    profile,
+    nextUpgrade: getNextUpgrade(profile),
+    nextLicense: getNextLicense(profile),
+    market: getMarketState(profile)
+  };
+}
+
 router.get('/me', requireAuth, (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
 
   res.json({
     ok: true,
     user: req.session.twitchUser,
-    profile,
-    nextUpgrade: getNextUpgrade(profile),
-    nextLicense: getNextLicense(profile)
+    ...profilePayload(profile)
   });
 });
 
@@ -76,9 +89,7 @@ router.post('/farm/collect', requireAuth, (req, res) => {
     income: result.income,
     partsIncome: result.partsIncome,
     minutes: result.minutes,
-    profile: updatedProfile,
-    nextUpgrade: getNextUpgrade(updatedProfile),
-    nextLicense: getNextLicense(updatedProfile)
+    ...profilePayload(updatedProfile)
   });
 });
 
@@ -105,9 +116,7 @@ router.post('/farm/upgrade', requireAuth, (req, res) => {
     totalParts: result.totalParts,
     stopReason: result.stopReason,
     requiredLicense: result.requiredLicense,
-    profile: updatedProfile,
-    nextUpgrade: getNextUpgrade(updatedProfile),
-    nextLicense: getNextLicense(updatedProfile)
+    ...profilePayload(updatedProfile)
   });
 });
 
@@ -123,9 +132,7 @@ router.post('/farm/test-balance', requireAuth, (req, res) => {
   res.json({
     ok: true,
     amount: result.amount,
-    profile: updatedProfile,
-    nextUpgrade: getNextUpgrade(updatedProfile),
-    nextLicense: getNextLicense(updatedProfile)
+    ...profilePayload(updatedProfile)
   });
 });
 
@@ -143,19 +150,19 @@ router.post('/farm/building/buy', requireAuth, (req, res) => {
 
   logFarmEvent(req.session.twitchUser.id, 'building_buy', {
     building: result.building,
-    cost: result.cost,
-    parts: result.parts
+    totalCost: result.totalCost,
+    totalParts: result.totalParts
   });
 
   res.json({
     ok: true,
     building: result.building,
     name: result.name,
-    cost: result.cost,
-    parts: result.parts,
-    profile: updatedProfile,
-    nextUpgrade: getNextUpgrade(updatedProfile),
-    nextLicense: getNextLicense(updatedProfile)
+    level: result.level,
+    totalCost: result.totalCost,
+    totalParts: result.totalParts,
+    buildings: result.buildings,
+    ...profilePayload(updatedProfile)
   });
 });
 
@@ -165,7 +172,6 @@ router.post('/farm/building/upgrade', requireAuth, (req, res) => {
   const count = req.body.count || 1;
 
   const result = upgradeBuilding(profile, key, count);
-
   const updatedProfile = updateProfile(result.profile);
 
   if (result.upgraded > 0) {
@@ -185,10 +191,56 @@ router.post('/farm/building/upgrade', requireAuth, (req, res) => {
     upgraded: result.upgraded,
     totalCost: result.totalCost,
     totalParts: result.totalParts,
+    stopReason: result.stopReason,
     error: result.error,
+    buildings: result.buildings,
+    ...profilePayload(updatedProfile)
+  });
+});
+
+router.post('/farm/market/buy', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = buyParts(profile, req.body.qty);
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.ok) {
+    logFarmEvent(req.session.twitchUser.id, 'market_buy_parts', {
+      requested: result.requested,
+      qty: result.qty,
+      totalCost: result.totalCost,
+      totalParts: result.totalParts,
+      limited: result.limited
+    });
+  }
+
+  res.json({
+    ...result,
     profile: updatedProfile,
     nextUpgrade: getNextUpgrade(updatedProfile),
-    nextLicense: getNextLicense(updatedProfile)
+    nextLicense: getNextLicense(updatedProfile),
+    market: getMarketState(updatedProfile)
+  });
+});
+
+router.post('/farm/market/sell', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = sellParts(profile, req.body.qty);
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.ok) {
+    logFarmEvent(req.session.twitchUser.id, 'market_sell_parts', {
+      qty: result.qty,
+      totalCost: result.totalCost,
+      totalParts: result.totalParts
+    });
+  }
+
+  res.json({
+    ...result,
+    profile: updatedProfile,
+    nextUpgrade: getNextUpgrade(updatedProfile),
+    nextLicense: getNextLicense(updatedProfile),
+    market: getMarketState(updatedProfile)
   });
 });
 
@@ -213,9 +265,7 @@ router.post('/farm/license/buy', requireAuth, (req, res) => {
     licenseLevel: result.licenseLevel,
     cost: result.cost,
     spent: result.spent,
-    profile: updatedProfile,
-    nextUpgrade: getNextUpgrade(updatedProfile),
-    nextLicense: getNextLicense(updatedProfile)
+    ...profilePayload(updatedProfile)
   });
 });
 
@@ -241,10 +291,8 @@ router.post('/farm/sync-wizebot', requireAuth, async (req, res) => {
 
     res.json({
       ok: true,
-      profile: updatedProfile,
       imported: result.imported,
-      nextUpgrade: getNextUpgrade(updatedProfile),
-      nextLicense: getNextLicense(updatedProfile)
+      ...profilePayload(updatedProfile)
     });
   } catch (error) {
     console.error('[WIZEBOT SYNC] Error:', error);
