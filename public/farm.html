@@ -16,42 +16,65 @@
       <button id="openAdminPanel" type="button">👑 Открыть админ-панель</button>
     </section>
 
-    <section class="farm-grid">
-      <button id="collectBtn">🧺 Собрать<br><small>60 минут кулдаун</small></button>
-      <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
-      <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
-      <button id="testBalanceBtn">💰 +100k<br><small>тест</small></button>
-      <button id="syncWizebotBtn">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
+    <section class="quick-actions-section visual-section">
+      <h2>⚡ Быстрые действия</h2>
+      <section class="farm-grid action-grid-top">
+        <button id="collectBtn">🧺 Собрать<br><small>60 минут кулдаун</small></button>
+        <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
+        <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
+        <button id="syncWizebotBtn">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
+      </section>
     </section>
 
-    <section id="licenseBox" class="license-section"></section>
-
-    <section class="market-section">
-      <h2>🏪 Рынок запчастей</h2>
-      <div id="marketBox" class="market-card">Загрузка рынка...</div>
+    <section class="extra-section priority-section visual-section">
+      <h2>🎁 Главное: кейс / GAMUS / оффсбор</h2>
+      <div id="extrasBox" class="combat-grid">Загрузка...</div>
     </section>
 
-
-    <section class="combat-section">
+    <section class="combat-section priority-section visual-section">
       <h2>⚔️ Рейды и защита</h2>
       <div id="combatBox" class="combat-grid">Загрузка боевого блока...</div>
     </section>
 
-    <section class="extra-section">
-      <h2>🎁 Кейсы / GAMUS / Оффсбор</h2>
-      <div id="extrasBox" class="combat-grid">Загрузка...</div>
+    <section id="licenseBox" class="license-section"></section>
+
+    <section class="market-section visual-section">
+      <h2>🏪 Рынок запчастей</h2>
+      <div id="marketBox" class="market-card">Загрузка рынка...</div>
     </section>
 
-    <section class="info-section">
-      <h2>📊 Инфо и топы</h2>
-      <div id="infoBox" class="info-card">Загрузка...</div>
-      <div id="topsBox" class="info-card"></div>
+    <section class="buildings-section visual-section collapsed-panel" id="buildingsPanel">
+      <div class="section-head">
+        <div>
+          <h2>🏗 Здания</h2>
+          <p>Покупка и апгрейд построек. Недоступные здания затемнены и показывают требование.</p>
+        </div>
+        <button type="button" class="section-toggle" data-toggle-section="buildingsPanel">Открыть здания</button>
+      </div>
+      <div id="buildings" class="buildings-grid panel-body"></div>
     </section>
 
+    <section class="info-section visual-section collapsed-panel" id="topsPanel">
+      <div class="section-head">
+        <div>
+          <h2>🏆 Топы и инфо</h2>
+          <p>Сводка, топ игроков и топ рейдов открываются отдельно.</p>
+        </div>
+        <button type="button" class="section-toggle" data-toggle-section="topsPanel">Открыть топы</button>
+      </div>
+      <div id="infoBox" class="info-card panel-body">Загрузка...</div>
+      <div id="topsBox" class="info-card panel-body"></div>
+    </section>
 
-    <section class="history-section">
-      <h2>📜 Истории и журнал</h2>
-      <div class="history-controls">
+    <section class="history-section visual-section collapsed-panel" id="historyPanel">
+      <div class="section-head">
+        <div>
+          <h2>📜 Истории и журнал</h2>
+          <p>Журнал действий находится внизу и открывается по кнопке.</p>
+        </div>
+        <button type="button" class="section-toggle" data-toggle-section="historyPanel">Открыть журнал</button>
+      </div>
+      <div class="history-controls panel-body">
         <select id="historyType">
           <option value="">Все события</option>
           <option value="upgrade">Апы фермы</option>
@@ -66,12 +89,7 @@
         </select>
         <button id="historyRefreshBtn">Обновить журнал</button>
       </div>
-      <div id="historyBox" class="info-card">Загрузка истории...</div>
-    </section>
-
-    <section class="buildings-section">
-      <h2>🏗 Здания</h2>
-      <div id="buildings" class="buildings-grid"></div>
+      <div id="historyBox" class="info-card panel-body">Загрузка истории...</div>
     </section>
 
     <div id="message"></div>

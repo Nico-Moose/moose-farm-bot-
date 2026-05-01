@@ -246,27 +246,41 @@ function renderMarket(data) {
   const stock = Number(market.stock || 0);
   const sellPrice = Number(market.sellPrice || 10);
   const buyPrice = Number(market.buyPrice || 20);
+  const profile = data.profile || {};
+  const upgradeBalance = Number(profile.upgrade_balance || 0);
+  const parts = Number(profile.parts || 0);
+  const canBuyOne = stock > 0 && upgradeBalance >= buyPrice;
+  const canSellOne = parts > 0;
+  const maxBuy = Math.max(0, Math.min(stock, Math.floor(upgradeBalance / buyPrice)));
 
   box.innerHTML = `
-    <p>📦 Склад рынка: <b>${formatNumber(stock)}🔧</b></p>
-    <p>🟢 Продажа: <b>1🔧 = ${formatNumber(sellPrice)}💎</b> | 🔵 Покупка: <b>1🔧 = ${formatNumber(buyPrice)}💎</b></p>
-    <p class="resource-line">У тебя: <b>${formatNumber(data.profile.upgrade_balance)}💎</b> / <b>${formatNumber(data.profile.parts)}🔧</b></p>
-    <div class="market-actions">
-      <input id="marketQty" type="number" min="1" step="1" value="100" />
-      <button id="marketBuyBtn">🔵 Купить 🔧</button>
-      <button id="marketSellBtn">🟢 Продать 🔧</button>
+    <div class="market-hero">
+      <div class="market-stat"><span>📦 Склад</span><b>${formatNumber(stock)}🔧</b></div>
+      <div class="market-stat"><span>🔵 Купить</span><b>1🔧 = ${formatNumber(buyPrice)}💎</b></div>
+      <div class="market-stat"><span>🟢 Продать</span><b>1🔧 = ${formatNumber(sellPrice)}💎</b></div>
+      <div class="market-stat"><span>Твой лимит покупки</span><b>${formatNumber(maxBuy)}🔧</b></div>
     </div>
+    <div class="market-wallet">
+      <span>💎 Ап-баланс: <b>${formatNumber(upgradeBalance)}</b></span>
+      <span>🔧 Запчасти: <b>${formatNumber(parts)}</b></span>
+    </div>
+    <div class="market-actions pretty-actions">
+      <input id="marketQty" type="number" min="1" step="1" value="100" />
+      <button id="marketBuyBtn" ${!canBuyOne ? 'disabled' : ''}>🔵 Купить запчасти</button>
+      <button id="marketSellBtn" ${!canSellOne ? 'disabled' : ''}>🟢 Продать запчасти</button>
+    </div>
+    <p class="market-hint">${canBuyOne ? 'Покупка списывает 💎 и выдаёт 🔧.' : 'Для покупки нужны 💎 и склад рынка.'} ${canSellOne ? 'Продажа выдаёт 💎.' : 'Для продажи нужны 🔧.'}</p>
   `;
 
-  document.getElementById('marketBuyBtn').addEventListener('click', () => marketTrade('buy'));
-  document.getElementById('marketSellBtn').addEventListener('click', () => marketTrade('sell'));
+  document.getElementById('marketBuyBtn')?.addEventListener('click', () => marketTrade('buy'));
+  document.getElementById('marketSellBtn')?.addEventListener('click', () => marketTrade('sell'));
 }
 
 function renderBuildings(data) {
   const el = document.getElementById('buildings');
   if (!el) return;
 
-  const p = data.profile;
+  const p = data.profile || {};
   const configs = p.configs || {};
   const buildingsConfig = configs.buildings || {};
   const owned = (p.farm && p.farm.buildings) || {};
@@ -278,10 +292,13 @@ function renderBuildings(data) {
   }
 
   el.innerHTML = keys.map((key) => {
-    const conf = buildingsConfig[key];
+    const conf = buildingsConfig[key] || {};
     const lvl = Number(owned[key] || 0);
     const isBuilt = lvl > 0;
     const maxLevel = Number(conf.maxLevel || 0);
+    const farmLevel = Number(p.level || 0);
+    const requiredLevel = Number(conf.levelRequired || 0);
+    const levelLocked = farmLevel < requiredLevel;
     const buyCoins = Number(conf.baseCost || 0);
     const buyParts = Number(conf.partsBase || 0);
     const nextLevel = lvl + 1;
@@ -291,24 +308,42 @@ function renderBuildings(data) {
     const shownParts = isBuilt ? upgradeParts : buyParts;
     const st = resourceStatus(p, shownCoins, shownParts);
     const shortage = [];
-    if (!st.coinsOk) shortage.push(`💰-${formatNumber(st.missingCoins)}`);
-    if (!st.partsOk) shortage.push(`🔧-${formatNumber(st.missingParts)}`);
+    if (!st.coinsOk) shortage.push(`💰 не хватает ${formatNumber(st.missingCoins)}`);
+    if (!st.partsOk) shortage.push(`🔧 не хватает ${formatNumber(st.missingParts)}`);
+    const maxed = isBuilt && maxLevel && lvl >= maxLevel;
+    const cardClass = levelLocked ? 'building-card locked-building' : shortage.length ? 'building-card shortage-building' : 'building-card ready-building';
+    const subtitle = levelLocked
+      ? `🔒 Нужен уровень фермы ${requiredLevel}. Сейчас ${farmLevel}.`
+      : isBuilt
+        ? (maxed ? '✅ Максимальный уровень' : `Следующий ап до ${nextLevel} ур.`)
+        : 'Можно построить';
 
     return `
-      <div class="building-card">
-        <h3>${conf.name || key}</h3>
-        <p>${isBuilt ? `<b>ур. ${lvl}/${maxLevel}</b>` : '<b>не построено</b>'}</p>
-        <p>${isBuilt ? `Следующий ап до <b>${nextLevel}</b> ур.` : 'Покупка здания'}</p>
-        <p>Цена: <b>${formatNumber(shownCoins)}💰</b> / <b>${formatNumber(shownParts)}🔧</b></p>
-        <p class="resource-line">У тебя: <b>${formatNumber(st.coins)}💰</b> / <b>${formatNumber(st.parts)}🔧</b></p>
-        ${shortage.length ? `<p class="shortage">Не хватает: ${shortage.join(' / ')}</p>` : '<p class="okline">Ресурсов хватает ✅</p>'}
-        <p>Доступно с ур. фермы: <b>${conf.levelRequired || 0}</b></p>
+      <div class="${cardClass}">
+        <div class="building-title-row">
+          <h3>${conf.name || key}</h3>
+          <span class="building-badge">${isBuilt ? 'ур. ' + lvl + (maxLevel ? '/' + maxLevel : '') : 'не построено'}</span>
+        </div>
+        <p class="building-subtitle">${subtitle}</p>
+        <div class="building-cost-box">
+          <span>Цена</span>
+          <b>${formatNumber(shownCoins)}💰</b>
+          <b>${formatNumber(shownParts)}🔧</b>
+        </div>
+        <div class="building-wallet-box">
+          <span>У тебя</span>
+          <b>${formatNumber(st.coins)}💰</b>
+          <b>${formatNumber(st.parts)}🔧</b>
+        </div>
+        ${levelLocked ? `<p class="shortage">Недоступно: нужен ${requiredLevel} уровень фермы</p>` : ''}
+        ${!levelLocked && shortage.length ? `<p class="shortage">${shortage.join(' · ')}</p>` : ''}
+        ${!levelLocked && !shortage.length && !maxed ? '<p class="okline">Ресурсов хватает ✅</p>' : ''}
         ${!isBuilt
-          ? `<button data-building-buy="${key}" data-required-level="${conf.levelRequired || 0}">🏗 Купить</button>`
+          ? `<button data-building-buy="${key}" data-required-level="${requiredLevel}" ${levelLocked ? 'disabled' : ''}>🏗 Купить</button>`
           : `
             <div class="building-actions">
-              <button data-building-upgrade="${key}" data-count="1" ${lvl >= maxLevel ? 'disabled' : ''}>⬆️ Ап +1</button>
-              <button data-building-upgrade="${key}" data-count="10" ${lvl >= maxLevel ? 'disabled' : ''}>⬆️ Ап +10</button>
+              <button data-building-upgrade="${key}" data-count="1" ${maxed ? 'disabled' : ''}>⬆️ Ап +1</button>
+              <button data-building-upgrade="${key}" data-count="10" ${maxed ? 'disabled' : ''}>⬆️ Ап +10</button>
             </div>
           `}
       </div>
@@ -530,15 +565,28 @@ document.getElementById('upgrade10Btn').addEventListener('click', async () => {
   await loadMe();
 });
 
-document.getElementById('testBalanceBtn').addEventListener('click', async () => {
-  const data = await postJson('/api/farm/test-balance');
-  showMessage(`💰 Добавлено ${formatNumber(data.amount)} тестовых монет.`);
-  await loadMe();
-});
-
 document.getElementById('syncWizebotBtn').addEventListener('click', async () => {
   showMessage('🔄 Синхронизация запускается через команду !синкферма в Twitch-чате.');
 });
+
+function initVisualPanels() {
+  document.querySelectorAll('[data-toggle-section]').forEach((btn) => {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-toggle-section');
+      const section = document.getElementById(id);
+      if (!section) return;
+      const isOpen = section.classList.toggle('open');
+      section.classList.toggle('collapsed-panel', !isOpen);
+      if (id === 'buildingsPanel') btn.textContent = isOpen ? 'Скрыть здания' : 'Открыть здания';
+      if (id === 'topsPanel') btn.textContent = isOpen ? 'Скрыть топы' : 'Открыть топы';
+      if (id === 'historyPanel') btn.textContent = isOpen ? 'Скрыть журнал' : 'Открыть журнал';
+    });
+  });
+}
+
+initVisualPanels();
 
 loadMe();
 
