@@ -165,26 +165,36 @@ function render(data) {
   const el = document.getElementById('profile');
   const p = data.profile;
   const next = data.nextUpgrade;
+  const totalCoins = currentCoins(p);
+  const syncText = p.last_wizebot_sync_at
+    ? new Date(Number(p.last_wizebot_sync_at)).toLocaleString('ru-RU')
+    : 'ещё не было';
+  const avatar = data.user.avatarUrl
+    ? `<img class="profile-avatar-big" src="${data.user.avatarUrl}" alt="avatar">`
+    : '<div class="profile-avatar-big profile-avatar-fallback">🌾</div>';
 
   el.innerHTML = `
-    <div class="profile">
-      ${data.user.avatarUrl ? `<img src="${data.user.avatarUrl}" alt="avatar">` : ''}
-      <div>
-        <b>${data.user.displayName}</b><br>
-        🌾 Уровень фермы: <b>${p.level}</b><br>
-        💰 Баланс фермы: <b>${formatNumber(p.farm_balance)}</b><br>
-        💎 Ап-баланс: <b>${formatNumber(p.upgrade_balance)}</b><br>
-        🔧 Запчасти: <b>${formatNumber(p.parts)}</b><br>
-        📈 Доход всего: <b>${formatNumber(p.total_income)}</b><br>
-        🛡 Защита: <b>${formatNumber(p.protection_level || 0)}</b><br>
-        ⚔️ Рейд-сила: <b>${formatNumber(p.raid_power || 0)}</b><br>
-        🎟 Лицензия до: <b>${p.license_level ? p.license_level : 39}</b><br>
-        ${p.last_wizebot_sync_at
-          ? `🔄 WizeBot sync: <b>${new Date(Number(p.last_wizebot_sync_at)).toLocaleString('ru-RU')}</b><br>`
-          : '🔄 WizeBot sync: <b>ещё не было</b><br>'}
-        ${next
-          ? `⬆️ Следующий уровень ${next.level}: <b>${formatNumber(next.cost)}</b>${next.parts ? ` / 🔧${formatNumber(next.parts)}` : ''}${next.licenseRequired ? ` <span class="warn">(нужна лицензия)</span>` : ''}`
-          : '✅ Максимальный уровень'}
+    <div class="profile-card-final">
+      <div class="profile-main-left">
+        ${avatar}
+        <div>
+          <div class="profile-kicker">Игрок</div>
+          <div class="profile-name-final">${data.user.displayName}</div>
+          <div class="profile-status-pill">${next ? '🌱 Развитие доступно' : '✅ Максимальный уровень'}</div>
+        </div>
+      </div>
+
+      <div class="profile-stats-final">
+        <div class="stat-tile accent"><span>🌾 Уровень</span><b>${p.level}</b></div>
+        <div class="stat-tile"><span>💰 Всего монет</span><b>${formatNumber(totalCoins)}</b></div>
+        <div class="stat-tile"><span>🌾 Ферма</span><b>${formatNumber(p.farm_balance)}</b></div>
+        <div class="stat-tile"><span>💎 Ап-баланс</span><b>${formatNumber(p.upgrade_balance)}</b></div>
+        <div class="stat-tile"><span>🔧 Запчасти</span><b>${formatNumber(p.parts)}</b></div>
+        <div class="stat-tile"><span>📈 Доход</span><b>${formatNumber(p.total_income)}</b></div>
+        <div class="stat-tile"><span>🛡 Защита</span><b>${formatNumber(p.protection_level || 0)}</b></div>
+        <div class="stat-tile"><span>⚔️ Рейд-сила</span><b>${formatNumber(p.raid_power || 0)}</b></div>
+        <div class="stat-tile"><span>🎟 Лицензия</span><b>до ${p.license_level ? p.license_level : 39}</b></div>
+        <div class="stat-tile wide"><span>🔄 WizeBot sync</span><b>${syncText}</b></div>
       </div>
     </div>
   `;
@@ -569,20 +579,22 @@ document.getElementById('syncWizebotBtn').addEventListener('click', async () => 
   showMessage('🔄 Синхронизация запускается через команду !синкферма в Twitch-чате.');
 });
 
+function openFarmTab(name) {
+  const target = name || 'main';
+  document.querySelectorAll('.farm-tab-panel').forEach((panel) => {
+    panel.classList.toggle('active', panel.getAttribute('data-farm-panel') === target);
+  });
+  document.querySelectorAll('[data-farm-tab]').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-farm-tab') === target && btn.classList.contains('farm-tab'));
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function initVisualPanels() {
-  document.querySelectorAll('[data-toggle-section]').forEach((btn) => {
+  document.querySelectorAll('[data-farm-tab]').forEach((btn) => {
     if (btn.dataset.bound === '1') return;
     btn.dataset.bound = '1';
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-toggle-section');
-      const section = document.getElementById(id);
-      if (!section) return;
-      const isOpen = section.classList.toggle('open');
-      section.classList.toggle('collapsed-panel', !isOpen);
-      if (id === 'buildingsPanel') btn.textContent = isOpen ? 'Скрыть здания' : 'Открыть здания';
-      if (id === 'topsPanel') btn.textContent = isOpen ? 'Скрыть топы' : 'Открыть топы';
-      if (id === 'historyPanel') btn.textContent = isOpen ? 'Скрыть журнал' : 'Открыть журнал';
-    });
+    btn.addEventListener('click', () => openFarmTab(btn.getAttribute('data-farm-tab')));
   });
 }
 

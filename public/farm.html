@@ -7,94 +7,125 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <main class="card">
-    <h1>🌾 Моя ферма</h1>
+  <main class="app-shell">
+    <header class="farm-hero">
+      <div class="farm-title-row">
+        <div class="farm-logo">🌾</div>
+        <div>
+          <h1>Моя ферма</h1>
+          <p>Управление фермой, рейдами, зданиями и рынком</p>
+        </div>
+      </div>
+      <section id="admin-entry" class="admin-entry hidden">
+        <button id="openAdminPanel" type="button">👑 Админ-панель</button>
+      </section>
+    </header>
 
-    <div id="profile">Загрузка...</div>
+    <nav class="farm-tabs" aria-label="Меню фермы">
+      <button class="farm-tab active" data-farm-tab="main">🏠 Главная</button>
+      <button class="farm-tab" data-farm-tab="buildings">🏗 Здания</button>
+      <button class="farm-tab" data-farm-tab="market">🏪 Рынок</button>
+      <button class="farm-tab" data-farm-tab="tops">🏆 Топ / инфо</button>
+      <button class="farm-tab" data-farm-tab="history">📜 История / журнал</button>
+    </nav>
 
-    <section id="admin-entry" class="admin-entry hidden">
-      <button id="openAdminPanel" type="button">👑 Открыть админ-панель</button>
+    <section class="farm-tab-panel active" data-farm-panel="main">
+      <div id="profile" class="profile-shell">Загрузка...</div>
+
+      <section class="quick-actions-section visual-section main-actions-card">
+        <h2>⚡ Основные действия</h2>
+        <section class="farm-grid action-grid-top">
+          <button id="collectBtn">🧺 Собрать<br><small>60 минут кулдаун</small></button>
+          <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
+          <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
+          <button id="syncWizebotBtn">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
+        </section>
+      </section>
+
+      <section class="extra-section priority-section visual-section">
+        <h2>🎁 Кейс / GAMUS / оффсбор</h2>
+        <div id="extrasBox" class="combat-grid">Загрузка...</div>
+      </section>
+
+      <section class="combat-section priority-section visual-section">
+        <h2>⚔️ Рейды и защита</h2>
+        <div id="combatBox" class="combat-grid">Загрузка боевого блока...</div>
+      </section>
+
+      <section id="licenseBox" class="license-section"></section>
     </section>
 
-    <section class="quick-actions-section visual-section">
-      <h2>⚡ Быстрые действия</h2>
-      <section class="farm-grid action-grid-top">
-        <button id="collectBtn">🧺 Собрать<br><small>60 минут кулдаун</small></button>
-        <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
-        <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
-        <button id="syncWizebotBtn">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
+    <section class="farm-tab-panel" data-farm-panel="buildings">
+      <section class="visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>🏗 Здания</h2>
+            <p>Все здания в одном месте. Недоступные затемнены и показывают требование, доступные показывают стоимость и нехватку ресурсов.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
+        </div>
+        <div id="buildings" class="buildings-grid panel-body"></div>
       </section>
     </section>
 
-    <section class="extra-section priority-section visual-section">
-      <h2>🎁 Главное: кейс / GAMUS / оффсбор</h2>
-      <div id="extrasBox" class="combat-grid">Загрузка...</div>
-    </section>
-
-    <section class="combat-section priority-section visual-section">
-      <h2>⚔️ Рейды и защита</h2>
-      <div id="combatBox" class="combat-grid">Загрузка боевого блока...</div>
-    </section>
-
-    <section id="licenseBox" class="license-section"></section>
-
-    <section class="market-section visual-section">
-      <h2>🏪 Рынок запчастей</h2>
-      <div id="marketBox" class="market-card">Загрузка рынка...</div>
-    </section>
-
-    <section class="buildings-section visual-section collapsed-panel" id="buildingsPanel">
-      <div class="section-head">
-        <div>
-          <h2>🏗 Здания</h2>
-          <p>Покупка и апгрейд построек. Недоступные здания затемнены и показывают требование.</p>
+    <section class="farm-tab-panel" data-farm-panel="market">
+      <section class="market-section visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>🏪 Рынок запчастей</h2>
+            <p>Покупай и продавай 🔧 за 💎, сразу видя склад, лимит покупки и свой баланс.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
         </div>
-        <button type="button" class="section-toggle" data-toggle-section="buildingsPanel">Открыть здания</button>
-      </div>
-      <div id="buildings" class="buildings-grid panel-body"></div>
+        <div id="marketBox" class="market-card">Загрузка рынка...</div>
+      </section>
     </section>
 
-    <section class="info-section visual-section collapsed-panel" id="topsPanel">
-      <div class="section-head">
-        <div>
-          <h2>🏆 Топы и инфо</h2>
-          <p>Сводка, топ игроков и топ рейдов открываются отдельно.</p>
+    <section class="farm-tab-panel" data-farm-panel="tops">
+      <section class="info-section visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>🏆 Топы и инфо</h2>
+            <p>Сводка фермы, топ игроков и топ рейдов открываются здесь, без прокрутки всей страницы.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
         </div>
-        <button type="button" class="section-toggle" data-toggle-section="topsPanel">Открыть топы</button>
-      </div>
-      <div id="infoBox" class="info-card panel-body">Загрузка...</div>
-      <div id="topsBox" class="info-card panel-body"></div>
+        <div id="infoBox" class="info-card panel-body">Загрузка...</div>
+        <div id="topsBox" class="info-card panel-body"></div>
+      </section>
     </section>
 
-    <section class="history-section visual-section collapsed-panel" id="historyPanel">
-      <div class="section-head">
-        <div>
-          <h2>📜 Истории и журнал</h2>
-          <p>Журнал действий находится внизу и открывается по кнопке.</p>
+    <section class="farm-tab-panel" data-farm-panel="history">
+      <section class="history-section visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>📜 История и журнал</h2>
+            <p>Фильтруй действия по типу события. Журнал остаётся в отдельной вкладке.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
         </div>
-        <button type="button" class="section-toggle" data-toggle-section="historyPanel">Открыть журнал</button>
-      </div>
-      <div class="history-controls panel-body">
-        <select id="historyType">
-          <option value="">Все события</option>
-          <option value="upgrade">Апы фермы</option>
-          <option value="building_buy">Покупки зданий</option>
-          <option value="building_upgrade">Апы зданий</option>
-          <option value="market_buy_parts">Рынок: покупка</option>
-          <option value="market_sell_parts">Рынок: продажа</option>
-          <option value="raid">Рейды</option>
-          <option value="case_open">Кейсы</option>
-          <option value="gamus_claim">GAMUS</option>
-          <option value="off_collect">Оффсбор</option>
-        </select>
-        <button id="historyRefreshBtn">Обновить журнал</button>
-      </div>
-      <div id="historyBox" class="info-card panel-body">Загрузка истории...</div>
+        <div class="history-controls panel-body">
+          <select id="historyType">
+            <option value="">Все события</option>
+            <option value="upgrade">Апы фермы</option>
+            <option value="building_buy">Покупки зданий</option>
+            <option value="building_upgrade">Апы зданий</option>
+            <option value="market_buy_parts">Рынок: покупка</option>
+            <option value="market_sell_parts">Рынок: продажа</option>
+            <option value="raid">Рейды</option>
+            <option value="case_open">Кейсы</option>
+            <option value="gamus_claim">GAMUS</option>
+            <option value="off_collect">Оффсбор</option>
+          </select>
+          <button id="historyRefreshBtn">Обновить журнал</button>
+        </div>
+        <div id="historyBox" class="info-card panel-body">Загрузка истории...</div>
+      </section>
     </section>
 
     <div id="message"></div>
 
-    <form method="post" action="/auth/logout">
+    <form method="post" action="/auth/logout" class="logout-form">
       <button class="secondary" type="submit">Выйти</button>
     </form>
   </main>
