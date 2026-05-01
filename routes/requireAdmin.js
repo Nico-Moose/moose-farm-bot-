@@ -1,22 +1,17 @@
-function getLogin(req) {
-  return (
-    req.user?.login ||
-    req.user?.username ||
+const ADMIN = "nico_moose";
+
+function requireAdmin(req, res, next) {
+  const login = (
     req.session?.user?.login ||
     req.session?.user?.username ||
     ""
   ).toLowerCase();
-}
 
-module.exports = function requireAdmin(req, res, next) {
-  const login = getLogin(req);
-
-  if (login !== "nico_moose") {
-    return res.status(403).json({
-      ok: false,
-      error: "Нет доступа",
-    });
+  if (login !== ADMIN) {
+    return res.status(404).json({ error: "Not found" });
   }
 
   next();
-};
+}
+
+module.exports = { requireAdmin };
