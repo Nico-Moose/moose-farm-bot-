@@ -173,11 +173,11 @@ function performRaid(attacker, candidates) {
   turretChance = Math.min(100, turretChance);
   const turret = applyTurretPenalty(attacker, target, income, targetTurret, turretChance);
 
-  let stolen = Math.max(0, income);
-  if (turret.killedByTurret) stolen = 0;
+  const raidBlockedByTurret = !!turret.turretTriggered;
+  let stolen = raidBlockedByTurret ? 0 : Math.max(0, income);
 
   const bonusStolen = getBonusRaid(target, efficiency);
-  const actualBonusStolen = turret.killedByTurret ? 0 : bonusStolen;
+  const actualBonusStolen = raidBlockedByTurret ? 0 : bonusStolen;
 
   target.farm_balance = num(target.farm_balance, 0) - stolen;
   attacker.farm_balance = num(attacker.farm_balance, 0) + stolen;
@@ -196,10 +196,13 @@ function performRaid(attacker, candidates) {
     stolen,
     blocked: blockedByProtection + shieldUsed,
     turret_refund: turret.turretPenalty,
+    attacker_loss: turret.turretPenalty,
     bonus_stolen: actualBonusStolen,
     turret_bonus: 0,
     turret_chance: turretChance,
-    killed_by_turret: turret.killedByTurret,
+    turret_triggered: turret.turretTriggered,
+    raid_blocked_by_turret: raidBlockedByTurret,
+    killed_by_turret: raidBlockedByTurret,
     ignore_protection: ignoreProtection
   };
 

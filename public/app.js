@@ -102,21 +102,24 @@ function showActionToast(title, lines = [], options = {}) {
 
 function showRaidDetails(log = {}) {
   const target = log.target || 'неизвестно';
-  const title = log.killed_by_turret
-    ? `💥 Рейд на ${target}: турель остановила атаку`
+  const turretBlocked = !!(log.raid_blocked_by_turret || log.killed_by_turret || log.turret_triggered);
+  const title = turretBlocked
+    ? `🔫 Рейд на ${target}: турель отбила атаку`
     : `🏴 Рейд на ${target}: успех`;
   const lines = [
     `🎯 Цель: <b>${target}</b>`,
     `⚔️ Сила: <b>${formatNumber(log.strength || 0)}%</b> × <b>x${log.punish_mult || 1}</b>`,
     `📈 Базовый доход цели: <b>${formatNumber(log.base_income || 0)}💰</b>`,
-    `💸 Украдено монет: <b>${formatNumber(log.stolen || 0)}💰</b>`,
+    turretBlocked
+      ? `🛑 Турель отбила рейд: <b>цель ничего не потеряла</b>`
+      : `💸 Украдено монет: <b>${formatNumber(log.stolen || 0)}💰</b>`,
     `💎 Украдено бонусных: <b>${formatNumber((log.bonus_stolen || 0) + (log.turret_bonus || 0))}💎</b>`,
     `🛡 Заблокировано защитой/щитом: <b>${formatNumber(log.blocked || 0)}</b>`,
     `🔫 Шанс турели цели: <b>${formatNumber(log.turret_chance || 0)}%</b>`,
-    log.turret_refund ? `💥 Потеря от турели: <b>${formatNumber(log.turret_refund)}💰</b>` : `✅ Турель не нанесла урон`,
+    log.turret_refund ? `💥 С атакующего списано турелью: <b>${formatNumber(log.turret_refund)}💰</b>` : `✅ Турель не сработала`,
     log.ignore_protection ? `⚠️ Защита цели игнорировалась из-за долгой неактивности` : `🛡 Защита цели учитывалась`
   ];
-  showActionToast(title, lines, { kind: log.killed_by_turret ? 'danger' : 'raid', timeout: 12000 });
+  showActionToast(title, lines, { kind: turretBlocked ? 'danger' : 'raid', timeout: 12000 });
 }
 
 function refreshVisibleData() {
@@ -187,7 +190,7 @@ function renderQuickStatus(data) {
   box.innerHTML = `
     <div><b>Текущие ресурсы</b></div>
     <div class="quick-status-grid">
-      <span>💰 Всего монет: <b>${formatNumber(coins)}</b></span>
+      <span>💰 Доступно для трат: <b>${formatNumber(coins)}</b></span>
       <span>🌾 Ферма: <b>${formatNumber(profile.farm_balance)}</b></span>
       <span>💎 Ап-баланс: <b>${formatNumber(profile.upgrade_balance)}</b></span>
       <span>🔧 Запчасти: <b>${formatNumber(parts)}</b></span>
@@ -242,7 +245,7 @@ function render(data) {
 
       <div class="profile-stats-final">
         <div class="stat-tile accent"><span>🌾 Уровень</span><b>${p.level}</b></div>
-        <div class="stat-tile"><span>💰 Всего монет</span><b>${formatNumber(totalCoins)}</b></div>
+        <div class="stat-tile"><span>💰 Доступно для трат</span><b>${formatNumber(totalCoins)}</b></div>
         <div class="stat-tile"><span>🌾 Ферма</span><b>${formatNumber(p.farm_balance)}</b></div>
         <div class="stat-tile"><span>💎 Ап-баланс</span><b>${formatNumber(p.upgrade_balance)}</b></div>
         <div class="stat-tile"><span>🔧 Запчасти</span><b>${formatNumber(p.parts)}</b></div>
@@ -805,7 +808,12 @@ async function doRaid() {
     return;
   }
   const log = data.log || {};
-  showMessage(`🏴 Рейд на ${log.target}: украдено ${formatNumber(log.stolen)}💰 | сила ${formatNumber(log.strength)}% x${log.punish_mult} | блок ${formatNumber(log.blocked)}🛡${log.turret_refund ? ` | турель: -${formatNumber(log.turret_refund)}💰` : ''}`);
+  const turretBlocked = !!(log.raid_blocked_by_turret || log.killed_by_turret || log.turret_triggered);
+  if (turretBlocked) {
+    showMessage(`🔫 Рейд на ${log.target} отбит турелью: цель не потеряла монеты | с атакующего списано ${formatNumber(log.turret_refund || 0)}💰 | сила ${formatNumber(log.strength)}% x${log.punish_mult}`);
+  } else {
+    showMessage(`🏴 Рейд на ${log.target}: украдено ${formatNumber(log.stolen)}💰 | сила ${formatNumber(log.strength)}% x${log.punish_mult} | блок ${formatNumber(log.blocked)}🛡`);
+  }
   showRaidDetails(log);
   await loadMe();
 }
@@ -1352,8 +1360,18 @@ function eventTypeLabel(type) {
   return map[type] || type || 'событие';
 }
 
-function describePayload(payload = {}) {
+function describePayload(payload = {}, type = '') {
   if (!payload || typeof payload !== 'object') return '';
+  if (type === 'raid' || payload.stolen !== undefined || payload.turret_refund !== undefined) {
+    const blockedByTurret = !!(payload.raid_blocked_by_turret || payload.killed_by_turret || payload.turret_triggered);
+    const target = payload.target ? 'цель: ' + payload.target : '';
+    const strength = payload.strength !== undefined ? 'сила: ' + formatNumber(payload.strength) + '% x' + (payload.punish_mult || 1) : '';
+    const stolen = blockedByTurret ? 'рейд отбит турелью' : 'украдено: ' + formatNumber(payload.stolen || 0) + '💰';
+    const bonus = payload.bonus_stolen !== undefined ? 'бонус: ' + formatNumber(payload.bonus_stolen || 0) + '💎' : '';
+    const block = payload.blocked !== undefined ? 'блок: ' + formatNumber(payload.blocked || 0) + '🛡' : '';
+    const turret = payload.turret_refund ? 'турель списала с атакующего: ' + formatNumber(payload.turret_refund) + '💰' : '';
+    return [target, strength, stolen, bonus, block, turret].filter(Boolean).join(' | ');
+  }
   const parts = [];
   if (payload.building) parts.push('здание: ' + payload.building);
   if (payload.upgraded !== undefined) parts.push('+' + payload.upgraded + ' ур.');
@@ -1377,7 +1395,7 @@ function renderEventsList(events) {
   return '<div class="events-list">' + events.map((event) => {
     const date = new Date(Number(event.created_at || Date.now())).toLocaleString('ru-RU');
     const who = event.login ? ' @' + event.login : '';
-    return '<div class="event-row"><b>' + eventTypeLabel(event.type) + '</b>' + who + '<br><small>' + date + '</small><div>' + describePayload(event.payload) + '</div></div>';
+    return '<div class="event-row"><b>' + eventTypeLabel(event.type) + '</b>' + who + '<br><small>' + date + '</small><div>' + describePayload(event.payload, event.type) + '</div></div>';
   }).join('') + '</div>';
 }
 
