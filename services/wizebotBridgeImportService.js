@@ -242,14 +242,6 @@ function importPayloadToSqlite(payload) {
   const previousProfile = loadProfileByTwitchId(userRow.twitch_id) || {};
   const hasTwitchBalance = Object.prototype.hasOwnProperty.call(payload, 'twitch_balance');
 
-  if (isWebMasterLogin(login) && Number(previousProfile.last_wizebot_sync_at || 0) > 0) {
-    return {
-      ok: false,
-      error: 'web_master_profile_locked',
-      message: 'Profile is already controlled by the website. WizeBot import is blocked to prevent overwrite.'
-    };
-  }
-
   const imported = {
     level: normalizeNumber(farm.level),
     farm_balance: normalizeNumber(payload.farm_balance),

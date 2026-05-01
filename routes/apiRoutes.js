@@ -638,15 +638,6 @@ router.post('/farm/sync-wizebot', requireAuth, async (req, res) => {
     const twitchUser = req.session.twitchUser;
     const profile = getProfile(twitchUser.id);
 
-    if (isWebMasterProfile(profile) && Number(profile.last_wizebot_sync_at || 0) > 0) {
-      return res.status(409).json({
-        ok: false,
-        error: 'web_master_profile_locked',
-        message: 'Сайт уже главный для этого профиля. Импорт из WizeBot заблокирован, чтобы не затереть прогресс.',
-        ...profilePayload(profile)
-      });
-    }
-
     const result = await syncWizebotFarmToProfile({
       login: twitchUser.login,
       profile
