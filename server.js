@@ -30,7 +30,7 @@ function startWebServer() {
   app.use('/auth', authRoutes);
   app.use('/api', apiRoutes);
   app.use('/bridge', bridgeRoutes);
-
+app.use("/api/admin", adminRoutes);
   app.get('/farm', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'farm.html'));
   });
