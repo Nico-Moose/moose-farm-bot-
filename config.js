@@ -20,6 +20,11 @@ const config = {
     apiKeyRw: process.env.WIZEBOT_API_KEY_RW,
     bridgeSecret: process.env.WIZEBOT_BRIDGE_SECRET || 'change-me-bridge-secret',
   },
+
+  webMasterUsers: String(process.env.WEB_MASTER_USERS || 'nico_moose')
+    .split(',')
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean),
 };
 
 function validateConfig() {
@@ -42,4 +47,10 @@ function validateConfig() {
   }
 }
 
-module.exports = { config, validateConfig };
+module.exports = { config, validateConfig, isWebMasterLogin };
+
+
+function isWebMasterLogin(login) {
+  const normalized = String(login || '').trim().toLowerCase();
+  return !!normalized && config.webMasterUsers.includes(normalized);
+}

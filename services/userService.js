@@ -112,6 +112,7 @@ function updateProfile(profile) {
       protection_level = @protection_level,
       raid_power = @raid_power,
       turret_json = @turret_json,
+      last_wizebot_sync_at = @last_wizebot_sync_at,
       updated_at = @updated_at
     WHERE twitch_id = @twitch_id
   `).run({
@@ -119,10 +120,22 @@ function updateProfile(profile) {
     farm_json: JSON.stringify(safe.farm || {}),
     configs_json: JSON.stringify(safe.configs || {}),
     turret_json: JSON.stringify(safe.turret || {}),
+    last_wizebot_sync_at: safe.last_wizebot_sync_at || null,
     updated_at: now
   });
 
   return getProfile(safe.twitch_id);
+}
+
+
+function markWizebotSyncAt(twitchId, timestamp = Date.now()) {
+  getDb().prepare(`
+    UPDATE farm_profiles
+    SET last_wizebot_sync_at = ?, updated_at = ?
+    WHERE twitch_id = ?
+  `).run(timestamp, timestamp, twitchId);
+
+  return getProfile(twitchId);
 }
 
 function listProfiles() {
@@ -203,6 +216,7 @@ module.exports = {
   upsertTwitchUser,
   getProfile,
   updateProfile,
+  markWizebotSyncAt,
   listProfiles,
   logFarmEvent,
   listFarmEvents
