@@ -1,11 +1,15 @@
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
+
 const { config } = require('./config');
+const { getDb } = require('./services/dbService');
+
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 const bridgeRoutes = require('./routes/bridgeRoutes');
-const adminRoutes = require("./routes/adminRoutes");
+const adminRoutes = require('./routes/adminRoutes');
+
 function startWebServer() {
   const app = express();
 
@@ -27,12 +31,15 @@ function startWebServer() {
   }));
 
   app.use(express.static(path.join(__dirname, 'public')));
+
   app.use('/auth', authRoutes);
+
+  // ВАЖНО: админка должна быть ДО общего /api
+  app.use('/api/admin', adminRoutes(getDb()));
+
   app.use('/api', apiRoutes);
   app.use('/bridge', bridgeRoutes);
-const { getDb } = require("./services/dbService");
 
-app.use("/api/admin", adminRoutes(getDb()));
   app.get('/farm', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'farm.html'));
   });
