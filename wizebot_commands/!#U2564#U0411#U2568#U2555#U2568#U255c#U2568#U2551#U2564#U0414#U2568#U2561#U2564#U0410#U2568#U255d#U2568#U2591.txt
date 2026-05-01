@@ -30,6 +30,7 @@ let payload = {
   display_name: displayName,
   farm: farm,
   farm_balance: parseInt(readVar('farm_virtual_balance_' + user, '0'), 10) || 0,
+  twitch_balance: parseInt(JS.wizebot.call_tag('currency', ['get', user]) || '0', 10) || 0,
   upgrade_balance: parseInt(readVar('farm_upgrade_balance_' + user, '0'), 10) || 0,
   total_income: parseInt(readVar('farm_total_income_' + user, '0'), 10) || 0,
   last_collect_at: parseInt(readVar('farm_last_' + user, '0'), 10) || 0,
@@ -59,7 +60,7 @@ async function run() {
       JS.utils.stop();
     }
 
-    JS.wizebot.send_chat_message(`✅ ${displayName}, ферма синхронизирована с сайтом: ур.${data.imported.level}, 💰${data.imported.farm_balance}, 💎${data.imported.upgrade_balance}, 🔧${data.imported.parts}`);
+    JS.wizebot.send_chat_message(`✅ ${displayName}, ферма синхронизирована с сайтом: ур.${data.imported.level}, 💰${data.imported.twitch_balance}, 🌾${data.imported.farm_balance}, 💎${data.imported.upgrade_balance}, 🔧${data.imported.parts}`);
   } catch (e) {
     JS.wizebot.send_chat_message(`❌ ${displayName}, sync failed: ${e.message || e}`);
   }

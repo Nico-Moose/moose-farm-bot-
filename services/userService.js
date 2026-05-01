@@ -8,6 +8,7 @@ function normalizeProfile(row) {
     ...row,
     level: Number(row.level ?? 0),
     farm_balance: Number(row.farm_balance ?? 0),
+    twitch_balance: Number(row.twitch_balance ?? 0),
     upgrade_balance: Number(row.upgrade_balance ?? 0),
     total_income: Number(row.total_income ?? 0),
     parts: Number(row.parts ?? 0),
@@ -43,6 +44,7 @@ function upsertTwitchUser(user) {
       twitch_id,
       level,
       farm_balance,
+      twitch_balance,
       upgrade_balance,
       total_income,
       parts,
@@ -50,7 +52,7 @@ function upsertTwitchUser(user) {
       created_at,
       updated_at
     )
-    VALUES (?, 0, 0, 0, 0, 0, ?, ?, ?)
+    VALUES (?, 0, 0, 0, 0, 0, 0, ?, ?, ?)
   `).run(user.id, now, now, now);
 }
 
@@ -63,6 +65,7 @@ function getProfile(twitchId) {
       u.avatar_url,
       f.level,
       f.farm_balance,
+      f.twitch_balance,
       f.upgrade_balance,
       f.total_income,
       f.parts,
@@ -98,6 +101,7 @@ function updateProfile(profile) {
     UPDATE farm_profiles SET
       level = @level,
       farm_balance = @farm_balance,
+      twitch_balance = @twitch_balance,
       upgrade_balance = @upgrade_balance,
       total_income = @total_income,
       parts = @parts,
@@ -130,6 +134,7 @@ function listProfiles() {
       u.avatar_url,
       f.level,
       f.farm_balance,
+      f.twitch_balance,
       f.upgrade_balance,
       f.total_income,
       f.parts,

@@ -13,7 +13,7 @@ function getFarmInfo(profile) {
   const buildings = Object.entries(profile.farm.buildings || {}).map(([key, level]) => ({ key, level: num(level, 0), config: profile.configs.buildings?.[key] || {} }));
   return {
     level: num(profile.level, 0),
-    balances: { farm: num(profile.farm_balance, 0), upgrade: num(profile.upgrade_balance, 0), parts: num(profile.parts, 0), totalCoins: num(profile.farm_balance, 0) + num(profile.upgrade_balance, 0) },
+    balances: { farm: num(profile.farm_balance, 0), twitch: num(profile.twitch_balance, 0), upgrade: num(profile.upgrade_balance, 0), parts: num(profile.parts, 0), totalCoins: num(profile.farm_balance, 0) + num(profile.twitch_balance, 0) + num(profile.upgrade_balance, 0) },
     hourly: { passive, plants, animals, buildingCoins: building.coins, parts: building.partsWithBonuses, shield: building.shield, weapon: building.weapon, total: estimateHourlyIncome(profile) },
     buildings,
     protection: { level: num(profile.protection_level, 0), percent: num(profile.protection_level, 0) * 0.5 },
@@ -81,7 +81,7 @@ function getTopRaids(profiles, days = 14) {
 function getTopProfiles(profiles) {
   return profiles.map((p) => {
     ensureFarmShape(p);
-    return { nick: p.login || p.display_name || p.twitch_id, level: num(p.level, 0), farm_balance: num(p.farm_balance, 0), upgrade_balance: num(p.upgrade_balance, 0), parts: num(p.parts, 0), total: num(p.farm_balance, 0) + num(p.upgrade_balance, 0) };
+    return { nick: p.login || p.display_name || p.twitch_id, level: num(p.level, 0), farm_balance: num(p.farm_balance, 0), twitch_balance: num(p.twitch_balance, 0), upgrade_balance: num(p.upgrade_balance, 0), parts: num(p.parts, 0), total: num(p.farm_balance, 0) + num(p.twitch_balance, 0) + num(p.upgrade_balance, 0) };
   }).sort((a, b) => b.total - a.total).slice(0, 50);
 }
 

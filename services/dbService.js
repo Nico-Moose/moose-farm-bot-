@@ -35,6 +35,7 @@ function migrate(database) {
       twitch_id TEXT PRIMARY KEY,
       level INTEGER NOT NULL DEFAULT 0,
       farm_balance INTEGER NOT NULL DEFAULT 0,
+      twitch_balance INTEGER NOT NULL DEFAULT 0,
       upgrade_balance INTEGER NOT NULL DEFAULT 0,
       total_income INTEGER NOT NULL DEFAULT 0,
       parts INTEGER NOT NULL DEFAULT 0,
@@ -65,6 +66,7 @@ function migrate(database) {
   }
 
   addColumn('farm_balance', 'farm_balance INTEGER NOT NULL DEFAULT 0');
+  addColumn('twitch_balance', 'twitch_balance INTEGER NOT NULL DEFAULT 0');
   addColumn('upgrade_balance', 'upgrade_balance INTEGER NOT NULL DEFAULT 0');
   addColumn('total_income', 'total_income INTEGER NOT NULL DEFAULT 0');
   addColumn('parts', 'parts INTEGER NOT NULL DEFAULT 0');

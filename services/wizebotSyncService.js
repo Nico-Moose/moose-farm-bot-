@@ -26,6 +26,7 @@ function applyWizebotDataToProfile({ login, profile, wizebotData }) {
 
   profile.level = Number(farm.level ?? profile.level ?? 0);
   profile.farm_balance = Number(wizebotData.farm_balance ?? profile.farm_balance ?? 0);
+  profile.twitch_balance = Number(wizebotData.twitch_balance ?? profile.twitch_balance ?? 0);
   profile.upgrade_balance = Number(wizebotData.upgrade_balance ?? profile.upgrade_balance ?? 0);
   profile.parts = Number(resources.parts ?? wizebotData.parts ?? profile.parts ?? 0);
 
@@ -55,6 +56,7 @@ function applyWizebotDataToProfile({ login, profile, wizebotData }) {
       login: normalizedLogin,
       level: profile.level,
       farm_balance: profile.farm_balance,
+      twitch_balance: profile.twitch_balance,
       upgrade_balance: profile.upgrade_balance,
       parts: profile.parts,
       license_level: profile.license_level,

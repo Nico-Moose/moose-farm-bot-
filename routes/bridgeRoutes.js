@@ -1,5 +1,6 @@
 const express = require('express');
 const { config } = require('../config');
+const { getNextUpgrade, listBuildings } = require('../services/farmGameService');
 const { importPayloadToSqlite } = require('../services/wizebotBridgeImportService');
 
 const router = express.Router();
@@ -14,7 +15,7 @@ router.post('/wizebot-sync', (req, res) => {
   if (!providedSecret || providedSecret !== config.wizebot.bridgeSecret) {
     return res.status(403).json({
       ok: false,
-      error: 'invalid_bridge_secret'
+      error: 'invalid_bridge_secret',
     });
   }
 
@@ -24,7 +25,13 @@ router.post('/wizebot-sync', (req, res) => {
     return res.status(400).json(result);
   }
 
-  return res.json(result);
+  res.json({
+    ok: true,
+    profile: result.profile,
+    imported: result.imported,
+    nextUpgrade: result.nextUpgrade || getNextUpgrade(result.profile),
+    buildings: result.buildings || listBuildings(result.profile),
+  });
 });
 
 module.exports = router;

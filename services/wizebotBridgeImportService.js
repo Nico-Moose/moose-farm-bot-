@@ -91,6 +91,7 @@ function loadProfileByTwitchId(twitchId) {
       u.avatar_url,
       f.level,
       f.farm_balance,
+      f.twitch_balance,
       f.upgrade_balance,
       f.total_income,
       f.parts,
@@ -174,6 +175,7 @@ function ensureTwitchUserAndProfile({ login, displayName }) {
         twitch_id,
         level,
         farm_balance,
+        twitch_balance,
         upgrade_balance,
         total_income,
         parts,
@@ -188,7 +190,7 @@ function ensureTwitchUserAndProfile({ login, displayName }) {
         turret_json,
         last_wizebot_sync_at
       )
-      VALUES (?, 0, 0, 0, 0, 0, 0, ?, ?, '{}', '{}', 0, 0, 0, '{}', 0)
+      VALUES (?, 0, 0, 0, 0, 0, 0, 0, ?, ?, '{}', '{}', 0, 0, 0, '{}', 0)
     `).run(
       userRow.twitch_id,
       now,
@@ -215,19 +217,18 @@ function importPayloadToSqlite(payload) {
   farm.buildings = farm.buildings || {};
 
   const configs = payload.configs || {};
-  const turret = normalizeTurret(payload.turret);
   const globals = payload.globals || {};
+  const turret = normalizeTurret(payload.turret);
 
+  // WizeBot sends the shared market stock in globals. Keep it inside
+  // farm_json so the site market does not reset to DEFAULT_STOCK after sync.
   farm.market = farm.market || {};
-
   if (globals.farm_parts_stock !== undefined) {
     farm.market.partsStock = normalizeNumber(globals.farm_parts_stock);
   }
-
   if (globals.farm_parts_sold_total !== undefined) {
     farm.market.totalSold = normalizeNumber(globals.farm_parts_sold_total);
   }
-
   if (globals.farm_parts_bought_total !== undefined) {
     farm.market.totalBought = normalizeNumber(globals.farm_parts_bought_total);
   }
@@ -240,6 +241,7 @@ function importPayloadToSqlite(payload) {
   const imported = {
     level: normalizeNumber(farm.level),
     farm_balance: normalizeNumber(payload.farm_balance),
+    twitch_balance: normalizeNumber(payload.twitch_balance),
     upgrade_balance: normalizeNumber(payload.upgrade_balance),
     total_income: normalizeNumber(payload.total_income),
     parts: normalizeNumber(farm.resources.parts),
@@ -253,6 +255,7 @@ function importPayloadToSqlite(payload) {
     UPDATE farm_profiles SET
       level = @level,
       farm_balance = @farm_balance,
+      twitch_balance = @twitch_balance,
       upgrade_balance = @upgrade_balance,
       total_income = @total_income,
       parts = @parts,
@@ -284,12 +287,7 @@ function importPayloadToSqlite(payload) {
     'sync_wizebot_full_longtext',
     JSON.stringify({
       login,
-      imported,
-      globals: {
-        farm_parts_stock: globals.farm_parts_stock,
-        farm_parts_sold_total: globals.farm_parts_sold_total,
-        farm_parts_bought_total: globals.farm_parts_bought_total
-      }
+      imported
     }),
     now
   );

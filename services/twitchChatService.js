@@ -51,7 +51,7 @@ function startTwitchChatBot() {
 
         await client.say(
           channel,
-          `@${login}, ✅ сайт-ферма обновлена: ур.${result.imported.level}, 💰${result.imported.farm_balance}, 💎${result.imported.upgrade_balance}, 🔧${result.imported.parts}`
+          `@${login}, ✅ сайт-ферма обновлена: ур.${result.imported.level}, 💰${result.imported.twitch_balance}, 🌾${result.imported.farm_balance}, 💎${result.imported.upgrade_balance}, 🔧${result.imported.parts}`
         );
       } catch (error) {
         console.error('[MOOSE_SYNC CHAT] Error:', error);

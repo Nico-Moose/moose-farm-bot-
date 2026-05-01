@@ -60,20 +60,12 @@ function renderAdminCheckReport(report) {
 }
 
 function formatTime(ms) {
-  const totalSeconds = Math.max(0, Math.ceil((ms || 0) / 1000));
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-
-  if (h > 0) {
-    return `${h}ч ${m}м`;
-  }
-
-  if (m > 0) {
-    return `${m}м ${String(s).padStart(2, '0')}с`;
-  }
-
-  return `${s}с`;
+  const totalSeconds = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
+  const totalMinutes = Math.ceil(totalSeconds / 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h > 0) return `${h}ч ${m}м`;
+  return `${m}м`;
 }
 
 function showMessage(text) {
@@ -826,6 +818,9 @@ async function doRaid() {
   }
   showRaidDetails(log);
   await loadMe();
+  if (document.querySelector('[data-farm-panel="info"]')?.classList.contains('active')) {
+    await loadTops();
+  }
 }
 
 function prizeLabel(prize) {
@@ -888,10 +883,13 @@ function renderInfo(data) {
 
   infoBox.innerHTML = `
     <div class="info-grid">
-      <div><b>💰 Балансы</b><br>🌾 ${formatNumber(balances.farm || 0)} / 💎 ${formatNumber(balances.upgrade || 0)} / 🔧 ${formatNumber(balances.parts || 0)}</div>
-      <div><b>📈 Доход/ч</b><br>Всего: ${formatNumber(hourly.total || 0)} | пассив ${formatNumber(hourly.passive || 0)} | урожай ${formatNumber((hourly.plants || 0) + (hourly.animals || 0))} | здания ${formatNumber(hourly.buildingCoins || 0)}</div>
-      <div><b>🏗 Здания</b><br>${buildings.length ? buildings.map((b) => `${b.config?.name || b.key}: ${b.level}`).join(' | ') : 'нет'}</div>
-      <div><b>🏴 Рейды</b><br>За 14д: ${formatNumber(raidInfo.twoWeeks?.stolen || 0)}💰 / ${formatNumber(raidInfo.twoWeeks?.bonus || 0)}💎 / ${formatNumber(raidInfo.twoWeeks?.count || 0)} шт.</div>
+      <div class="info-metric"><span>💰 Обычные</span><b>${formatNumber(balances.twitch || 0)}</b><small>монеты Twitch / !мани</small></div>
+      <div class="info-metric"><span>🌾 Ферма</span><b>${formatNumber(balances.farm || 0)}</b><small>вирт. монеты фермы</small></div>
+      <div class="info-metric"><span>💎 Ап-баланс</span><b>${formatNumber(balances.upgrade || 0)}</b><small>бонусные</small></div>
+      <div class="info-metric"><span>🔧 Запчасти</span><b>${formatNumber(balances.parts || 0)}</b><small>детали</small></div>
+      <div class="info-metric"><span>📈 Доход/ч</span><b>${formatNumber(hourly.total || 0)}</b><small>пассив ${formatNumber(hourly.passive || 0)} · урожай ${formatNumber((hourly.plants || 0) + (hourly.animals || 0))} · здания ${formatNumber(hourly.buildingCoins || 0)}</small></div>
+      <div class="info-metric"><span>🏗 Здания</span><b>${buildings.length}</b><small>${buildings.length ? buildings.map((b) => `${b.config?.name || b.key}: ${b.level}`).join(' · ') : 'нет'}</small></div>
+      <div class="info-metric"><span>🏴 Рейды за 14д</span><b>${formatNumber(raidInfo.twoWeeks?.count || 0)} шт.</b><small>${formatNumber(raidInfo.twoWeeks?.stolen || 0)}💰 · ${formatNumber(raidInfo.twoWeeks?.bonus || 0)}💎</small></div>
     </div>
     <details open><summary>Последние рейды</summary>
       <ol>${raidLogs.length ? raidLogs.map((r) => `<li>${new Date(r.timestamp).toLocaleString('ru-RU')} — ${r.attacker} → ${r.target}: ${formatNumber(r.stolen)}💰, ${formatNumber(r.bonus_stolen || 0)}💎</li>`).join('') : '<li>Рейдов пока нет</li>'}</ol>
@@ -953,9 +951,9 @@ async function loadTops() {
     const players = (data.playerTop || []).slice(0, 10);
     topsBox.innerHTML = `
       <h3>🏆 Топы</h3>
-      <div class="tops-grid">
-        <div><b>🏴 Топ рейдов за ${data.days}д</b><ol>${raids.length ? raids.map((r) => `<li>${r.nick}: ${formatNumber(r.money)}💰 / ${formatNumber(r.bonus)}💎 (${r.attacks}⚔/${r.defends}🛡)</li>`).join('') : '<li>нет рейдов</li>'}</ol></div>
-        <div><b>💰 Топ игроков</b><ol>${players.length ? players.map((p) => `<li>${p.nick}: ${formatNumber(p.total)}💰 | ур. ${p.level} | 🔧${formatNumber(p.parts)}</li>`).join('') : '<li>нет игроков</li>'}</ol></div>
+      <div class="tops-grid pretty-tops">
+        <div class="top-card"><b>🏴 Топ рейдов за ${data.days}д</b><ol>${raids.length ? raids.map((r) => `<li><span>${r.nick}</span><strong>${formatNumber(r.money)}💰 / ${formatNumber(r.bonus)}💎</strong><em>${r.attacks}⚔ · ${r.defends}🛡</em></li>`).join('') : '<li>нет рейдов</li>'}</ol></div>
+        <div class="top-card"><b>💰 Топ игроков</b><ol>${players.length ? players.map((p) => `<li><span>${p.nick}</span><strong>${formatNumber(p.twitch_balance || 0)}💰 / ${formatNumber(p.farm_balance || 0)}🌾 / ${formatNumber(p.upgrade_balance || 0)}💎</strong><em>ур. ${p.level} · 🔧${formatNumber(p.parts)}</em></li>`).join('') : '<li>нет игроков</li>'}</ol></div>
       </div>
     `;
   } catch (error) {

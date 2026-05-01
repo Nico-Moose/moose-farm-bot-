@@ -1076,3 +1076,19 @@ body {
   font-weight: 900;
   text-align: center;
 }
+
+.info-metric, .top-card {
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(149,224,108,0.12), rgba(0,0,0,0.20));
+  border: 1px solid rgba(149,224,108,0.18);
+}
+.info-metric span { display:block; color:#c8e9b7; font-weight:800; margin-bottom:6px; }
+.info-metric b { display:block; font-size:22px; color:#fff; }
+.info-metric small { display:block; margin-top:5px; color:rgba(255,255,255,0.72); line-height:1.35; }
+.pretty-tops .top-card ol { list-style:none; padding-left:0; margin:10px 0 0; }
+.pretty-tops .top-card li { padding:10px 0; border-top:1px solid rgba(255,255,255,0.08); display:grid; gap:3px; }
+.pretty-tops .top-card li:first-child { border-top:0; }
+.pretty-tops .top-card span { font-weight:900; color:#fff; }
+.pretty-tops .top-card strong { color:#d8ffb8; }
+.pretty-tops .top-card em { font-style:normal; color:rgba(255,255,255,0.68); font-size:13px; }

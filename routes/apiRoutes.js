@@ -97,7 +97,7 @@ function farmActionGuard(req, res, next) {
   if (req.method !== 'POST') return next();
 
   const userId = req.session?.twitchUser?.id || 'anonymous';
-  const key = `${userId}:farm`;
+  const key = `${userId}:farm`; // один замок на все farm POST-действия: защита от двойных кликов между разными кнопками
 
   if (pendingFarmActions.has(key)) {
     return res.status(409).json({
