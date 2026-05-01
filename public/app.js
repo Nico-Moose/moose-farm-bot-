@@ -12,6 +12,44 @@ function formatNumber(num) {
   return sign + String(Math.floor(abs));
 }
 
+
+function casePrizeText(prize) {
+  if (!prize) return '—';
+  const icon = prize.type === 'parts' ? '🔧' : '💰';
+  return '+' + formatNumber(prize.value || 0) + icon;
+}
+
+function showCaseOverlay(prize) {
+  let overlay = document.getElementById('caseOverlay');
+  if (!overlay) return;
+  const items = [];
+  const base = [
+    ['💰','100к'], ['🔧','12.5к'], ['💰','150к'], ['🔧','20к'], ['💰','200к'],
+    ['🔧','15к'], ['💰','135к'], ['🔧','17к'], ['💰','180к'], ['🔧','22к']
+  ];
+  for (let i = 0; i < 45; i++) {
+    const x = base[i % base.length];
+    items.push('<div class="case-cell"><b>' + x[0] + '</b><span>' + x[1] + '</span></div>');
+  }
+  items.push('<div class="case-cell case-win"><b>' + (prize?.type === 'parts' ? '🔧' : '💰') + '</b><span>' + formatNumber(prize?.value || 0) + '</span></div>');
+  overlay.innerHTML = '<div class="case-overlay-card"><h2>🎰 Кейс открывается</h2><div class="case-roulette"><div class="case-pointer"></div><div class="case-strip">' + items.join('') + '</div></div><div class="case-result">Выигрыш: <b>' + casePrizeText(prize) + '</b></div><button id="caseOverlayClose">Закрыть</button></div>';
+  overlay.classList.add('active');
+  const close = () => overlay.classList.remove('active');
+  document.getElementById('caseOverlayClose')?.addEventListener('click', close);
+  setTimeout(() => {
+    const title = overlay.querySelector('h2');
+    if (title) title.textContent = '🎉 Кейс открыт';
+  }, 2200);
+  setTimeout(close, 9000);
+}
+
+function renderAdminCheckReport(report) {
+  if (!report) return '';
+  const checks = (report.checks || []).map((c) => '<li><b>' + c.title + '</b>: ' + c.note + '</li>').join('');
+  const backups = (report.backups || []).map((b) => new Date(b.createdAt).toLocaleString('ru-RU') + ' — ' + b.reason).join('<br>') || 'нет';
+  return '<div class="admin-report"><b>1:1 чеклист для ' + report.login + '</b><ul>' + checks + '</ul><div>Бэкапы:<br>' + backups + '</div></div>';
+}
+
 function formatTime(ms) {
   const totalSeconds = Math.ceil(ms / 1000);
   const m = Math.floor(totalSeconds / 60);
@@ -700,6 +738,7 @@ async function openCase() {
     await loadMe();
     return;
   }
+  showCaseOverlay(data.prize);
   showMessage(`🎰 Кейс: выигрыш ${prizeLabel(data.prize)}. Цена ${formatNumber(data.cost)}💰`);
   await loadMe();
 }
@@ -1205,6 +1244,50 @@ function bindExtendedAdminPanel() {
     try {
       await loadAdminEvents();
       setAdminStatus('Админ-журнал загружен');
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-delete-turret')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      if (!confirm('Удалить турель у ' + login + '?')) return;
+      const data = await adminPost('delete-turret', { login });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-restore-backup')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      if (!confirm('Восстановить последний backup фермы для ' + login + '?')) return;
+      const data = await adminPost('restore-backup', { login });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-set-roulette-tickets')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const amount = document.getElementById('admin-roulette-tickets')?.value;
+      const data = await adminPost('set-roulette-tickets', { login, amount });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-run-1to1-check')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const data = await adminPost('run-1to1-check', { login });
+      const box = document.getElementById('admin-events-box');
+      if (box) box.innerHTML = renderAdminCheckReport(data.report);
+      setAdminStatus(data.message);
     } catch (e) { setAdminStatus(e.message, true); }
   });
 }

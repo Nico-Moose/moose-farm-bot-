@@ -346,3 +346,18 @@ button.danger {
   max-height: 360px;
   overflow: auto;
 }
+
+
+.case-overlay { display: none; position: fixed; inset: 0; z-index: 9999; align-items: center; justify-content: center; background: rgba(0,0,0,.72); }
+.case-overlay.active { display: flex; }
+.case-overlay-card { width: min(760px, 94vw); padding: 22px; border-radius: 22px; background: #15171f; color: #fff; border: 1px solid rgba(255,200,90,.35); box-shadow: 0 20px 70px rgba(0,0,0,.55); text-align: center; }
+.case-roulette { position: relative; height: 140px; overflow: hidden; margin: 18px 0; border-radius: 18px; background: #0e1016; border: 1px solid rgba(255,255,255,.12); }
+.case-strip { display: flex; gap: 10px; padding: 18px; animation: caseRoll 2.8s cubic-bezier(.12,.78,.12,1) forwards; }
+.case-cell { min-width: 120px; height: 92px; border-radius: 16px; background: linear-gradient(180deg,#2a2d39,#14161d); display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.case-cell b { font-size: 30px; }
+.case-cell span { font-weight: 800; margin-top: 6px; }
+.case-win { background: linear-gradient(180deg,#5b3b0e,#1f1710); border-color: rgba(255,193,7,.8); box-shadow: 0 0 20px rgba(255,193,7,.22); }
+.case-pointer { position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; transform: translateX(-50%); background: #ffca28; box-shadow: 0 0 16px #ffca28; z-index: 2; }
+.case-result { font-size: 22px; margin: 12px 0; }
+.admin-report { text-align: left; line-height: 1.55; }
+@keyframes caseRoll { from { transform: translateX(0); } to { transform: translateX(-4550px); } }

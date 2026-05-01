@@ -376,6 +376,7 @@ module.exports = function (db) {
     const profile = getProfileByLogin(db, login);
     if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
 
+    saveFarmBackup(profile, 'before_delete_buildings');
     const farm = profile.farm || {};
     farm.buildings = {};
 
@@ -399,6 +400,8 @@ module.exports = function (db) {
 
     const profile = getProfileByLogin(db, login);
     if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
+
+    saveFarmBackup(profile, 'before_delete_farm');
 
     db.prepare(`
       UPDATE farm_profiles
@@ -444,6 +447,38 @@ module.exports = function (db) {
     `).run(JSON.stringify(farm || {}), Date.now(), twitchId);
   }
 
+
+  function saveFarmBackup(profile, reason) {
+    if (!profile) return null;
+    const backup = {
+      createdAt: Date.now(), reason: reason || 'admin_backup', twitch_id: profile.twitch_id,
+      login: profile.login, display_name: profile.display_name, level: profile.level,
+      farm_balance: profile.farm_balance, upgrade_balance: profile.upgrade_balance,
+      total_income: profile.total_income, parts: profile.parts, last_collect_at: profile.last_collect_at,
+      farm: profile.farm || {}, configs: profile.configs || {}, license_level: profile.license_level,
+      protection_level: profile.protection_level, raid_power: profile.raid_power, turret: profile.turret || {}
+    };
+    const farm = profile.farm || {};
+    farm.adminBackups = Array.isArray(farm.adminBackups) ? farm.adminBackups : [];
+    farm.adminBackups.unshift(backup);
+    farm.adminBackups = farm.adminBackups.slice(0, 10);
+    saveFarmObject(profile.twitch_id, farm);
+    return backup;
+  }
+
+  function restoreFarmBackup(profile) {
+    const farm = profile?.farm || {};
+    const backups = Array.isArray(farm.adminBackups) ? farm.adminBackups : [];
+    const backup = backups[0];
+    if (!backup) return null;
+    const restoredFarm = backup.farm || {};
+    restoredFarm.adminBackups = backups;
+    db.prepare(`UPDATE farm_profiles SET level=?, farm_balance=?, upgrade_balance=?, total_income=?, parts=?, last_collect_at=?, farm_json=?, configs_json=?, license_level=?, protection_level=?, raid_power=?, turret_json=?, updated_at=? WHERE twitch_id=?`).run(
+      Number(backup.level || 0), Number(backup.farm_balance || 0), Number(backup.upgrade_balance || 0), Number(backup.total_income || 0), Number(backup.parts || 0), backup.last_collect_at || null, JSON.stringify(restoredFarm), JSON.stringify(backup.configs || {}), Number(backup.license_level || 0), Number(backup.protection_level || 0), Number(backup.raid_power || 0), JSON.stringify(backup.turret || {}), Date.now(), profile.twitch_id
+    );
+    return backup;
+  }
+
   router.post('/transfer-farm', (req, res) => {
     const oldLogin = String(req.body.oldLogin || '').toLowerCase().replace(/^@/, '');
     const newLogin = String(req.body.newLogin || '').toLowerCase().replace(/^@/, '');
@@ -452,6 +487,8 @@ module.exports = function (db) {
     const newProfile = getProfileByLogin(db, newLogin);
     if (!oldProfile) return res.status(404).json({ ok: false, error: 'Старая ферма не найдена' });
     if (!newProfile) return res.status(404).json({ ok: false, error: 'Новый игрок должен хотя бы раз войти на сайт через Twitch' });
+    saveFarmBackup(oldProfile, 'before_transfer_from');
+    saveFarmBackup(newProfile, 'before_transfer_to');
     const farm = oldProfile.farm || {};
     farm.owner = newLogin;
     db.prepare(`UPDATE farm_profiles SET level=?, farm_balance=?, upgrade_balance=?, total_income=?, parts=?, last_collect_at=?, farm_json=?, configs_json=?, license_level=?, protection_level=?, raid_power=?, turret_json=?, updated_at=? WHERE twitch_id=?`).run(oldProfile.level, oldProfile.farm_balance + newProfile.farm_balance, oldProfile.upgrade_balance + newProfile.upgrade_balance, oldProfile.total_income + newProfile.total_income, oldProfile.parts + newProfile.parts, oldProfile.last_collect_at || newProfile.last_collect_at || null, JSON.stringify(farm), JSON.stringify(oldProfile.configs || newProfile.configs || {}), Math.max(oldProfile.license_level || 0, newProfile.license_level || 0), Math.max(oldProfile.protection_level || 0, newProfile.protection_level || 0), Math.max(oldProfile.raid_power || 0, newProfile.raid_power || 0), JSON.stringify(oldProfile.turret || newProfile.turret || {}), Date.now(), newProfile.twitch_id);
@@ -549,6 +586,73 @@ module.exports = function (db) {
     res.json({ ok: true, message: `Кейсы сброшены всем игрокам: ${count}` });
   });
 
+  router.post('/delete-turret', (req, res) => {
+    const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
+    if (!login) return res.status(400).json({ ok: false, error: 'Нужен login' });
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+    saveFarmBackup(profile, 'before_delete_turret');
+    db.prepare(`UPDATE farm_profiles SET turret_json='{}', updated_at=? WHERE twitch_id=?`).run(Date.now(), profile.twitch_id);
+    logAdminEvent(db, profile.twitch_id, 'admin_delete_turret', { login });
+    res.json({ ok: true, message: `Турель удалена у ${login}`, profile: getProfileByLogin(db, login) });
+  });
+
+  router.post('/restore-backup', (req, res) => {
+    const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
+    if (!login) return res.status(400).json({ ok: false, error: 'Нужен login' });
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+    const backup = restoreFarmBackup(profile);
+    if (!backup) return res.status(404).json({ ok: false, error: 'Бэкап не найден. Бэкап создаётся перед переносом/удалением/опасными действиями.' });
+    logAdminEvent(db, profile.twitch_id, 'admin_restore_backup', { login, backupAt: backup.createdAt, reason: backup.reason });
+    res.json({ ok: true, message: `Бэкап восстановлен для ${login}`, profile: getProfileByLogin(db, login) });
+  });
+
+  router.post('/set-roulette-tickets', (req, res) => {
+    const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
+    const amount = clampInt(req.body.amount, 0, 150);
+    if (!login || !Number.isFinite(amount)) return res.status(400).json({ ok: false, error: 'Нужен login и amount 0-150' });
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+    const farm = profile.farm || {};
+    farm.roulette = farm.roulette || {};
+    farm.roulette.tickets = amount;
+    saveFarmObject(profile.twitch_id, farm);
+    logAdminEvent(db, profile.twitch_id, 'admin_set_roulette_tickets', { login, tickets: amount });
+    res.json({ ok: true, message: `Билеты рулетки установлены: ${amount}`, profile: getProfileByLogin(db, login) });
+  });
+
+  router.post('/run-1to1-check', (req, res) => {
+    const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
+    if (!login) return res.status(400).json({ ok: false, error: 'Нужен login' });
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+    const farm = profile.farm || {};
+    const report = {
+      login,
+      generatedAt: Date.now(),
+      resources: { level: profile.level, farm_balance: profile.farm_balance, upgrade_balance: profile.upgrade_balance, parts: profile.parts, license_level: profile.license_level, raid_power: profile.raid_power, protection_level: profile.protection_level, turret_level: Number(profile.turret?.level || 0) },
+      checks: [
+        { id: 'upgrade', title: 'Стоимость апов', status: 'manual', note: 'Сравнить следующий ап с WizeBot !ап.' },
+        { id: 'buildings', title: 'Стоимость зданий', status: 'manual', note: 'Сравнить покупку/ап каждого здания с WizeBot.' },
+        { id: 'income', title: 'Доход зданий', status: 'manual', note: 'Сравнить инфо фермы/сбор/оффсбор.' },
+        { id: 'raids', title: 'Рейды', status: 'manual', note: 'Проверить цель, силу, защиту, турель, лог.' },
+        { id: 'market', title: 'Рынок', status: 'manual', note: 'Проверить покупку/продажу и склад.' },
+        { id: 'cases', title: 'Кейсы', status: 'manual', note: 'Проверить цену, множитель, кулдаун, историю.' },
+        { id: 'gamus', title: 'GAMUS', status: 'manual', note: 'Проверить диапазон награды и ресет 06:00 МСК.' },
+        { id: 'offcollect', title: 'Оффсбор', status: 'manual', note: 'Проверить 50% дохода и КД.' },
+        { id: 'admin', title: 'Админ-действия', status: 'manual', note: 'Проверить изменение ресурсов, сбросы, бэкап.' }
+      ],
+      buildings: farm.buildings || {},
+      case: { lastCaseAt: farm.lastCaseAt || 0, historyCount: Array.isArray(farm.caseHistory) ? farm.caseHistory.length : 0 },
+      gamus: { lastGamusAt: farm.lastGamusAt || 0 },
+      roulette: farm.roulette || { tickets: 0 },
+      backups: Array.isArray(farm.adminBackups) ? farm.adminBackups.map((b) => ({ createdAt: b.createdAt, reason: b.reason, login: b.login })).slice(0, 10) : []
+    };
+    logAdminEvent(db, profile.twitch_id, 'admin_1to1_check', { login });
+    res.json({ ok: true, message: `Чеклист 1:1 сформирован для ${login}`, report });
+  });
+
   router.get('/events', (req, res) => {
     const login = String(req.query.login || '').toLowerCase().replace(/^@/, '');
     const type = String(req.query.type || '').trim();
@@ -576,7 +680,9 @@ module.exports = function (db) {
       { id: 'cases', title: 'Кейсы' },
       { id: 'gamus', title: 'GAMUS' },
       { id: 'offcollect', title: 'Оффсбор' },
-      { id: 'admin', title: 'Админ-действия' }
+      { id: 'admin', title: 'Админ-действия' },
+      { id: 'overlay', title: 'Overlay кейса' },
+      { id: 'rare_admin', title: 'Редкие админ-команды' }
     ]});
   });
 
