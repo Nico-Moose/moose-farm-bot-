@@ -41,12 +41,7 @@ function extractJson(text) {
       try {
         const parsed = JSON.parse(candidate);
 
-        if (
-          parsed &&
-          typeof parsed === 'object' &&
-          parsed.login &&
-          parsed.farm
-        ) {
+        if (parsed && typeof parsed === 'object' && parsed.login && parsed.farm) {
           return parsed;
         }
       } catch (_) {}
@@ -64,14 +59,7 @@ async function fetchLongtextJson(url) {
   }
 
   const html = await res.text();
-
-  try {
-    return extractJson(html);
-  } catch (error) {
-    console.error('[LONGTEXT RAW START]', html.slice(0, 1000));
-    console.error('[LONGTEXT RAW END]', html.slice(-1000));
-    throw error;
-  }
+  return extractJson(html);
 }
 
 function normalizeNumber(value) {
@@ -82,10 +70,7 @@ function importPayloadToSqlite(payload) {
   const login = String(payload.login || '').toLowerCase();
 
   if (login !== ALLOWED_LOGIN) {
-    return {
-      ok: false,
-      error: 'sync_allowed_only_for_nico_moose'
-    };
+    return { ok: false, error: 'sync_allowed_only_for_nico_moose' };
   }
 
   const db = getDb();
@@ -93,6 +78,8 @@ function importPayloadToSqlite(payload) {
 
   const farm = payload.farm || {};
   const resources = farm.resources || {};
+  const configs = payload.configs || {};
+  const turret = payload.turret || {};
 
   const userRow = db.prepare(`
     SELECT twitch_id
@@ -102,10 +89,7 @@ function importPayloadToSqlite(payload) {
   `).get(login);
 
   if (!userRow) {
-    return {
-      ok: false,
-      error: 'site_user_not_found_login_with_twitch_first'
-    };
+    return { ok: false, error: 'site_user_not_found_login_with_twitch_first' };
   }
 
   const imported = {
@@ -114,7 +98,10 @@ function importPayloadToSqlite(payload) {
     upgrade_balance: normalizeNumber(payload.upgrade_balance),
     total_income: normalizeNumber(payload.total_income),
     parts: normalizeNumber(resources.parts),
-    last_collect_at: normalizeNumber(payload.last_collect_at) || now
+    last_collect_at: normalizeNumber(payload.last_collect_at) || now,
+    license_level: normalizeNumber(payload.license_level),
+    protection_level: normalizeNumber(payload.protection_level),
+    raid_power: normalizeNumber(payload.raid_power)
   };
 
   db.prepare(`
@@ -125,10 +112,23 @@ function importPayloadToSqlite(payload) {
       total_income = @total_income,
       parts = @parts,
       last_collect_at = @last_collect_at,
+
+      farm_json = @farm_json,
+      configs_json = @configs_json,
+      license_level = @license_level,
+      protection_level = @protection_level,
+      raid_power = @raid_power,
+      turret_json = @turret_json,
+      last_wizebot_sync_at = @last_wizebot_sync_at,
+
       updated_at = @updated_at
     WHERE twitch_id = @twitch_id
   `).run({
     ...imported,
+    farm_json: JSON.stringify(farm),
+    configs_json: JSON.stringify(configs),
+    turret_json: JSON.stringify(turret),
+    last_wizebot_sync_at: now,
     updated_at: now,
     twitch_id: userRow.twitch_id
   });
@@ -138,11 +138,8 @@ function importPayloadToSqlite(payload) {
     VALUES (?, ?, ?, ?)
   `).run(
     userRow.twitch_id,
-    'sync_wizebot_longtext',
-    JSON.stringify({
-      source: 'twitch_chat_longtext',
-      imported
-    }),
+    'sync_wizebot_full_longtext',
+    JSON.stringify({ imported }),
     now
   );
 
@@ -159,7 +156,14 @@ function importPayloadToSqlite(payload) {
       f.parts,
       f.last_collect_at,
       f.created_at,
-      f.updated_at
+      f.updated_at,
+      f.farm_json,
+      f.configs_json,
+      f.license_level,
+      f.protection_level,
+      f.raid_power,
+      f.turret_json,
+      f.last_wizebot_sync_at
     FROM twitch_users u
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE u.twitch_id = ?
@@ -175,10 +179,7 @@ function importPayloadToSqlite(payload) {
 
 async function importWizebotPayloadByLogin({ login, url }) {
   if (String(login || '').toLowerCase() !== ALLOWED_LOGIN) {
-    return {
-      ok: false,
-      error: 'sync_allowed_only_for_nico_moose'
-    };
+    return { ok: false, error: 'sync_allowed_only_for_nico_moose' };
   }
 
   const payload = await fetchLongtextJson(url);
