@@ -3,37 +3,60 @@ const { getNextUpgrade } = require('./farmGameService');
 
 const ALLOWED_LOGIN = 'nico_moose';
 
-async function fetchLongtextJson(url) {
-  const res = await fetch(url);
-  const html = await res.text();
-
-  const match = html.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
-
-  let text;
-
-  if (match) {
-    text = match[1];
-  } else {
-    text = html;
-  }
-
-  text = text
+function decodeHtml(text) {
+  return String(text || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
     .replace(/&quot;/g, '"')
     .replace(/&#34;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .trim();
+}
 
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
+function extractJson(text) {
+  const decoded = decodeHtml(text);
 
-  if (start === -1 || end === -1) {
+  const start = decoded.indexOf('{');
+  const end = decoded.lastIndexOf('}');
+
+  if (start === -1 || end === -1 || end <= start) {
     throw new Error('JSON not found in longtext');
   }
 
-  const json = text.slice(start, end + 1);
+  let json = decoded.slice(start, end + 1);
+
+  // убираем невидимые символы
+  json = json
+    .replace(/\u200B/g, '')
+    .replace(/\u200C/g, '')
+    .replace(/\u200D/g, '')
+    .replace(/\uFEFF/g, '')
+    .trim();
+
   return JSON.parse(json);
+}
+
+async function fetchLongtextJson(url) {
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Longtext fetch failed: ${res.status}`);
+  }
+
+  const html = await res.text();
+
+  try {
+    return extractJson(html);
+  } catch (error) {
+    console.error('[LONGTEXT RAW START]', html.slice(0, 1000));
+    console.error('[LONGTEXT RAW END]', html.slice(-1000));
+    throw error;
+  }
 }
 
 function normalizeNumber(value) {
