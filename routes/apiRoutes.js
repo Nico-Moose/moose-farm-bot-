@@ -172,7 +172,7 @@ router.post('/farm/building/upgrade', requireAuth, (req, res) => {
   const count = req.body.count || 1;
 
   const result = upgradeBuilding(profile, key, count);
-  const updatedProfile = updateProfile(result.profile);
+  const updatedProfile = result.profile ? updateProfile(result.profile) : profile;
 
   if (result.upgraded > 0) {
     logFarmEvent(req.session.twitchUser.id, 'building_upgrade', {

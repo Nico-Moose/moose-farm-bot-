@@ -23,6 +23,25 @@ function showMessage(text) {
   document.getElementById('message').textContent = text || '';
 }
 
+function buildingErrorLabel(code, data = {}) {
+  const labels = {
+    building_not_found: 'здание не найдено в конфиге WizeBot',
+    building_already_built: 'здание уже построено',
+    building_not_built: 'здание ещё не построено',
+    farm_level_too_low: `нужен уровень фермы ${data.requiredLevel || ''}`.trim(),
+    not_enough_money: 'не хватает монет',
+    not_enough_parts: 'не хватает запчастей',
+    max_level: 'достигнут максимум уровня',
+    factory_requires_zavod_10: 'для фабрики выше 5 ур. нужен завод 10 ур.',
+    mine_requires_zavod_50_factory_50: 'для шахты до 25 ур. нужны завод 50 и фабрика 50',
+    mine_requires_zavod_100_factory_100: 'для шахты до 50 ур. нужны завод 100 и фабрика 100',
+    mine_requires_zavod_125_factory_125: 'для шахты до 75 ур. нужны завод 125 и фабрика 125',
+    mine_requires_zavod_200_factory_200: 'для шахты до 100 ур. нужны завод 200 и фабрика 200',
+    mine_requires_zavod_300_factory_300: 'для шахты с 200 ур. нужны завод 300 и фабрика 300'
+  };
+  return labels[code] || code || 'неизвестная ошибка';
+}
+
 function render(data) {
   state = data;
 
@@ -148,7 +167,7 @@ function renderBuildings(data) {
         <p>Цена: <b>${formatNumber(conf.baseCost || 0)}💰</b> / <b>${formatNumber(conf.partsBase || 0)}🔧</b></p>
         <p>Доступно с ур. фермы: <b>${conf.levelRequired || 0}</b></p>
         ${!isBuilt
-          ? `<button data-building-buy="${key}" ${canBuyByLevel ? '' : 'disabled'}>🏗 Купить</button>`
+          ? `<button data-building-buy="${key}" data-required-level="${conf.levelRequired || 0}">🏗 Купить</button>`
           : `
             <div class="building-actions">
               <button data-building-upgrade="${key}" data-count="1" ${lvl >= maxLevel ? 'disabled' : ''}>⬆️ Ап +1</button>
@@ -161,6 +180,12 @@ function renderBuildings(data) {
 
   document.querySelectorAll('[data-building-buy]').forEach((btn) => {
     btn.addEventListener('click', async () => {
+      const required = Number(btn.getAttribute('data-required-level') || 0);
+      const current = Number(state?.profile?.level || 0);
+      if (current < required) {
+        showMessage(`⛔ Здание пока недоступно: нужен уровень фермы ${required}, сейчас ${current}.`);
+        return;
+      }
       await buyBuilding(btn.getAttribute('data-building-buy'));
     });
   });
@@ -201,7 +226,20 @@ async function postJson(url, body = {}) {
     body: JSON.stringify(body)
   });
 
-  return res.json();
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (error) {
+    data = { ok: false, error: 'bad_json_response', raw: text };
+  }
+
+  if (!res.ok && data.ok !== false) {
+    data.ok = false;
+    data.error = `http_${res.status}`;
+  }
+
+  return data;
 }
 
 async function buyLicense() {
@@ -257,7 +295,7 @@ async function buyBuilding(key) {
   const data = await postJson('/api/farm/building/buy', { key });
 
   if (!data.ok) {
-    showMessage(`❌ Здание не куплено: ${data.error}`);
+    showMessage(`❌ Здание не куплено: ${buildingErrorLabel(data.error || data.stopReason, data)}`);
     await loadMe();
     return;
   }
@@ -270,7 +308,7 @@ async function upgradeBuilding(key, count) {
   const data = await postJson('/api/farm/building/upgrade', { key, count });
 
   if (!data.ok) {
-    showMessage(`❌ Здание не улучшено: ${data.error}`);
+    showMessage(`❌ Здание не улучшено: ${buildingErrorLabel(data.error || data.stopReason, data)}`);
     await loadMe();
     return;
   }

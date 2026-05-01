@@ -141,7 +141,7 @@ function buyBuilding(profile, key) {
   ensureFarmShape(profile);
 
   const conf = getBuildingConfig(profile, key);
-  if (!conf) return { ok: false, error: 'building_not_found' };
+  if (!conf) return { ok: false, error: 'building_not_found', profile };
 
   const state = getBuildingState(profile, key);
 
@@ -182,10 +182,10 @@ function upgradeBuilding(profile, key, count = 1) {
   ensureFarmShape(profile);
 
   const conf = getBuildingConfig(profile, key);
-  if (!conf) return { ok: false, error: 'building_not_found' };
+  if (!conf) return { ok: false, error: 'building_not_found', profile };
 
   if (!profile.farm.buildings[key]) {
-    return { ok: false, error: 'building_not_built' };
+    return { ok: false, error: 'building_not_built', profile };
   }
 
   const wanted = Math.min(Math.max(parseInt(count, 10) || 1, 1), 40);
@@ -241,6 +241,7 @@ function upgradeBuilding(profile, key, count = 1) {
     totalCost,
     totalParts,
     stopReason,
+    error: stopReason,
     profile,
     buildings: listBuildings(profile)
   };
