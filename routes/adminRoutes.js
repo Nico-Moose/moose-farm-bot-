@@ -22,19 +22,51 @@ router.get("/player/:nick", (req, res) => {
     .toLowerCase()
     .replace(/^@/, "");
 
-  const row = db
-    .prepare("SELECT value FROM variables WHERE key = ?")
-    .get("farm_" + nick);
+  const tables = db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type='table'
+    ORDER BY name
+  `).all();
 
-  if (!row) {
-    return res.status(404).json({ error: "farm not found" });
+  const result = {
+    looking_for: nick,
+    tables: tables.map(t => t.name),
+    matches: []
+  };
+
+  for (const table of result.tables) {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+
+    for (const col of columns) {
+      const colName = col.name;
+
+      if (
+        colName.includes("login") ||
+        colName.includes("nick") ||
+        colName.includes("user") ||
+        colName.includes("name") ||
+        colName.includes("key")
+      ) {
+        try {
+          const rows = db.prepare(`
+            SELECT * FROM ${table}
+            WHERE LOWER(CAST(${colName} AS TEXT)) LIKE ?
+            LIMIT 10
+          `).all(`%${nick}%`);
+
+          if (rows.length) {
+            result.matches.push({
+              table,
+              column: colName,
+              rows
+            });
+          }
+        } catch (e) {}
+      }
+    }
   }
 
-  res.json({
-    ok: true,
-    nick,
-    farm: JSON.parse(row.value),
-  });
+  res.json(result);
 });
   // 💰 баланс
   router.post("/balance", (req, res) => {
