@@ -57,5 +57,52 @@
   </main>
 
   <script src="/app.js"></script>
+  <section id="admin-panel" class="admin-panel hidden">
+  <h2>👑 Админ-панель</h2>
+  <p class="admin-muted">Доступ только для Nico_Moose</p>
+
+  <div class="admin-card">
+    <h3>Игрок</h3>
+    <input id="admin-login" placeholder="ник игрока" />
+    <button id="admin-load-player">Посмотреть игрока</button>
+  </div>
+
+  <div id="admin-player-info" class="admin-result"></div>
+
+  <div class="admin-grid">
+    <div class="admin-card">
+      <h3>Баланс</h3>
+      <input id="admin-farm-amount" placeholder="+1000 или -1000" />
+      <button id="admin-give-farm">Изменить фермерский баланс</button>
+
+      <input id="admin-upgrade-amount" placeholder="+1кк или -500к" />
+      <button id="admin-give-upgrade">Изменить бонусный баланс</button>
+
+      <input id="admin-parts-amount" placeholder="+1000 или -1000" />
+      <button id="admin-give-parts">Изменить запчасти</button>
+    </div>
+
+    <div class="admin-card">
+      <h3>Уровни</h3>
+      <input id="admin-level" placeholder="уровень фермы" />
+      <button id="admin-set-level">Установить уровень фермы</button>
+
+      <input id="admin-protection" placeholder="защита 0-120" />
+      <button id="admin-set-protection">Установить защиту</button>
+
+      <input id="admin-raid-power" placeholder="рейд-сила 0-200" />
+      <button id="admin-set-raid-power">Установить рейд-силу</button>
+    </div>
+
+    <div class="admin-card danger-zone">
+      <h3>Опасные действия</h3>
+      <button id="admin-reset-raid">Сбросить КД рейда</button>
+      <button id="admin-delete-buildings">Удалить постройки</button>
+      <button id="admin-delete-farm" class="danger">Удалить ферму</button>
+    </div>
+  </div>
+
+  <div id="admin-status" class="admin-status"></div>
+</section>
 </body>
 </html>
