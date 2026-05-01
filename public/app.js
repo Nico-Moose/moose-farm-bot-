@@ -1,5 +1,6 @@
 let state = null;
 const clientPendingPosts = new Set();
+let lastMarketQty = Number(localStorage.getItem('mooseFarmLastMarketQty') || '100') || 100;
 
 function setButtonBusy(button, busy) {
   if (!button) return;
@@ -70,6 +71,61 @@ function showMessage(text) {
   if (!el) return;
   el.textContent = text || '';
   el.className = text ? 'message-panel' : '';
+}
+
+function ensureModalRoot(id, className) {
+  let root = document.getElementById(id);
+  if (!root) {
+    root = document.createElement('div');
+    root.id = id;
+    root.className = className || '';
+    document.body.appendChild(root);
+  }
+  return root;
+}
+
+function showActionToast(title, lines = [], options = {}) {
+  const root = ensureModalRoot('actionToastRoot', 'action-toast-root');
+  const toast = document.createElement('div');
+  toast.className = 'action-toast ' + (options.kind || '');
+  toast.innerHTML = `
+    <button class="action-toast-close" type="button">×</button>
+    <div class="action-toast-title">${title}</div>
+    <div class="action-toast-lines">${lines.map((line) => `<div>${line}</div>`).join('')}</div>
+  `;
+  root.appendChild(toast);
+  const close = () => toast.remove();
+  toast.querySelector('.action-toast-close')?.addEventListener('click', close);
+  setTimeout(() => toast.classList.add('visible'), 20);
+  setTimeout(close, options.timeout || 9000);
+}
+
+function showRaidDetails(log = {}) {
+  const target = log.target || 'неизвестно';
+  const title = log.killed_by_turret
+    ? `💥 Рейд на ${target}: турель остановила атаку`
+    : `🏴 Рейд на ${target}: успех`;
+  const lines = [
+    `🎯 Цель: <b>${target}</b>`,
+    `⚔️ Сила: <b>${formatNumber(log.strength || 0)}%</b> × <b>x${log.punish_mult || 1}</b>`,
+    `📈 Базовый доход цели: <b>${formatNumber(log.base_income || 0)}💰</b>`,
+    `💸 Украдено монет: <b>${formatNumber(log.stolen || 0)}💰</b>`,
+    `💎 Украдено бонусных: <b>${formatNumber((log.bonus_stolen || 0) + (log.turret_bonus || 0))}💎</b>`,
+    `🛡 Заблокировано защитой/щитом: <b>${formatNumber(log.blocked || 0)}</b>`,
+    `🔫 Шанс турели цели: <b>${formatNumber(log.turret_chance || 0)}%</b>`,
+    log.turret_refund ? `💥 Потеря от турели: <b>${formatNumber(log.turret_refund)}💰</b>` : `✅ Турель не нанесла урон`,
+    log.ignore_protection ? `⚠️ Защита цели игнорировалась из-за долгой неактивности` : `🛡 Защита цели учитывалась`
+  ];
+  showActionToast(title, lines, { kind: log.killed_by_turret ? 'danger' : 'raid', timeout: 12000 });
+}
+
+function refreshVisibleData() {
+  loadMe().catch((err) => console.warn('[REFRESH]', err));
+  loadHistory().catch((err) => console.warn('[HISTORY REFRESH]', err));
+  if (document.getElementById('admin-panel')?.classList.contains('active')) {
+    refreshAdminPlayer().catch(() => {});
+    loadAdminEvents().catch(() => {});
+  }
 }
 
 function currentCoins(profile) {
@@ -275,13 +331,19 @@ function renderMarket(data) {
       <span>🔧 Запчасти: <b>${formatNumber(parts)}</b></span>
     </div>
     <div class="market-actions pretty-actions">
-      <input id="marketQty" type="number" min="1" step="1" value="100" />
+      <input id="marketQty" type="number" min="1" step="1" value="${lastMarketQty}" />
       <button id="marketBuyBtn" ${!canBuyOne ? 'disabled' : ''}>🔵 Купить запчасти</button>
       <button id="marketSellBtn" ${!canSellOne ? 'disabled' : ''}>🟢 Продать запчасти</button>
     </div>
     <p class="market-hint">${canBuyOne ? 'Покупка списывает 💎 и выдаёт 🔧.' : 'Для покупки нужны 💎 и склад рынка.'} ${canSellOne ? 'Продажа выдаёт 💎.' : 'Для продажи нужны 🔧.'}</p>
   `;
 
+  const qtyInput = document.getElementById('marketQty');
+  qtyInput?.addEventListener('input', () => {
+    const value = Math.max(1, Number(qtyInput.value || 1));
+    lastMarketQty = value;
+    localStorage.setItem('mooseFarmLastMarketQty', String(value));
+  });
   document.getElementById('marketBuyBtn')?.addEventListener('click', () => marketTrade('buy'));
   document.getElementById('marketSellBtn')?.addEventListener('click', () => marketTrade('sell'));
 }
@@ -458,7 +520,12 @@ async function buyLicense() {
 }
 
 async function marketTrade(action) {
-  const qty = Number(document.getElementById('marketQty')?.value || 0);
+  const qtyInput = document.getElementById('marketQty');
+  const qty = Number(qtyInput?.value || 0);
+  if (qty > 0) {
+    lastMarketQty = qty;
+    localStorage.setItem('mooseFarmLastMarketQty', String(qty));
+  }
   const data = await postJson(`/api/farm/market/${action}`, { qty });
 
   if (!data.ok) {
@@ -477,8 +544,20 @@ async function marketTrade(action) {
 
   if (action === 'buy') {
     showMessage(`🔵 Куплено ${formatNumber(data.qty)}🔧 за ${formatNumber(data.totalCost)}💎${data.limited ? ' (сколько хватило)' : ''}`);
+    showActionToast('🏪 Покупка на рынке', [
+      `Куплено: <b>${formatNumber(data.qty)}🔧</b>`,
+      `Потрачено: <b>${formatNumber(data.totalCost)}💎</b>`,
+      `Склад после сделки: <b>${formatNumber(data.market?.stock ?? 0)}🔧</b>`,
+      `Следующее количество сохранено: <b>${formatNumber(lastMarketQty)}🔧</b>`
+    ], { kind: 'market' });
   } else {
     showMessage(`🟢 Продано ${formatNumber(data.qty)}🔧 за ${formatNumber(data.totalCost)}💎`);
+    showActionToast('🏪 Продажа на рынке', [
+      `Продано: <b>${formatNumber(data.qty)}🔧</b>`,
+      `Получено: <b>${formatNumber(data.totalCost)}💎</b>`,
+      `Склад после сделки: <b>${formatNumber(data.market?.stock ?? 0)}🔧</b>`,
+      `Следующее количество сохранено: <b>${formatNumber(lastMarketQty)}🔧</b>`
+    ], { kind: 'market' });
   }
 
   await loadMe();
@@ -726,7 +805,8 @@ async function doRaid() {
     return;
   }
   const log = data.log || {};
-  showMessage(`🏴 Рейд на ${log.target}: украдено ${formatNumber(log.stolen)}💰 | сила ${formatNumber(log.strength)}% x${log.punish_mult} | блок ${formatNumber(log.blocked)}🛡${log.turret_penalty ? ` | турель: -${formatNumber(log.turret_penalty)}💰` : ''}`);
+  showMessage(`🏴 Рейд на ${log.target}: украдено ${formatNumber(log.stolen)}💰 | сила ${formatNumber(log.strength)}% x${log.punish_mult} | блок ${formatNumber(log.blocked)}🛡${log.turret_refund ? ` | турель: -${formatNumber(log.turret_refund)}💰` : ''}`);
+  showRaidDetails(log);
   await loadMe();
 }
 
@@ -909,6 +989,8 @@ async function adminPost(path, body) {
     if (!res.ok || data.ok === false) {
       throw new Error(data.error || "Ошибка админ-действия");
     }
+
+    setTimeout(refreshVisibleData, 60);
 
     return data;
   } finally {
