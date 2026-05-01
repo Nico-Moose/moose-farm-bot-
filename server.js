@@ -5,7 +5,7 @@ const { config } = require('./config');
 const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 const bridgeRoutes = require('./routes/bridgeRoutes');
-
+const adminRoutes = require("./routes/adminRoutes");
 function startWebServer() {
   const app = express();
 
