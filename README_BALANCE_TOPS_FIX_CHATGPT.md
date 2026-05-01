@@ -1,33 +1,19 @@
-# ChatGPT fix: обычные монеты, топы, доход, рейды
+# SERVER
+PORT=3000
+PUBLIC_BASE_URL=https://farm-moose.bothost.tech
 
-Что исправлено:
+# TWITCH CHAT (бот в чате)
+TWITCH_CHANNEL=Nico_Moose
+TWITCH_BOT_USERNAME=Nico_Moose
+TWITCH_BOT_OAUTH=oauth:your_chat_token_here
 
-1. Добавлено поле `twitch_balance` в SQLite `farm_profiles`.
-   Это отдельные обычные Twitch/WizeBot монеты из `!мани`.
+# TWITCH OAUTH (логин на сайте)
+TWITCH_CLIENT_ID=your_client_id_here
+TWITCH_CLIENT_SECRET=your_client_secret_here
+TWITCH_REDIRECT_URI=https://farm-moose.bothost.tech/auth/twitch/callback
 
-2. `farm_balance` больше не считается обычными монетами.
-   Теперь это виртуальный баланс фермы `farm_virtual_balance_*`.
+# DATABASE
+DATABASE_PATH=/app/data/farm.sqlite
 
-3. В sync payload добавлено поле:
-
-```js
-twitch_balance: parseInt(JS.wizebot.call_tag('currency', ['get', user]) || '0', 10) || 0,
-```
-
-Важно: обнови команду `!синкферма` в WizeBot, иначе сайт не сможет узнать обычные монеты.
-Старые sync JSON без `twitch_balance` будут показывать обычные монеты как `0` до следующего sync.
-
-4. Топы и инфо теперь показывают отдельно:
-- обычные монеты 💰
-- ферма 🌾
-- ап-баланс 💎
-- запчасти 🔧
-
-5. После рейда, если открыт раздел `Топ / инфо`, топы автоматически перезагружаются.
-
-6. Таймеры теперь в формате `14ч 56м`, без `896м 40с`.
-
-7. Причина `доход 0` у Nico_Moose:
-сайт считает доход из `configs.plants`, `configs.animals`, `configs.buildings` и текущих building levels.
-Если sync payload пришёл без configs или с пустыми configs/buildings, доход будет 0 даже при уровне фермы.
-Нужно проверить, что `!синкферма` отправляет configs полностью.
+# SESSION (для логина)
+SESSION_SECRET=your_super_secret_random_string_here

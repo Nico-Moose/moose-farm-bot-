@@ -1,35 +1,20 @@
-# Patch: buildings + parts market
+# Buildings UI/API fix 2
 
-Что изменено:
+Исправлено:
 
-1. `services/farm/buildingService.js`
-   - Исправлен импорт: `spendMoney` заменён на существующий `spendCoins`.
-   - Откаты списания теперь используют `money.spent.farm_balance` и `money.spent.upgrade_balance`.
-   - Ответы покупки/апгрейда зданий приведены к единому формату:
-     - `totalCost`
-     - `totalParts`
+1. Ошибка `❌ Здание не улучшено: undefined`.
+   - Backend теперь возвращает `error: stopReason` для ошибок апгрейда зданий.
+   - Frontend показывает человекочитаемую причину: не хватает монет, запчастей, максимум уровня, ограничения шахты/фабрики и т.д.
 
-2. `routes/apiRoutes.js`
-   - Ответы API зданий теперь возвращают `totalCost/totalParts`.
-   - Добавлены endpoints рынка:
-     - `POST /api/farm/market/buy` с body `{ "qty": 100 }`
-     - `POST /api/farm/market/sell` с body `{ "qty": 100 }`
-   - В `/api/me` добавлен объект `market`.
+2. Покупка новых зданий.
+   - Кнопка покупки больше не становится молча disabled при недостаточном уровне фермы.
+   - При клике сайт показывает причину: какой уровень фермы нужен и какой сейчас.
 
-3. `services/farm/marketService.js`
-   - Добавлена логика рынка запчастей по WizeBot-командам:
-     - продажа: `1🔧 = 10💎`
-     - покупка: `1🔧 = 20💎`
-     - стартовый склад: `20000🔧`
-     - максимум за раз: `2000000🔧`
-   - Рынок хранится внутри `profile.farm.market`.
+3. Защита backend от падения при ошибках апгрейда.
+   - `/api/farm/building/upgrade` больше не вызывает `updateProfile(undefined)`.
+   - Ранние ошибки `building_not_found` и `building_not_built` возвращают профиль безопасно.
 
-4. `public/farm.html`, `public/app.js`, `public/style.css`
-   - Добавлен блок рынка в Web UI.
-   - Можно купить/продать запчасти с сайта.
-
-Следующие шаги после этого патча:
-- рейды;
-- защита;
-- турель;
-- обратная синхронизация сайт -> WizeBot.
+Файлы:
+- `services/farm/buildingService.js`
+- `routes/apiRoutes.js`
+- `public/app.js`

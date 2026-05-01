@@ -1,45 +1,76 @@
-require('dotenv').config();
+const ALLOWED_LOGIN = 'nico_moose';
 
-const config = {
-  port: Number(process.env.PORT || 3000),
-  publicBaseUrl: process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
-  sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
-  databasePath: process.env.DATABASE_PATH || './data/farm.sqlite',
+function isAllowedLogin(login) {
+  return String(login || '').trim().toLowerCase() === ALLOWED_LOGIN;
+}
 
-  twitch: {
-    channel: process.env.TWITCH_CHANNEL,
-    botUsername: process.env.TWITCH_BOT_USERNAME,
-    botOauth: process.env.TWITCH_BOT_OAUTH,
-    clientId: process.env.TWITCH_CLIENT_ID,
-    clientSecret: process.env.TWITCH_CLIENT_SECRET,
-    redirectUri: process.env.TWITCH_REDIRECT_URI,
-  },
+function parseJsonValue(value, fallback) {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value === 'object') return value;
 
-  wizebot: {
-    apiKey: process.env.WIZEBOT_API_KEY,
-    apiKeyRw: process.env.WIZEBOT_API_KEY_RW,
-    bridgeSecret: process.env.WIZEBOT_BRIDGE_SECRET || 'change-me-bridge-secret',
-  },
-};
-
-function validateConfig() {
-  const missing = [];
-
-  if (!config.twitch.channel) missing.push('TWITCH_CHANNEL');
-  if (!config.twitch.botUsername) missing.push('TWITCH_BOT_USERNAME');
-  if (!config.twitch.botOauth) missing.push('TWITCH_BOT_OAUTH');
-  if (!config.twitch.clientId) missing.push('TWITCH_CLIENT_ID');
-  if (!config.twitch.clientSecret) missing.push('TWITCH_CLIENT_SECRET');
-  if (!config.twitch.redirectUri) missing.push('TWITCH_REDIRECT_URI');
-  if (!config.publicBaseUrl) missing.push('PUBLIC_BASE_URL');
-
-  if (!process.env.WIZEBOT_BRIDGE_SECRET) {
-    console.warn('[CONFIG] WIZEBOT_BRIDGE_SECRET is not set. Use a strong secret in production.');
-  }
-
-  if (missing.length) {
-    console.warn('[CONFIG] Missing env:', missing.join(', '));
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return fallback;
   }
 }
 
-module.exports = { config, validateConfig };
+function toInt(value, fallback = 0) {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function applyWizeBotBridgePayload(profile, payload) {
+  const login = String(payload.login || payload.user || '').trim().toLowerCase();
+
+  if (!isAllowedLogin(login)) {
+    return {
+      ok: false,
+      error: 'sync_allowed_only_for_nico_moose',
+    };
+  }
+
+  const farm = parseJsonValue(payload.farm, {});
+  const resources = farm.resources || {};
+  const buildings = farm.buildings || {};
+
+  profile.level = toInt(farm.level, profile.level || 0);
+  profile.farm_balance = toInt(payload.farm_balance, profile.farm_balance || 0);
+  profile.upgrade_balance = toInt(payload.upgrade_balance, profile.upgrade_balance || 0);
+  profile.total_income = toInt(payload.total_income, profile.total_income || 0);
+  profile.parts = toInt(resources.parts, profile.parts || 0);
+  profile.last_collect_at = toInt(payload.last_collect_at, profile.last_collect_at || null);
+
+  profile.license_level = toInt(payload.license_level, profile.license_level || 0);
+  profile.protection_level = toInt(payload.protection_level, profile.protection_level || 0);
+  profile.raid_power = toInt(payload.raid_power, profile.raid_power || 0);
+
+  profile.farm_json = JSON.stringify(farm);
+  profile.resources_json = JSON.stringify(resources);
+  profile.buildings_json = JSON.stringify(buildings);
+  profile.turret_json = JSON.stringify(parseJsonValue(payload.turret, {}));
+  profile.synced_from_wizebot_at = Date.now();
+
+  return {
+    ok: true,
+    profile,
+    imported: {
+      login,
+      level: profile.level,
+      farm_balance: profile.farm_balance,
+      upgrade_balance: profile.upgrade_balance,
+      total_income: profile.total_income,
+      parts: profile.parts,
+      buildings,
+      license_level: profile.license_level,
+      protection_level: profile.protection_level,
+      raid_power: profile.raid_power,
+    },
+  };
+}
+
+module.exports = {
+  ALLOWED_LOGIN,
+  isAllowedLogin,
+  applyWizeBotBridgePayload,
+};

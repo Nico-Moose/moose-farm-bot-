@@ -1,47 +1,77 @@
-# Moose Farm Licenses Patch
+# Moose Farm Bridge Patch
 
-Патч добавляет лицензии фермы как в WizeBot.
+Этот ZIP добавляет безопасный bridge sync из старой WizeBot-фермы в новую SQLite сайт-ферму.
 
-## Что добавлено
+## Что заменять в проекте
 
-- `services/farm/licenseService.js`
-- endpoint `POST /api/farm/license/buy`
-- поле `nextLicense` в `GET /api/me`
-- UI-блок лицензий на странице `/farm`
-- улучшенный upgradeService: если уровень требует лицензию, ап останавливается с `license_required`
+Скопируй файлы из архива в проект с заменой:
 
-## Как установить
+- `config.js` -> заменить
+- `server.js` -> заменить
+- `services/dbService.js` -> заменить
+- `services/userService.js` -> заменить
+- `services/wizebotBridgeService.js` -> добавить
+- `routes/bridgeRoutes.js` -> добавить
+- `routes/apiRoutes.js` -> заменить
+- `public/app.js` -> заменить
+- `public/farm.html` -> заменить
 
-1. Скопируй файлы из ZIP в проект с заменой:
-   - `routes/apiRoutes.js`
-   - `public/app.js`
-   - `public/farm.html`
-   - `services/farm/licenseService.js`
-   - `services/farm/paymentService.js`
-   - `services/farm/upgradeService.js`
+## Переменные окружения
 
-2. Содержимое `public/style-additions-licenses.css` вставь в конец:
-   - `public/style.css`
+Добавь в `.env` или в панель bothost:
 
-3. Перезапусти сервер.
+```env
+WIZEBOT_BRIDGE_SECRET=любой_длинный_секрет
+```
 
-4. В Twitch напиши:
-   - `!синкферма`
+Такой же секрет вставь в WizeBot-команду вместо:
 
-5. На сайте сделай Ctrl+F5.
+```js
+PASTE_YOUR_WIZEBOT_BRIDGE_SECRET_HERE
+```
+
+## WizeBot команда
+
+Создай новую JS-команду в WizeBot:
+
+```txt
+!синкферма
+```
+
+Код возьми из:
+
+```txt
+wizebot_commands/!синкферма.txt
+```
+
+Команда читает старые переменные:
+
+- `farm_nico_moose`
+- `farm_virtual_balance_nico_moose`
+- `farm_upgrade_balance_nico_moose`
+- `farm_total_income_nico_moose`
+- `farm_last_nico_moose`
+- `farm_license_nico_moose`
+- `farm_protection_level_nico_moose`
+- `farm_raid_power_nico_moose`
+- `farm_defense_building_nico_moose`
+
+и отправляет их на сайт:
+
+```txt
+POST /bridge/wizebot-sync
+```
 
 ## Важно
 
-Лицензии берутся из WizeBot config:
+Сначала Nico_Moose должен хотя бы один раз войти на сайт через Twitch, чтобы профиль появился в SQLite.
 
-```js
-farm_data_licenses = {
-  "40": 7000,
-  "60": 12000,
-  "80": 22000,
-  "100": 35000,
-  "120": 50000
-}
-```
+## Если WizeBot JS не поддерживает fetch()
 
-Если `configs.licenses` пустой — сделай `!синкферма`, потому что сайт получает эти данные через longtext bridge.
+Если команда выдаст ошибку `fetch is not defined`, значит в JS-командах WizeBot нельзя делать POST-запросы напрямую.
+Тогда используем fallback:
+
+1. WizeBot-команда создаёт longtext/JSON с данными.
+2. Сайт импортирует этот JSON вручную или через отдельный endpoint.
+
+Но сначала проверь основной вариант — во многих JS sandbox `fetch` доступен.

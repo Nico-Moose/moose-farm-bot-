@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Моя ферма — Moose Farm</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="farm-hero">
+      <div class="farm-title-row">
+        <div class="farm-logo">🌾</div>
+        <div>
+          <h1>Моя ферма</h1>
+          <p>Управление фермой, рейдами, зданиями и рынком</p>
+        </div>
+      </div>
+      <section id="admin-entry" class="admin-entry hidden">
+        <button id="openAdminPanel" type="button">👑 Админ-панель</button>
+      </section>
+    </header>
+
+    <nav class="farm-tabs" aria-label="Меню фермы">
+      <button class="farm-tab active" data-farm-tab="main">🏠 Главная</button>
+      <button class="farm-tab" data-farm-tab="buildings">🏗 Здания</button>
+      <button class="farm-tab" data-farm-tab="market">🏪 Рынок</button>
+      <button class="farm-tab" data-farm-tab="tops">🏆 Топ / инфо</button>
+      <button class="farm-tab" data-farm-tab="history">📜 История / журнал</button>
+    </nav>
+
+    <section class="farm-tab-panel active" data-farm-panel="main">
+      <div id="profile" class="profile-shell">Загрузка...</div>
+
+      <section class="quick-actions-section visual-section main-actions-card">
+        <h2>⚡ Основные действия</h2>
+        <section class="farm-grid action-grid-top">
+          <button id="collectBtn">🧺 Собрать<br><small>60 минут кулдаун</small></button>
+          <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
+          <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
+          <button id="syncWizebotBtn">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
+        </section>
+      </section>
+
+      <section class="extra-section priority-section visual-section">
+        <h2>🎁 Кейс / GAMUS / оффсбор</h2>
+        <div id="extrasBox" class="combat-grid">Загрузка...</div>
+      </section>
+
+      <section class="combat-section priority-section visual-section">
+        <h2>⚔️ Рейды и защита</h2>
+        <div id="combatBox" class="combat-grid">Загрузка боевого блока...</div>
+      </section>
+
+      <section id="licenseBox" class="license-section"></section>
+    </section>
+
+    <section class="farm-tab-panel" data-farm-panel="buildings">
+      <section class="visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>🏗 Здания</h2>
+            <p>Все здания в одном месте. Недоступные затемнены и показывают требование, доступные показывают стоимость и нехватку ресурсов.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
+        </div>
+        <div id="buildings" class="buildings-grid panel-body"></div>
+      </section>
+    </section>
+
+    <section class="farm-tab-panel" data-farm-panel="market">
+      <section class="market-section visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>🏪 Рынок запчастей</h2>
+            <p>Покупай и продавай 🔧 за 💎, сразу видя склад, лимит покупки и свой баланс.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
+        </div>
+        <div id="marketBox" class="market-card">Загрузка рынка...</div>
+      </section>
+    </section>
+
+    <section class="farm-tab-panel" data-farm-panel="tops">
+      <section class="info-section visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>🏆 Топы и инфо</h2>
+            <p>Сводка фермы, топ игроков и топ рейдов открываются здесь, без прокрутки всей страницы.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
+        </div>
+        <div id="infoBox" class="info-card panel-body">Загрузка...</div>
+        <div id="topsBox" class="info-card panel-body"></div>
+      </section>
+    </section>
+
+    <section class="farm-tab-panel" data-farm-panel="history">
+      <section class="history-section visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>📜 История и журнал</h2>
+            <p>Фильтруй действия по типу события. Журнал остаётся в отдельной вкладке.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
+        </div>
+        <div class="history-controls panel-body">
+          <select id="historyType">
+            <option value="">Все события</option>
+            <option value="upgrade">Апы фермы</option>
+            <option value="building_buy">Покупки зданий</option>
+            <option value="building_upgrade">Апы зданий</option>
+            <option value="market_buy_parts">Рынок: покупка</option>
+            <option value="market_sell_parts">Рынок: продажа</option>
+            <option value="raid">Рейды</option>
+            <option value="case_open">Кейсы</option>
+            <option value="gamus_claim">GAMUS</option>
+            <option value="off_collect">Оффсбор</option>
+          </select>
+          <button id="historyRefreshBtn">Обновить журнал</button>
+        </div>
+        <div id="historyBox" class="info-card panel-body">Загрузка истории...</div>
+      </section>
+    </section>
+
+    <div id="message"></div>
+
+    <form method="post" action="/auth/logout" class="logout-form">
+      <button class="secondary" type="submit">Выйти</button>
+    </form>
+  </main>
+
+  <div id="caseOverlay" class="case-overlay"></div>
+  <script src="/app.js"></script>
+  <section id="admin-panel" class="admin-panel hidden" aria-hidden="true">
+    <div class="admin-modal-card">
+      <div class="admin-header">
+        <div>
+          <h2>👑 Админ-панель</h2>
+          <p class="admin-muted">Доступ только для Nico_Moose</p>
+        </div>
+        <button id="closeAdminPanel" class="admin-close" type="button">Закрыть ✕</button>
+      </div>
+
+      <div class="admin-card admin-player-search">
+        <h3>Игрок</h3>
+        <input id="admin-login" placeholder="начни вводить ник" autocomplete="off" />
+        <div id="admin-player-suggestions" class="admin-suggestions hidden"></div>
+        <button id="admin-load-player">Посмотреть игрока</button>
+      </div>
+
+      <div id="admin-player-info" class="admin-result"></div>
+
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-admin-tab="balances">Баланс</button>
+        <button class="admin-tab" data-admin-tab="levels">Уровни</button>
+        <button class="admin-tab" data-admin-tab="danger">Опасное</button>
+        <button class="admin-tab" data-admin-tab="extended">Расширенное</button>
+        <button class="admin-tab" data-admin-tab="journal">Журнал</button>
+      </div>
+
+      <div class="admin-tab-panel active" data-admin-panel="balances">
+        <div class="admin-grid">
+          <div class="admin-card">
+            <h3>Баланс и ресурсы</h3>
+            <input id="admin-farm-amount" placeholder="фермерский баланс: +1000 или -1000" />
+            <button id="admin-give-farm">Изменить фермерский баланс</button>
+            <input id="admin-upgrade-amount" placeholder="бонусный баланс: +1кк или -500к" />
+            <button id="admin-give-upgrade">Изменить бонусный баланс</button>
+            <input id="admin-parts-amount" placeholder="запчасти: +1000 или -1000" />
+            <button id="admin-give-parts">Изменить запчасти</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" data-admin-panel="levels">
+        <div class="admin-grid">
+          <div class="admin-card">
+            <h3>Уровни</h3>
+            <input id="admin-level" placeholder="уровень фермы" />
+            <button id="admin-set-level">Установить уровень фермы</button>
+            <input id="admin-protection" placeholder="защита 0-120" />
+            <button id="admin-set-protection">Установить защиту</button>
+            <input id="admin-raid-power" placeholder="рейд-сила 0-200" />
+            <button id="admin-set-raid-power">Установить рейд-силу</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" data-admin-panel="danger">
+        <div class="admin-grid">
+          <div class="admin-card danger-zone">
+            <h3>Опасные действия</h3>
+            <button id="admin-reset-raid">Сбросить КД рейда</button>
+            <button id="admin-delete-turret">Удалить турель</button>
+            <button id="admin-delete-buildings">Удалить постройки</button>
+            <button id="admin-restore-backup">Восстановить последний backup</button>
+            <button id="admin-delete-farm" class="danger">Удалить ферму</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" data-admin-panel="extended">
+        <div class="admin-grid">
+          <div class="admin-card">
+            <h3>Перенос фермы</h3>
+            <input id="admin-transfer-from" placeholder="старый ник" />
+            <input id="admin-transfer-to" placeholder="новый ник" />
+            <button id="admin-transfer-farm">Перенести ферму</button>
+          </div>
+          <div class="admin-card">
+            <h3>Рынок / долги / сбросы</h3>
+            <input id="admin-market-stock" placeholder="склад рынка" />
+            <button id="admin-set-market-stock">Установить склад рынка</button>
+            <button id="admin-clear-debt">Списать долг игрока</button>
+            <button id="admin-clear-all-debts">Списать долги всем</button>
+            <button id="admin-reset-gamus">Сбросить GAMUS</button>
+            <button id="admin-reset-cases">Сбросить кейсы игрока</button>
+            <button id="admin-reset-cases-all">Сбросить кейсы всем</button>
+          </div>
+          <div class="admin-card">
+            <h3>Рулетка / тест</h3>
+            <input id="admin-roulette-tickets" placeholder="билеты: +10 или -10" />
+            <button id="admin-set-roulette-tickets">Изменить билеты рулетки</button>
+            <button id="admin-run-1to1-check">Запустить 1:1 чеклист</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" data-admin-panel="journal">
+        <div class="admin-card">
+          <h3>Админ-журнал</h3>
+          <input id="admin-events-login" placeholder="фильтр по нику, можно пусто" />
+          <select id="admin-events-type">
+            <option value="">Все типы</option>
+            <option value="admin_farm_balance">Админ: фермерский баланс</option>
+            <option value="admin_upgrade_balance">Админ: бонусный баланс</option>
+            <option value="admin_parts">Админ: запчасти</option>
+            <option value="admin_transfer_farm">Админ: перенос фермы</option>
+            <option value="admin_clear_debt">Админ: долги</option>
+            <option value="admin_set_market_stock">Админ: склад</option>
+            <option value="admin_reset_cases">Админ: кейсы</option>
+            <option value="admin_reset_gamus">Админ: GAMUS</option>
+            <option value="admin_delete_turret">Админ: удаление турели</option>
+            <option value="admin_restore_backup">Админ: восстановление backup</option>
+            <option value="admin_set_roulette_tickets">Админ: билеты рулетки</option>
+            <option value="admin_1to1_check">Админ: 1:1 чеклист</option>
+          </select>
+          <button id="admin-load-events">Показать журнал</button>
+          <div id="admin-events-box" class="admin-events-box"></div>
+        </div>
+      </div>
+
+      <div id="admin-status" class="admin-status"></div>
+    </div>
+  </section>
+</body>
+</html>

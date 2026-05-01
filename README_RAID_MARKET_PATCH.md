@@ -1,56 +1,13 @@
-# Moose Farm patch: рынок, рейд-сила, защита, турель, рейды
+# Extended admin fix
 
-Добавлено поверх версии `ux-balance-fix`.
+Fixed missing backend endpoints used by the extended admin panel:
 
-## Что добавлено
+- POST /api/admin/transfer-farm
+- POST /api/admin/set-market-stock
+- POST /api/admin/clear-debt
+- POST /api/admin/reset-gamus
+- POST /api/admin/reset-cases
+- GET /api/admin/events
+- GET /api/admin/checklist
 
-### Рынок запчастей
-- Покупка запчастей за ап-баланс: 1🔧 = 20💎.
-- Продажа запчастей за ап-баланс: 1🔧 = 10💎.
-- Общий склад рынка хранится в `profile.farm.market`.
-- API:
-  - `POST /api/farm/market/buy`
-  - `POST /api/farm/market/sell`
-
-### Рейд-сила
-- Аналог `!рейдап`.
-- Доступно с 120 уровня фермы.
-- Максимум: 200.
-- Цена уровня: `400000 * следующий_уровень`.
-- Списание только из `upgrade_balance`.
-- API: `POST /api/farm/raid-power/upgrade`.
-
-### Защита
-- Аналог `!защитаап`.
-- Доступно с 120 уровня фермы.
-- Максимум: 120.
-- 1 уровень = 0.5% защиты.
-- Цена уровня: `400000 * следующий_уровень`.
-- Списание только из `upgrade_balance`.
-- API: `POST /api/farm/protection/upgrade`.
-
-### Турель
-- Использует `configs.turret_upgrades` из WizeBot, если они уже импортированы.
-- Если конфиг не найден, используется дефолтная таблица из WizeBot-команды.
-- Списание: монеты через общий `spendCoins`, запчасти через `spendParts`.
-- API: `POST /api/farm/turret/upgrade`.
-
-### Рейды
-- API: `POST /api/farm/raid`.
-- Цель выбирается автоматически из игроков в SQLite.
-- Учитывается:
-  - уровень фермы атакующего;
-  - `raid_power`;
-  - оружие из кузницы;
-  - доход цели;
-  - AFK-множитель;
-  - защита;
-  - щит укреплений;
-  - турель;
-  - глушилка;
-  - центр рейдов для кулдауна.
-- Логи рейдов сохраняются в `profile.farm.raidLogs` и `farm_events`.
-
-## Важно
-
-Это backend/UI-паритет для сайта. Обратной записи в WizeBot пока нет. То есть изменения на сайте пока остаются в SQLite.
+The previous UI already had buttons for these actions, but adminRoutes.js did not contain the corresponding routes, so the frontend showed "Ошибка админ-действия" / "Not found".
