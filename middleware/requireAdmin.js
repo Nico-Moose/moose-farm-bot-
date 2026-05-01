@@ -1,14 +1,24 @@
-const ADMIN = "nico_moose";
+const ADMIN_LOGIN = "nico_moose";
 
-function requireAdmin(req, res, next) {
-  const login = (
+function getSessionLogin(req) {
+  return (
+    req.session?.twitchUser?.login ||
     req.session?.user?.login ||
     req.session?.user?.username ||
+    req.user?.login ||
+    req.user?.username ||
     ""
   ).toLowerCase();
+}
 
-  if (login !== ADMIN) {
-    return res.status(404).json({ error: "Not found" });
+function requireAdmin(req, res, next) {
+  const login = getSessionLogin(req);
+
+  if (login !== ADMIN_LOGIN) {
+    return res.status(404).json({
+      ok: false,
+      error: "Not found",
+    });
   }
 
   next();
