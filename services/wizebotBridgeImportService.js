@@ -216,6 +216,21 @@ function importPayloadToSqlite(payload) {
 
   const configs = payload.configs || {};
   const turret = normalizeTurret(payload.turret);
+  const globals = payload.globals || {};
+
+  farm.market = farm.market || {};
+
+  if (globals.farm_parts_stock !== undefined) {
+    farm.market.partsStock = normalizeNumber(globals.farm_parts_stock);
+  }
+
+  if (globals.farm_parts_sold_total !== undefined) {
+    farm.market.totalSold = normalizeNumber(globals.farm_parts_sold_total);
+  }
+
+  if (globals.farm_parts_bought_total !== undefined) {
+    farm.market.totalBought = normalizeNumber(globals.farm_parts_bought_total);
+  }
 
   const userRow = ensureTwitchUserAndProfile({
     login,
@@ -269,7 +284,12 @@ function importPayloadToSqlite(payload) {
     'sync_wizebot_full_longtext',
     JSON.stringify({
       login,
-      imported
+      imported,
+      globals: {
+        farm_parts_stock: globals.farm_parts_stock,
+        farm_parts_sold_total: globals.farm_parts_sold_total,
+        farm_parts_bought_total: globals.farm_parts_bought_total
+      }
     }),
     now
   );

@@ -1,4 +1,5 @@
 const express = require('express');
+const { getDb } = require('../services/dbService');
 
 const {
   getProfile,
@@ -96,7 +97,7 @@ function farmActionGuard(req, res, next) {
   if (req.method !== 'POST') return next();
 
   const userId = req.session?.twitchUser?.id || 'anonymous';
-  const key = `${userId}:${req.path}`;
+  const key = `${userId}:farm`;
 
   if (pendingFarmActions.has(key)) {
     return res.status(409).json({
@@ -395,10 +396,14 @@ router.post('/farm/raid', requireAuth, (req, res) => {
     });
   }
 
-  const updatedAttacker = updateProfile(result.attacker);
-  updateProfile(result.target);
+  const saveRaidResult = getDb().transaction(() => {
+    const updatedAttacker = updateProfile(result.attacker);
+    updateProfile(result.target);
+    logFarmEvent(req.session.twitchUser.id, 'raid', result.log);
+    return updatedAttacker;
+  });
 
-  logFarmEvent(req.session.twitchUser.id, 'raid', result.log);
+  const updatedAttacker = saveRaidResult();
 
   res.json({
     ok: true,
