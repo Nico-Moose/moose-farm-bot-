@@ -1,5 +1,8 @@
 const express = require("express");
 const { requireAdmin } = require("../middleware/requireAdmin");
+const { syncWizebotFarmToProfile } = require("../services/wizebotSyncService");
+const { syncProfileToWizebot } = require("../services/wizebotApiService");
+const { getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
 
 function parseAmount(value) {
   if (typeof value === "number") return Math.trunc(value);
@@ -205,6 +208,25 @@ module.exports = function (db) {
 
   router.use(requireAdmin);
   router.use(adminActionGuard);
+
+
+  async function syncPlayerFromWizebot(login, source = 'admin_sync_from_wizebot') {
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return { ok: false, error: 'Игрок не найден' };
+    const result = await syncWizebotFarmToProfile({ login, profile, allowAnyLogin: true });
+    if (!result.ok) return result;
+    const updatedProfile = updateProfile({ ...profile, ...result.profile, twitch_id: profile.twitch_id });
+    logAdminEvent(db, profile.twitch_id, source, { login, imported: result.imported || null });
+    return { ok: true, profile: updatedProfile, imported: result.imported || null };
+  }
+
+  async function pushPlayerToWizebot(login, source = 'admin_push_to_wizebot') {
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return { ok: false, error: 'Игрок не найден' };
+    const result = await syncProfileToWizebot(profile);
+    logAdminEvent(db, profile.twitch_id, source, { login, result });
+    return { ok: true, profile: getProfileById(profile.twitch_id), result };
+  }
 
   router.get("/players", (req, res) => {
     res.json({ ok: true, players: listPlayerLogins(req.query.prefix || '') });

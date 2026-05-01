@@ -83,6 +83,7 @@ const {
 
 const router = express.Router();
 
+const { config } = require('../config');
 const { syncProfileToWizebotIfNeeded, isWebMasterProfile } = require('../services/wizebotApiService');
 
 function requireAuth(req, res, next) {
@@ -171,7 +172,8 @@ function profilePayload(profile) {
     caseStatus: getCaseStatus(profile),
     gamus: getGamusStatus(profile),
     farmInfo: getFarmInfo(profile),
-    raidInfo: getRaidInfo(profile)
+    raidInfo: getRaidInfo(profile),
+    harvestManagedByWizebot: !!config.harvestManagedByWizebot
   };
 }
 
@@ -189,6 +191,16 @@ router.get('/me', requireAuth, (req, res) => {
 
 router.post('/farm/collect', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
+
+  if (config.harvestManagedByWizebot) {
+    return res.json({
+      ok: false,
+      error: 'harvest_managed_by_wizebot',
+      message: 'Сбор урожая теперь выполняется автоматически командой !урожай в WizeBot и подтягивается на сайт.',
+      ...profilePayload(profile)
+    });
+  }
+
   const result = collectFarm(profile);
 
   if (!result.ok) {

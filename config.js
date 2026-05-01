@@ -25,6 +25,8 @@ const config = {
     .split(',')
     .map((v) => v.trim().toLowerCase())
     .filter(Boolean),
+
+  harvestManagedByWizebot: String(process.env.HARVEST_MANAGED_BY_WIZEBOT || 'true').toLowerCase() !== 'false',
 };
 
 function validateConfig() {

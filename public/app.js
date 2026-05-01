@@ -245,6 +245,18 @@ function render(data) {
   const syncText = p.last_wizebot_sync_at
     ? new Date(Number(p.last_wizebot_sync_at)).toLocaleString('ru-RU')
     : 'ещё не было';
+  const collectBtn = document.getElementById('collectBtn');
+  if (collectBtn) {
+    if (data.harvestManagedByWizebot) {
+      collectBtn.innerHTML = '🧺 Урожай<br><small>авто через !урожай</small>';
+      collectBtn.disabled = false;
+      collectBtn.title = 'Урожай собирается автоматически WizeBot-командой !урожай и подтягивается на сайт';
+    } else {
+      collectBtn.innerHTML = '🧺 Собрать<br><small>60 минут кулдаун</small>';
+      collectBtn.disabled = false;
+      collectBtn.title = '';
+    }
+  }
   const avatar = data.user.avatarUrl
     ? `<img class="profile-avatar-big" src="${data.user.avatarUrl}" alt="avatar">`
     : '<div class="profile-avatar-big profile-avatar-fallback">🌾</div>';
@@ -637,7 +649,18 @@ function farmUpgradeErrorMessage(data) {
 }
 
 document.getElementById('collectBtn').addEventListener('click', async () => {
+  if (state?.harvestManagedByWizebot) {
+    showMessage('🌾 Урожай собирается автоматически командой !урожай в WizeBot и сам подтягивается на сайт.');
+    return;
+  }
+
   const data = await postJson('/api/farm/collect');
+
+  if (!data.ok && data.error === 'harvest_managed_by_wizebot') {
+    showMessage(data.message || '🌾 Урожай собирается автоматически через WizeBot.');
+    await loadMe();
+    return;
+  }
 
   if (!data.ok && data.error === 'cooldown') {
     showMessage(`⏳ Сбор будет доступен через ${formatTime(data.remainingMs)}`);
@@ -1471,6 +1494,39 @@ function bindExtendedAdminPanel() {
     }
     return login;
   };
+
+
+  document.getElementById('admin-sync-from-wizebot')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const data = await adminPost('sync-from-wizebot', { login });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+      await loadMe();
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-push-to-wizebot')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const data = await adminPost('push-to-wizebot', { login });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
+
+  document.getElementById('admin-sync-harvest-from-wizebot')?.addEventListener('click', async () => {
+    try {
+      const login = loginOrError();
+      if (!login) return;
+      const data = await adminPost('sync-harvest-from-wizebot', { login });
+      renderAdminPlayer(data.profile);
+      setAdminStatus(data.message);
+      await loadMe();
+    } catch (e) { setAdminStatus(e.message, true); }
+  });
 
   document.getElementById('admin-transfer-farm')?.addEventListener('click', async () => {
     try {

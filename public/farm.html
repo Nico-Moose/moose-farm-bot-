@@ -35,7 +35,7 @@
       <section class="quick-actions-section visual-section main-actions-card">
         <h2>⚡ Основные действия</h2>
         <section class="farm-grid action-grid-top">
-          <button id="collectBtn">🧺 Собрать<br><small>60 минут кулдаун</small></button>
+          <button id="collectBtn">🧺 Урожай<br><small>авто через !урожай</small></button>
           <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
           <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
           <button id="syncWizebotBtn">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
@@ -209,6 +209,12 @@
             <button id="admin-transfer-farm">Перенести ферму</button>
           </div>
           <div class="admin-card">
+            <h3>WizeBot / урожай / синк</h3>
+            <button id="admin-sync-from-wizebot">Импортировать игрока из WizeBot</button>
+            <button id="admin-push-to-wizebot">Пушнуть игрока в WizeBot</button>
+            <button id="admin-sync-harvest-from-wizebot">Подтянуть урожай из WizeBot</button>
+          </div>
+          <div class="admin-card">
             <h3>Рынок / долги / сбросы</h3>
             <input id="admin-market-stock" placeholder="склад рынка" />
             <button id="admin-set-market-stock">Установить склад рынка</button>
@@ -244,6 +250,9 @@
             <option value="admin_delete_turret">Админ: удаление турели</option>
             <option value="admin_restore_backup">Админ: восстановление backup</option>
             <option value="admin_set_roulette_tickets">Админ: билеты рулетки</option>
+            <option value="admin_sync_from_wizebot">Админ: импорт из WizeBot</option>
+            <option value="admin_push_to_wizebot">Админ: пуш в WizeBot</option>
+            <option value="sync_wizebot_harvest">Авто: урожай WizeBot → сайт</option>
             <option value="admin_1to1_check">Админ: 1:1 чеклист</option>
           </select>
           <button id="admin-load-events">Показать журнал</button>

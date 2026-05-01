@@ -5,7 +5,6 @@ const WIZEBOT_API_BASE = 'https://wapi.wizebot.tv/api';
 
 function parseMaybeJson(value) {
   if (value === null || value === undefined) return null;
-
   try {
     return JSON.parse(value);
   } catch {
@@ -14,24 +13,19 @@ function parseMaybeJson(value) {
 }
 
 function normalizeLogin(login) {
-  return String(login || '').trim().toLowerCase();
+  return String(login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
 }
 
 function assertReadApiKey() {
-  if (!config.wizebot?.apiKey) {
-    throw new Error('WIZEBOT_API_KEY is missing');
-  }
+  if (!config.wizebot?.apiKey) throw new Error('WIZEBOT_API_KEY is missing');
 }
 
 function assertWriteApiKey() {
-  if (!config.wizebot?.apiKeyRw) {
-    throw new Error('WIZEBOT_API_KEY_RW is missing');
-  }
+  if (!config.wizebot?.apiKeyRw) throw new Error('WIZEBOT_API_KEY_RW is missing');
 }
 
 async function parseApiResponse(res) {
   const text = await res.text();
-
   try {
     return JSON.parse(text);
   } catch {
@@ -41,35 +35,21 @@ async function parseApiResponse(res) {
 
 async function getCustomDataRaw(key) {
   assertReadApiKey();
-
   const url = `${WIZEBOT_API_BASE}/custom-data/${config.wizebot.apiKey}/get/${encodeURIComponent(key)}`;
   const res = await fetch(url);
-  const data = await parseApiResponse(res);
-
-  console.log('[WIZEBOT GET]', key, data);
-
-  return data;
+  return parseApiResponse(res);
 }
 
-async function getCustomDataFirst(keys) {
+async function getCustomDataFirst(keys, fallback = null) {
   const errors = [];
-
   for (const key of keys) {
     const data = await getCustomDataRaw(key);
-
     if (data.success) {
-      return {
-        key,
-        value: parseMaybeJson(data.val)
-      };
+      return { key, value: parseMaybeJson(data.val), found: true };
     }
-
     errors.push({ key, data });
   }
-
-  const err = new Error(`WizeBot custom-data not found: ${keys.join(', ')}`);
-  err.details = errors;
-  throw err;
+  return { key: keys[0], value: fallback, found: false, errors };
 }
 
 async function setCustomData(key, value) {
@@ -79,8 +59,6 @@ async function setCustomData(key, value) {
   const encodedKey = encodeURIComponent(key);
   const encodedValue = encodeURIComponent(serialized);
 
-  // WizeBot бывает капризным к DATA_VAL в path, особенно с JSON.
-  // Пробуем несколько официально совместимых вариантов и логируем последний ответ.
   const attempts = [
     {
       name: 'path_value_post',
@@ -104,15 +82,12 @@ async function setCustomData(key, value) {
   ];
 
   const errors = [];
-
   for (const attempt of attempts) {
     const res = await fetch(attempt.url, attempt.options);
     const data = await parseApiResponse(res);
-
     if (res.ok && data.success) {
       return { ...data, attempt: attempt.name };
     }
-
     errors.push({ attempt: attempt.name, status: res.status, data });
   }
 
@@ -123,19 +98,16 @@ async function setCustomData(key, value) {
 
 async function setCurrencyValue(login, amount) {
   assertWriteApiKey();
-
   const viewer = normalizeLogin(login);
   const safeAmount = Math.max(0, Number(amount || 0) || 0);
   const url = `${WIZEBOT_API_BASE}/currency/${config.wizebot.apiKeyRw}/action/set/${encodeURIComponent(viewer)}/${encodeURIComponent(String(safeAmount))}`;
   const res = await fetch(url, { method: 'POST' });
   const data = await parseApiResponse(res);
-
   if (!res.ok || !data.success || data.action_success === false) {
     const err = new Error(`WizeBot currency set failed for ${viewer}`);
     err.details = data;
     throw err;
   }
-
   return data;
 }
 
@@ -167,9 +139,7 @@ function isWebMasterProfile(profile) {
 }
 
 async function syncProfileToWizebot(profile) {
-  if (!profile?.login) {
-    throw new Error('profile_login_missing');
-  }
+  if (!profile?.login) throw new Error('profile_login_missing');
 
   const state = buildFarmState(profile);
   const rawTasks = [
@@ -224,56 +194,74 @@ async function syncProfileToWizebot(profile) {
   const syncedAt = Date.now();
   const ok = failedKeys.length === 0;
 
-  return {
-    ok,
-    login: state.login,
-    syncedAt,
-    keys: syncedKeys,
-    skippedKeys,
-    failedKeys,
-    chatApply,
-    results
-  };
+  return { ok, login: state.login, syncedAt, keys: syncedKeys, skippedKeys, failedKeys, chatApply, results };
 }
 
 async function syncProfileToWizebotIfNeeded(profile) {
   if (!isWebMasterProfile(profile)) {
     return { ok: false, skipped: true, reason: 'not_web_master_profile' };
   }
-
   return syncProfileToWizebot(profile);
 }
 
-async function getNicoMooseFarmData() {
-  const userVariants = [
-    'nico_moose',
-    'Nico_Moose',
-    'nico_Moose',
-    'NICO_MOOSE'
-  ];
+async function getWizebotFarmDataByLogin(login, options = {}) {
+  const normalized = normalizeLogin(login);
+  if (!normalized) throw new Error('missing_login');
 
-  const farmKeys = userVariants.map((u) => `farm_${u}`);
-  const farmBalanceKeys = userVariants.map((u) => `farm_virtual_balance_${u}`);
-  const upgradeBalanceKeys = userVariants.map((u) => `farm_upgrade_balance_${u}`);
+  const exact = (prefix) => `${prefix}${normalized}`;
+  const variants = (prefix) => [exact(prefix)];
 
-  const farmResult = await getCustomDataFirst(farmKeys);
-  const farmBalanceResult = await getCustomDataFirst(farmBalanceKeys);
-  const upgradeBalanceResult = await getCustomDataFirst(upgradeBalanceKeys);
+  const [farmResult, farmBalanceResult, upgradeBalanceResult, totalIncomeResult, lastCollectResult, licenseResult, protectionResult, raidPowerResult, turretResult] = await Promise.all([
+    getCustomDataFirst(variants('farm_'), {}),
+    getCustomDataFirst(variants('farm_virtual_balance_'), 0),
+    getCustomDataFirst(variants('farm_upgrade_balance_'), 0),
+    getCustomDataFirst(variants('farm_total_income_'), 0),
+    getCustomDataFirst(variants('farm_last_'), 0),
+    getCustomDataFirst(variants('farm_license_'), 0),
+    getCustomDataFirst(variants('farm_protection_level_'), 0),
+    getCustomDataFirst(variants('farm_raid_power_'), 0),
+    getCustomDataFirst(variants('farm_defense_building_'), {})
+  ]);
+
+  const farm = farmResult.value && typeof farmResult.value === 'object' ? farmResult.value : {};
 
   return {
-    farm: farmResult.value,
+    login: normalized,
+    farm,
     farm_balance: Number(farmBalanceResult.value || 0),
     upgrade_balance: Number(upgradeBalanceResult.value || 0),
+    total_income: Number(totalIncomeResult.value || 0),
+    last_collect_at: Number(lastCollectResult.value || 0),
+    license_level: Number(licenseResult.value || 0),
+    protection_level: Number(protectionResult.value || 0),
+    raid_power: Number(raidPowerResult.value || 0),
+    turret: turretResult.value && typeof turretResult.value === 'object' ? turretResult.value : {},
+    twitch_balance: Number(options.currentTwitchBalance || 0),
+    configs: options.currentConfigs || {},
+    globals: options.currentGlobals || {},
     foundKeys: {
       farm: farmResult.key,
       farm_balance: farmBalanceResult.key,
-      upgrade_balance: upgradeBalanceResult.key
+      upgrade_balance: upgradeBalanceResult.key,
+      total_income: totalIncomeResult.key,
+      last_collect_at: lastCollectResult.key,
+      license_level: licenseResult.key,
+      protection_level: protectionResult.key,
+      raid_power: raidPowerResult.key,
+      turret: turretResult.key
     }
   };
 }
 
+async function getNicoMooseFarmData() {
+  return getWizebotFarmDataByLogin('nico_moose');
+}
+
 module.exports = {
+  normalizeLogin,
   getCustomDataRaw,
+  getCustomDataFirst,
+  getWizebotFarmDataByLogin,
   getNicoMooseFarmData,
   setCustomData,
   setCurrencyValue,
