@@ -212,3 +212,96 @@ small { opacity: .75; }
 .info-card ol {
   padding-left: 22px;
 }
+.hidden {
+  display: none !important;
+}
+
+.admin-panel {
+  margin: 24px auto;
+  padding: 20px;
+  max-width: 1100px;
+  border-radius: 18px;
+  background: rgba(20, 20, 28, 0.96);
+  border: 1px solid rgba(255, 200, 90, 0.22);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+.admin-panel h2 {
+  margin: 0 0 6px;
+}
+
+.admin-muted {
+  opacity: 0.7;
+  margin-bottom: 18px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.admin-card,
+.admin-result {
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.admin-card h3 {
+  margin-top: 0;
+}
+
+.admin-card input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.28);
+  color: #fff;
+}
+
+.admin-card button,
+#admin-load-player {
+  width: 100%;
+  margin: 6px 0;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.admin-card button:hover,
+#admin-load-player:hover {
+  filter: brightness(1.08);
+}
+
+.admin-status {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(80, 200, 120, 0.14);
+  border: 1px solid rgba(80, 200, 120, 0.24);
+}
+
+.admin-status.error {
+  background: rgba(255, 80, 80, 0.14);
+  border-color: rgba(255, 80, 80, 0.28);
+}
+
+.admin-player-card {
+  line-height: 1.7;
+}
+
+.danger-zone {
+  border-color: rgba(255, 80, 80, 0.28);
+}
+
+button.danger {
+  background: #d33;
+  color: white;
+}
