@@ -267,7 +267,7 @@ function render(data) {
         <div class="stat-tile"><span>💎 Бонусные</span><b>${formatNumber(bonusCoins(p))}</b></div>
         <div class="stat-tile"><span>💳 Доступно для трат</span><b>${formatNumber(totalCoins)}</b></div>
         <div class="stat-tile"><span>🔧 Запчасти</span><b>${formatNumber(p.parts)}</b></div>
-        <div class="stat-tile"><span>📈 Доход</span><b>${formatNumber(p.total_income)}</b></div>
+        <div class="stat-tile"><span>📈 Доход/ч</span><b>${formatNumber(data.farmInfo?.hourly?.total || 0)}</b></div>
         <div class="stat-tile"><span>🛡 Защита</span><b>${formatNumber(p.protection_level || 0)}</b></div>
         <div class="stat-tile"><span>⚔️ Рейд-сила</span><b>${formatNumber(p.raid_power || 0)}</b></div>
         <div class="stat-tile"><span>🎟 Лицензия</span><b>до ${p.license_level ? p.license_level : 39}</b></div>
