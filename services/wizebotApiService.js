@@ -213,14 +213,14 @@ async function getWizebotFarmDataByLogin(login, options = {}) {
 
   const [farmResult, farmBalanceResult, upgradeBalanceResult, totalIncomeResult, lastCollectResult, licenseResult, protectionResult, raidPowerResult, turretResult] = await Promise.all([
     getCustomDataFirst(variants('farm_'), {}),
-    getCustomDataFirst(variants('farm_virtual_balance_'), 0),
-    getCustomDataFirst(variants('farm_upgrade_balance_'), 0),
-    getCustomDataFirst(variants('farm_total_income_'), 0),
-    getCustomDataFirst(variants('farm_last_'), 0),
-    getCustomDataFirst(variants('farm_license_'), 0),
-    getCustomDataFirst(variants('farm_protection_level_'), 0),
-    getCustomDataFirst(variants('farm_raid_power_'), 0),
-    getCustomDataFirst(variants('farm_defense_building_'), {})
+    getCustomDataFirst(variants('farm_virtual_balance_'), options.currentFarmBalance ?? 0),
+    getCustomDataFirst(variants('farm_upgrade_balance_'), options.currentUpgradeBalance ?? 0),
+    getCustomDataFirst(variants('farm_total_income_'), options.currentTotalIncome ?? 0),
+    getCustomDataFirst(variants('farm_last_'), options.currentLastCollectAt ?? 0),
+    getCustomDataFirst(variants('farm_license_'), options.currentLicenseLevel ?? 0),
+    getCustomDataFirst(variants('farm_protection_level_'), options.currentProtectionLevel ?? 0),
+    getCustomDataFirst(variants('farm_raid_power_'), options.currentRaidPower ?? 0),
+    getCustomDataFirst(variants('farm_defense_building_'), options.currentTurret ?? {})
   ]);
 
   const farm = farmResult.value && typeof farmResult.value === 'object' ? farmResult.value : {};
@@ -228,16 +228,27 @@ async function getWizebotFarmDataByLogin(login, options = {}) {
   return {
     login: normalized,
     farm,
-    farm_balance: Number(farmBalanceResult.value || 0),
-    upgrade_balance: Number(upgradeBalanceResult.value || 0),
-    total_income: Number(totalIncomeResult.value || 0),
-    last_collect_at: Number(lastCollectResult.value || 0),
-    license_level: Number(licenseResult.value || 0),
-    protection_level: Number(protectionResult.value || 0),
-    raid_power: Number(raidPowerResult.value || 0),
-    turret: turretResult.value && typeof turretResult.value === 'object' ? turretResult.value : {},
+    farm_balance: Number(farmBalanceResult.value ?? options.currentFarmBalance ?? 0),
+    upgrade_balance: Number(upgradeBalanceResult.value ?? options.currentUpgradeBalance ?? 0),
+    total_income: Number(totalIncomeResult.value ?? options.currentTotalIncome ?? 0),
+    last_collect_at: Number(lastCollectResult.value ?? options.currentLastCollectAt ?? 0),
+    license_level: Number(licenseResult.value ?? options.currentLicenseLevel ?? 0),
+    protection_level: Number(protectionResult.value ?? options.currentProtectionLevel ?? 0),
+    raid_power: Number(raidPowerResult.value ?? options.currentRaidPower ?? 0),
+    turret: turretResult.value && typeof turretResult.value === 'object' ? turretResult.value : (options.currentTurret || {}),
     twitch_balance: Number(options.currentTwitchBalance || 0),
     configs: options.currentConfigs || {},
+    found: {
+      farm: !!farmResult.found,
+      farm_balance: !!farmBalanceResult.found,
+      upgrade_balance: !!upgradeBalanceResult.found,
+      total_income: !!totalIncomeResult.found,
+      last_collect_at: !!lastCollectResult.found,
+      license_level: !!licenseResult.found,
+      protection_level: !!protectionResult.found,
+      raid_power: !!raidPowerResult.found,
+      turret: !!turretResult.found
+    },
     globals: options.currentGlobals || {},
     foundKeys: {
       farm: farmResult.key,

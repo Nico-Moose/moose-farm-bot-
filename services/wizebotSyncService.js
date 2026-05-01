@@ -64,6 +64,14 @@ async function syncWizebotFarmToProfile({ login, profile, allowAnyLogin = false 
   } else {
     wizebotData = await getWizebotFarmDataByLogin(normalizedLogin, {
       currentTwitchBalance: profile?.twitch_balance ?? 0,
+      currentFarmBalance: profile?.farm_balance ?? 0,
+      currentUpgradeBalance: profile?.upgrade_balance ?? 0,
+      currentTotalIncome: profile?.total_income ?? 0,
+      currentLastCollectAt: profile?.last_collect_at ?? 0,
+      currentLicenseLevel: profile?.license_level ?? 0,
+      currentProtectionLevel: profile?.protection_level ?? 0,
+      currentRaidPower: profile?.raid_power ?? 0,
+      currentTurret: profile?.turret || {},
       currentConfigs: profile?.configs || {},
       currentGlobals: profile?.globals || {}
     });
