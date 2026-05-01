@@ -5,6 +5,8 @@ const ALLOWED_LOGIN = 'nico_moose';
 
 function decodeHtml(text) {
   return String(text || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<[^>]+>/g, '')
@@ -15,30 +17,43 @@ function decodeHtml(text) {
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .trim();
-}
-
-function extractJson(text) {
-  const decoded = decodeHtml(text);
-
-  const start = decoded.indexOf('{');
-  const end = decoded.lastIndexOf('}');
-
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('JSON not found in longtext');
-  }
-
-  let json = decoded.slice(start, end + 1);
-
-  // убираем невидимые символы
-  json = json
     .replace(/\u200B/g, '')
     .replace(/\u200C/g, '')
     .replace(/\u200D/g, '')
     .replace(/\uFEFF/g, '')
     .trim();
+}
 
-  return JSON.parse(json);
+function extractJson(text) {
+  const decoded = decodeHtml(text);
+  const starts = [];
+
+  for (let i = 0; i < decoded.length; i++) {
+    if (decoded[i] === '{') starts.push(i);
+  }
+
+  for (const start of starts) {
+    for (let end = decoded.length - 1; end > start; end--) {
+      if (decoded[end] !== '}') continue;
+
+      const candidate = decoded.slice(start, end + 1).trim();
+
+      try {
+        const parsed = JSON.parse(candidate);
+
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          parsed.login &&
+          parsed.farm
+        ) {
+          return parsed;
+        }
+      } catch (_) {}
+    }
+  }
+
+  throw new Error('Valid Moose JSON not found in longtext');
 }
 
 async function fetchLongtextJson(url) {
