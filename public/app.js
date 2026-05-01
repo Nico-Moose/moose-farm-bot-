@@ -1,6 +1,4 @@
 let state = null;
-let didInitialWizebotPageSync = false;
-
 function formatNumber(num) {
   num = Number(num) || 0;
   const sign = num < 0 ? '-' : '';
@@ -303,20 +301,9 @@ async function loadMe() {
 
     let data = await res.json();
 
-    // Авто-sync WizeBot при полном обновлении страницы.
-    // Работает только для Nico_Moose и не ломает страницу, если WizeBot API ключ не задан.
-    if (!didInitialWizebotPageSync && isAdminUser(data.user) && !location.search.includes('nosync=1')) {
-      didInitialWizebotPageSync = true;
-      try {
-        const syncData = await postJson('/api/farm/sync-wizebot', { source: 'page_load' });
-        if (syncData && syncData.ok) {
-          data = syncData;
-          showMessage('🔄 WizeBot синхронизирован при обновлении страницы.');
-        }
-      } catch (syncError) {
-        console.warn('[AUTO WIZEBOT SYNC]', syncError);
-      }
-    }
+    // ВАЖНО: при обновлении страницы НЕ делаем WizeBot API sync.
+    // Страница читает локальную SQLite-базу.
+    // WizeBot обновляется вручную через !синкферма / LongText bridge.
 
     render(data);
     loadHistory().catch((err) => console.warn('[HISTORY]', err));
