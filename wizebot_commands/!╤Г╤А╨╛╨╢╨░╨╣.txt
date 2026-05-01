@@ -46,44 +46,14 @@ function readCurrency(user) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function emitMooseSync(login) {
-  let farm = readJsonVar('farm_' + login, '{}') || {};
-  if (!farm || typeof farm !== 'object' || !Object.keys(farm).length) return false;
-
-  let payload = {
-    sync_version: 2,
-    sync_source: 'wizebot_harvest_longtext',
-    login: login,
-    display_name: login,
-    twitch_balance: readCurrency(login),
-    farm: farm,
-    farm_balance: readIntVar('farm_virtual_balance_' + login, 0),
-    upgrade_balance: readIntVar('farm_upgrade_balance_' + login, 0),
-    total_income: readIntVar('farm_total_income_' + login, 0),
-    last_collect_at: readIntVar('farm_last_' + login, 0),
-    license_level: readIntVar('farm_license_' + login, 0),
-    protection_level: readIntVar('farm_protection_level_' + login, 0),
-    raid_power: readIntVar('farm_raid_power_' + login, 0),
-    turret: readJsonVar('farm_defense_building_' + login, '{}') || {},
-    configs: {
-      plants: readJsonVar('farm_data_plants', '[]') || [],
-      animals: readJsonVar('farm_data_animals', '[]') || [],
-      buildings: readJsonVar('farm_data_buildings', '{}') || {},
-      licenses: readJsonVar('farm_data_licenses', '{}') || {},
-      parts_required: readJsonVar('farm_data_parts_required', '{}') || {},
-      turret_upgrades: readJsonVar('farm_data_turret_upgrades', '[]') || []
-    },
-    globals: {
-      farm_parts_stock: readIntVar('farm_parts_stock', 20000),
-      farm_parts_sold_total: readIntVar('farm_parts_sold_total', 0),
-      farm_parts_bought_total: readIntVar('farm_parts_bought_total', 0)
-    }
-  };
-
+function silentSyncToSite(login) {
+  const payload = buildSyncPayload(login);
+  if (!payload) return false;
   let json = JSON.stringify(payload, null, 2);
-  let link = JS.wizebot.create_longtext('MOOSE FARM HARVEST SYNC ' + login, json);
-  JS.wizebot.send_chat_message(`MOOSE_SYNC ${login} ${link}`);
-  return true;
+  let link = JS.wizebot.create_longtext('MOOSE FARM AUTO SYNC ' + login, json);
+  let url = SITE_BASE_URL + '/bridge/wizebot-sync-url?login=' + encodeURIComponent(login) + '&url=' + encodeURIComponent(link) + '&secret=' + encodeURIComponent(SECRET);
+  let resp = JS.wizebot.call_tag('urlcall', [url]) || '';
+  return !!resp;
 }
 
 let reportData = [];

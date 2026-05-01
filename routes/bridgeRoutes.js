@@ -59,6 +59,35 @@ router.get('/web-master-state', (req, res) => {
 });
 
 
+
+router.get('/wizebot-sync-url', async (req, res) => {
+  const providedSecret = getProvidedSecret(req);
+
+  if (!providedSecret || providedSecret !== config.wizebot.bridgeSecret) {
+    return res.status(403).json({ ok: false, error: 'invalid_bridge_secret' });
+  }
+
+  const login = String(req.query.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+  const url = String(req.query.url || '').trim();
+  if (!login) {
+    return res.status(400).json({ ok: false, error: 'missing_login' });
+  }
+  if (!url || !/^https:\/\/strm\.lv\/t\/longtexts\//i.test(url)) {
+    return res.status(400).json({ ok: false, error: 'invalid_longtext_url' });
+  }
+
+  try {
+    const result = await importPayloadToSqlite({ login, url });
+    if (!result.ok) {
+      return res.status(400).json(result);
+    }
+    return res.json({ ok: true, login, imported: result.imported, profile: result.profile });
+  } catch (error) {
+    console.error('[WIZEBOT SYNC URL] Error:', error);
+    return res.status(500).json({ ok: false, error: 'wizebot_sync_url_failed', message: error.message });
+  }
+});
+
 router.get('/wizebot-pull-sync', async (req, res) => {
   const providedSecret = getProvidedSecret(req);
 
