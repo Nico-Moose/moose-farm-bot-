@@ -1,4 +1,12 @@
 let state = null;
+const clientPendingPosts = new Set();
+
+function setButtonBusy(button, busy) {
+  if (!button) return;
+  button.disabled = !!busy;
+  button.classList.toggle('is-busy', !!busy);
+}
+
 function formatNumber(num) {
   num = Number(num) || 0;
   const sign = num < 0 ? '-' : '';
@@ -352,26 +360,36 @@ async function loadMe() {
 }
 
 async function postJson(url, body = {}) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
+  const lockKey = url + ':' + JSON.stringify(body || {});
+  if (clientPendingPosts.has(lockKey)) {
+    return { ok: false, error: 'action_in_progress', message: 'Действие уже выполняется' };
+  }
 
-  const text = await res.text();
-  let data = {};
+  clientPendingPosts.add(lockKey);
   try {
-    data = text ? JSON.parse(text) : {};
-  } catch (error) {
-    data = { ok: false, error: 'bad_json_response', raw: text };
-  }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
 
-  if (!res.ok && data.ok !== false) {
-    data.ok = false;
-    data.error = `http_${res.status}`;
-  }
+    const text = await res.text();
+    let data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (error) {
+      data = { ok: false, error: 'bad_json_response', raw: text };
+    }
 
-  return data;
+    if (!res.ok && data.ok !== false) {
+      data.ok = false;
+      data.error = `http_${res.status}`;
+    }
+
+    return data;
+  } finally {
+    clientPendingPosts.delete(lockKey);
+  }
 }
 
 async function buyLicense() {
@@ -811,21 +829,31 @@ function setAdminStatus(message, isError = false) {
 }
 
 async function adminPost(path, body) {
-  const res = await fetch(`/api/admin/${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body || {}),
-  });
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok || data.ok === false) {
-    throw new Error(data.error || "Ошибка админ-действия");
+  const adminPostLockKey = path + ':' + JSON.stringify(body || {});
+  if (clientPendingPosts.has(adminPostLockKey)) {
+    throw new Error('Действие уже выполняется. Подожди завершения предыдущего клика.');
   }
 
-  return data;
+  clientPendingPosts.add(adminPostLockKey);
+  try {
+    const res = await fetch(`/api/admin/${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body || {}),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || "Ошибка админ-действия");
+    }
+
+    return data;
+  } finally {
+    clientPendingPosts.delete(adminPostLockKey);
+  }
 }
 
 async function adminGet(path) {
@@ -1029,27 +1057,119 @@ function bindAdminPanel() {
   });
 }
 
+
+function setupAdminPanelShell() {
+  const panel = document.getElementById('admin-panel');
+  const openBtn = document.getElementById('openAdminPanel');
+  const closeBtn = document.getElementById('closeAdminPanel');
+  if (!panel || panel.dataset.shellReady === '1') return;
+  panel.dataset.shellReady = '1';
+
+  function openPanel() {
+    panel.classList.remove('hidden');
+    panel.setAttribute('aria-hidden', 'false');
+  }
+
+  function closePanel() {
+    panel.classList.add('hidden');
+    panel.setAttribute('aria-hidden', 'true');
+  }
+
+  openBtn?.addEventListener('click', openPanel);
+  closeBtn?.addEventListener('click', closePanel);
+  panel.addEventListener('click', (event) => {
+    if (event.target === panel) closePanel();
+  });
+
+  document.querySelectorAll('[data-admin-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const tab = button.getAttribute('data-admin-tab');
+      document.querySelectorAll('[data-admin-tab]').forEach((b) => b.classList.toggle('active', b === button));
+      document.querySelectorAll('[data-admin-panel]').forEach((box) => {
+        box.classList.toggle('active', box.getAttribute('data-admin-panel') === tab);
+      });
+    });
+  });
+}
+
+async function fetchAdminPlayers(prefix = '') {
+  const data = await adminGet('players?prefix=' + encodeURIComponent(prefix));
+  return data.players || [];
+}
+
+function setupAdminPlayerAutocomplete() {
+  const input = document.getElementById('admin-login');
+  const box = document.getElementById('admin-player-suggestions');
+  if (!input || !box || input.dataset.autocompleteReady === '1') return;
+  input.dataset.autocompleteReady = '1';
+
+  let timer = null;
+
+  async function updateSuggestions() {
+    const prefix = input.value.trim().toLowerCase();
+    const players = await fetchAdminPlayers(prefix);
+
+    if (!players.length) {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      return;
+    }
+
+    box.innerHTML = players.map((p) => {
+      const login = String(p.login || '').toLowerCase();
+      const display = p.display_name || p.login || login;
+      return '<button type="button" data-admin-suggest="' + login + '"><b>' + login + '</b><small>' + display + ' · ур. ' + (p.level || 0) + '</small></button>';
+    }).join('');
+
+    box.classList.remove('hidden');
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => updateSuggestions().catch(() => {}), 120);
+  });
+
+  input.addEventListener('focus', () => updateSuggestions().catch(() => {}));
+
+  box.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-admin-suggest]');
+    if (!btn) return;
+    input.value = btn.getAttribute('data-admin-suggest');
+    box.classList.add('hidden');
+    refreshAdminPlayer().catch((e) => setAdminStatus(e.message, true));
+  });
+
+  document.addEventListener('click', (event) => {
+    if (event.target === input || box.contains(event.target)) return;
+    box.classList.add('hidden');
+  });
+}
+
 async function initAdminPanelGuard() {
   const panel = document.getElementById("admin-panel");
+  const entry = document.getElementById("admin-entry");
   if (!panel) return;
 
   try {
     const res = await fetch("/api/me");
     const me = await res.json();
-
     const user = me.user || me.profile || me;
 
     if (!isAdminUser(user)) {
       panel.remove();
+      entry?.remove();
       return;
     }
 
-    panel.classList.remove("hidden");
+    entry?.classList.remove("hidden");
+    setupAdminPanelShell();
+    setupAdminPlayerAutocomplete();
     bindAdminPanel();
     bindExtendedAdminPanel();
     loadAdminChecklist().catch(() => {});
   } catch (_) {
     panel.remove();
+    entry?.remove();
   }
 }
 

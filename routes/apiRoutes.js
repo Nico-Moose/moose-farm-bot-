@@ -89,6 +89,29 @@ function requireAuth(req, res, next) {
   next();
 }
 
+
+const pendingFarmActions = new Set();
+
+function farmActionGuard(req, res, next) {
+  if (req.method !== 'POST') return next();
+
+  const userId = req.session?.twitchUser?.id || 'anonymous';
+  const key = `${userId}:${req.path}`;
+
+  if (pendingFarmActions.has(key)) {
+    return res.status(409).json({
+      ok: false,
+      error: 'action_in_progress',
+      message: 'Действие уже выполняется. Подожди завершения предыдущего клика.'
+    });
+  }
+
+  pendingFarmActions.add(key);
+  res.on('finish', () => pendingFarmActions.delete(key));
+  res.on('close', () => pendingFarmActions.delete(key));
+  next();
+}
+
 function profilePayload(profile) {
   return {
     profile,
@@ -104,6 +127,8 @@ function profilePayload(profile) {
     raidInfo: getRaidInfo(profile)
   };
 }
+
+router.use('/farm', requireAuth, farmActionGuard);
 
 router.get('/me', requireAuth, (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);

@@ -155,6 +155,43 @@ function logAdminEvent(db, twitchId, type, payload) {
 module.exports = function (db) {
   const router = express.Router();
 
+
+  const pendingAdminActions = new Set();
+
+  function adminActionGuard(req, res, next) {
+    if (req.method !== 'POST') return next();
+    const adminLogin = (
+      req.session?.twitchUser?.login ||
+      req.session?.user?.login ||
+      req.session?.user?.username ||
+      'admin'
+    ).toLowerCase();
+    const target = String(req.body?.login || req.body?.oldLogin || req.body?.newLogin || 'global').toLowerCase();
+    const key = `${adminLogin}:${req.path}:${target}`;
+
+    if (pendingAdminActions.has(key)) {
+      return res.status(409).json({ ok: false, error: 'Действие уже выполняется. Подожди завершения предыдущего клика.' });
+    }
+
+    pendingAdminActions.add(key);
+    res.on('finish', () => pendingAdminActions.delete(key));
+    res.on('close', () => pendingAdminActions.delete(key));
+    next();
+  }
+
+  function listPlayerLogins(prefix = '') {
+    const q = String(prefix || '').toLowerCase().replace(/^@/, '').trim();
+    const like = `${q}%`;
+    return db.prepare(`
+      SELECT u.login, u.display_name, f.level
+      FROM twitch_users u
+      JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+      WHERE ? = '' OR LOWER(u.login) LIKE ? OR LOWER(u.display_name) LIKE ?
+      ORDER BY LOWER(u.login) ASC
+      LIMIT 50
+    `).all(q, like, like);
+  }
+
   router.get("/me", (req, res) => {
     const login = (
       req.session?.twitchUser?.login ||
@@ -167,6 +204,11 @@ module.exports = function (db) {
   });
 
   router.use(requireAdmin);
+  router.use(adminActionGuard);
+
+  router.get("/players", (req, res) => {
+    res.json({ ok: true, players: listPlayerLogins(req.query.prefix || '') });
+  });
 
   router.get("/player/:nick", (req, res) => {
     const profile = getProfileByLogin(db, req.params.nick);
@@ -220,7 +262,7 @@ module.exports = function (db) {
     const profile = getProfileByLogin(db, login);
     if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
 
-    const next = profile.upgrade_balance + amount;
+    const next = Math.max(0, profile.upgrade_balance + amount);
 
     db.prepare(`
       UPDATE farm_profiles
