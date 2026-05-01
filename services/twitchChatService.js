@@ -33,10 +33,10 @@ function startTwitchChatBot() {
     if (text.startsWith('MOOSE_SYNC ')) {
       try {
         const parts = text.split(/\s+/);
-        const login = (parts[1] || '').toLowerCase();
+        const login = String(parts[1] || '').trim().toLowerCase();
         const url = parts[2];
 
-        if (login !== 'nico_moose') return;
+        if (!login) return;
         if (!url || !url.startsWith('https://strm.lv/t/longtexts/')) return;
 
         const result = await importWizebotPayloadByLogin({
