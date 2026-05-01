@@ -121,6 +121,35 @@ function updateProfile(profile) {
   return getProfile(safe.twitch_id);
 }
 
+function listProfiles() {
+  const rows = getDb().prepare(`
+    SELECT
+      u.twitch_id,
+      u.login,
+      u.display_name,
+      u.avatar_url,
+      f.level,
+      f.farm_balance,
+      f.upgrade_balance,
+      f.total_income,
+      f.parts,
+      f.last_collect_at,
+      f.created_at,
+      f.updated_at,
+      f.farm_json,
+      f.configs_json,
+      f.license_level,
+      f.protection_level,
+      f.raid_power,
+      f.turret_json,
+      f.last_wizebot_sync_at
+    FROM twitch_users u
+    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+  `).all();
+
+  return rows.map(normalizeProfile).filter(Boolean);
+}
+
 function logFarmEvent(twitchId, type, payload = {}) {
   getDb().prepare(`
     INSERT INTO farm_events (twitch_id, type, payload, created_at)
@@ -132,5 +161,6 @@ module.exports = {
   upsertTwitchUser,
   getProfile,
   updateProfile,
+  listProfiles,
   logFarmEvent
 };

@@ -155,6 +155,7 @@ function render(data) {
 
   renderLicense(data);
   renderMarket(data);
+  renderCombat(data);
   renderBuildings(data);
 }
 
@@ -476,3 +477,131 @@ document.getElementById('syncWizebotBtn').addEventListener('click', async () => 
 });
 
 loadMe();
+
+function renderCombat(data) {
+  const box = document.getElementById('combatBox');
+  if (!box) return;
+
+  const p = data.profile || {};
+  const raidPower = data.raidUpgrades?.raidPower || {};
+  const protection = data.raidUpgrades?.protection || {};
+  const turret = data.turret || {};
+  const raid = data.raid || {};
+  const raidReady = !raid.remainingMs;
+
+  const raidPowerNeed = Number(raidPower.nextCost || 0);
+  const protectionNeed = Number(protection.nextCost || 0);
+  const turretNeed = turret.nextUpgrade || null;
+
+  box.innerHTML = `
+    <div class="combat-card">
+      <h3>⚔️ Рейд-сила</h3>
+      <p>Уровень: <b>${formatNumber(raidPower.level || 0)}/${formatNumber(raidPower.maxLevel || 200)}</b></p>
+      <p>Цена следующего: <b>${raidPowerNeed ? formatNumber(raidPowerNeed) + '💎' : 'максимум'}</b></p>
+      <p class="resource-line">Ап-баланс: <b>${formatNumber(p.upgrade_balance || 0)}💎</b>${raidPowerNeed && (p.upgrade_balance || 0) < raidPowerNeed ? ` ❌ не хватает ${formatNumber(raidPowerNeed - (p.upgrade_balance || 0))}💎` : ' ✅'}</p>
+      <div class="building-actions">
+        <button data-raid-power="1" ${!raidPower.unlocked ? 'disabled' : ''}>⬆️ +1</button>
+        <button data-raid-power="10" ${!raidPower.unlocked ? 'disabled' : ''}>⬆️ +10</button>
+      </div>
+      ${!raidPower.unlocked ? '<p class="shortage">Доступно с 120 уровня фермы</p>' : ''}
+    </div>
+
+    <div class="combat-card">
+      <h3>🛡 Защита</h3>
+      <p>Уровень: <b>${formatNumber(protection.level || 0)}/${formatNumber(protection.maxLevel || 120)}</b> (${Number(protection.percent || 0).toFixed(1)}%)</p>
+      <p>Цена следующего: <b>${protectionNeed ? formatNumber(protectionNeed) + '💎' : 'максимум'}</b></p>
+      <p class="resource-line">Ап-баланс: <b>${formatNumber(p.upgrade_balance || 0)}💎</b>${protectionNeed && (p.upgrade_balance || 0) < protectionNeed ? ` ❌ не хватает ${formatNumber(protectionNeed - (p.upgrade_balance || 0))}💎` : ' ✅'}</p>
+      <div class="building-actions">
+        <button data-protection="1" ${!protection.unlocked ? 'disabled' : ''}>⬆️ +1</button>
+        <button data-protection="10" ${!protection.unlocked ? 'disabled' : ''}>⬆️ +10</button>
+      </div>
+      ${!protection.unlocked ? '<p class="shortage">Доступно с 120 уровня фермы</p>' : ''}
+    </div>
+
+    <div class="combat-card">
+      <h3>🔫 Турель</h3>
+      <p>Уровень: <b>${formatNumber(turret.level || 0)}/${formatNumber(turret.maxLevel || 20)}</b> | шанс: <b>${formatNumber(turret.chance || 0)}%</b></p>
+      ${turretNeed ? `<p>Следующий: <b>${formatNumber(turretNeed.chance)}%</b> за <b>${formatNumber(turretNeed.cost)}💰</b> / <b>${formatNumber(turretNeed.parts)}🔧</b></p>` : '<p>✅ Максимальный уровень</p>'}
+      ${turretNeed ? `<p class="resource-line">У тебя: <b>${formatNumber(currentCoins(p))}💰</b> / <b>${formatNumber(p.parts || 0)}🔧</b></p>` : ''}
+      ${turretNeed ? '<button id="turretUpgradeBtn">🔫 Улучшить турель</button>' : ''}
+    </div>
+
+    <div class="combat-card">
+      <h3>🏴 Рейд</h3>
+      <p>Доступ: <b>${raid.unlocked ? 'да' : 'с 30 уровня фермы'}</b></p>
+      <p>Кулдаун: <b>${raidReady ? 'готово ✅' : formatTime(raid.remainingMs)}</b></p>
+      <button id="raidBtn" ${!raid.unlocked || !raidReady ? 'disabled' : ''}>🏴 Совершить рейд</button>
+      <p class="muted">Цель выбирается автоматически. Чаще попадаются богатые фермы.</p>
+    </div>
+  `;
+
+  document.querySelectorAll('[data-raid-power]').forEach((btn) => btn.addEventListener('click', () => upgradeRaidPower(Number(btn.dataset.raidPower || 1))));
+  document.querySelectorAll('[data-protection]').forEach((btn) => btn.addEventListener('click', () => upgradeProtection(Number(btn.dataset.protection || 1))));
+  document.getElementById('turretUpgradeBtn')?.addEventListener('click', upgradeTurret);
+  document.getElementById('raidBtn')?.addEventListener('click', doRaid);
+}
+
+async function upgradeRaidPower(count) {
+  const data = await postJson('/api/farm/raid-power/upgrade', { count });
+  if (!data.ok) {
+    const labels = {
+      farm_level_too_low: `доступно с ${data.requiredLevel || 120} уровня фермы`,
+      max_level: 'рейд-сила уже максимальная',
+      not_enough_upgrade_balance: `не хватает 💎: сейчас ${formatNumber(data.available || 0)} / нужно ${formatNumber(data.needed || 0)}`
+    };
+    showMessage(`❌ Рейд-сила не улучшена: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+  showMessage(`⚔️ Рейд-сила +${data.upgraded}. Новый уровень: ${data.level}. Потрачено ${formatNumber(data.totalCost)}💎${data.limited ? ' (сколько хватило)' : ''}`);
+  await loadMe();
+}
+
+async function upgradeProtection(count) {
+  const data = await postJson('/api/farm/protection/upgrade', { count });
+  if (!data.ok) {
+    const labels = {
+      farm_level_too_low: `доступно с ${data.requiredLevel || 120} уровня фермы`,
+      max_level: 'защита уже максимальная',
+      not_enough_upgrade_balance: `не хватает 💎: сейчас ${formatNumber(data.available || 0)} / нужно ${formatNumber(data.needed || 0)}`
+    };
+    showMessage(`❌ Защита не улучшена: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+  showMessage(`🛡 Защита +${data.upgraded}. Новый уровень: ${data.level}. Потрачено ${formatNumber(data.totalCost)}💎${data.limited ? ' (сколько хватило)' : ''}`);
+  await loadMe();
+}
+
+async function upgradeTurret() {
+  const data = await postJson('/api/farm/turret/upgrade');
+  if (!data.ok) {
+    const labels = {
+      max_level: 'турель уже максимальная',
+      not_enough_money: `не хватает монет: сейчас ${formatNumber(data.available || 0)} / нужно ${formatNumber(data.needed || 0)}`,
+      not_enough_parts: `не хватает запчастей: сейчас ${formatNumber(data.available || 0)} / нужно ${formatNumber(data.needed || 0)}`
+    };
+    showMessage(`❌ Турель не улучшена: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+  showMessage(`🔫 Турель улучшена до ${data.level} ур. Потрачено ${formatNumber(data.totalCost)}💰 / ${formatNumber(data.totalParts)}🔧`);
+  await loadMe();
+}
+
+async function doRaid() {
+  const data = await postJson('/api/farm/raid');
+  if (!data.ok) {
+    const labels = {
+      farm_level_too_low: `рейды доступны с ${data.requiredLevel || 30} уровня фермы`,
+      cooldown: `рейд доступен через ${formatTime(data.remainingMs || 0)}`,
+      no_targets: 'нет подходящих целей для рейда'
+    };
+    showMessage(`❌ Рейд не выполнен: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+  const log = data.log || {};
+  showMessage(`🏴 Рейд на ${log.target}: украдено ${formatNumber(log.stolen)}💰 | сила ${formatNumber(log.strength)}% x${log.punish_mult} | блок ${formatNumber(log.blocked)}🛡${log.turret_penalty ? ` | турель: -${formatNumber(log.turret_penalty)}💰` : ''}`);
+  await loadMe();
+}

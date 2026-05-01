@@ -3,7 +3,8 @@ const express = require('express');
 const {
   getProfile,
   updateProfile,
-  logFarmEvent
+  logFarmEvent,
+  listProfiles
 } = require('../services/userService');
 
 const {
@@ -37,6 +38,22 @@ const {
 } = require('../services/farm/licenseService');
 
 const {
+  getStatus: getRaidUpgradeStatus,
+  upgradeRaidPower,
+  upgradeProtection
+} = require('../services/farm/raidUpgradeService');
+
+const {
+  getTurretState,
+  upgradeTurret
+} = require('../services/farm/turretService');
+
+const {
+  getRaidStatus,
+  performRaid
+} = require('../services/farm/raidService');
+
+const {
   syncWizebotFarmToProfile
 } = require('../services/wizebotSyncService');
 
@@ -55,7 +72,10 @@ function profilePayload(profile) {
     profile,
     nextUpgrade: getNextUpgrade(profile),
     nextLicense: getNextLicense(profile),
-    market: getMarketState(profile)
+    market: getMarketState(profile),
+    raidUpgrades: getRaidUpgradeStatus(profile),
+    turret: getTurretState(profile),
+    raid: getRaidStatus(profile)
   };
 }
 
@@ -250,6 +270,89 @@ router.post('/farm/market/sell', requireAuth, (req, res) => {
     nextUpgrade: getNextUpgrade(updatedProfile),
     nextLicense: getNextLicense(updatedProfile),
     market: getMarketState(updatedProfile)
+  });
+});
+
+
+router.post('/farm/raid-power/upgrade', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = upgradeRaidPower(profile, req.body.count || 1);
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.ok) {
+    logFarmEvent(req.session.twitchUser.id, 'raid_power_upgrade', {
+      upgraded: result.upgraded,
+      totalCost: result.totalCost,
+      level: result.level
+    });
+  }
+
+  res.json({
+    ...result,
+    ...profilePayload(updatedProfile)
+  });
+});
+
+router.post('/farm/protection/upgrade', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = upgradeProtection(profile, req.body.count || 1);
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.ok) {
+    logFarmEvent(req.session.twitchUser.id, 'protection_upgrade', {
+      upgraded: result.upgraded,
+      totalCost: result.totalCost,
+      level: result.level
+    });
+  }
+
+  res.json({
+    ...result,
+    ...profilePayload(updatedProfile)
+  });
+});
+
+router.post('/farm/turret/upgrade', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const result = upgradeTurret(profile);
+  const updatedProfile = updateProfile(result.profile);
+
+  if (result.ok) {
+    logFarmEvent(req.session.twitchUser.id, 'turret_upgrade', {
+      level: result.level,
+      totalCost: result.totalCost,
+      totalParts: result.totalParts
+    });
+  }
+
+  res.json({
+    ...result,
+    ...profilePayload(updatedProfile)
+  });
+});
+
+router.post('/farm/raid', requireAuth, (req, res) => {
+  const profile = getProfile(req.session.twitchUser.id);
+  const candidates = listProfiles();
+  const result = performRaid(profile, candidates);
+
+  if (!result.ok) {
+    const updatedProfile = updateProfile(result.attacker || profile);
+    return res.json({
+      ...result,
+      ...profilePayload(updatedProfile)
+    });
+  }
+
+  const updatedAttacker = updateProfile(result.attacker);
+  updateProfile(result.target);
+
+  logFarmEvent(req.session.twitchUser.id, 'raid', result.log);
+
+  res.json({
+    ok: true,
+    log: result.log,
+    ...profilePayload(updatedAttacker)
   });
 });
 
