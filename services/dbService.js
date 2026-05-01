@@ -54,40 +54,29 @@ function migrate(database) {
   `);
 
   const columns = database
-    .prepare('PRAGMA table_info(farm_profiles)')
+    .prepare(`PRAGMA table_info(farm_profiles)`)
     .all()
-    .map((column) => column.name);
+    .map((c) => c.name);
 
-  const addColumn = (name, sql) => {
+  function addColumn(name, sql) {
     if (!columns.includes(name)) {
       database.exec(`ALTER TABLE farm_profiles ADD COLUMN ${sql}`);
     }
-  };
+  }
 
   addColumn('farm_balance', 'farm_balance INTEGER NOT NULL DEFAULT 0');
   addColumn('upgrade_balance', 'upgrade_balance INTEGER NOT NULL DEFAULT 0');
   addColumn('total_income', 'total_income INTEGER NOT NULL DEFAULT 0');
   addColumn('parts', 'parts INTEGER NOT NULL DEFAULT 0');
   addColumn('last_collect_at', 'last_collect_at INTEGER');
-  addColumn('farm_json', 'farm_json TEXT');
-  addColumn('resources_json', 'resources_json TEXT');
-  addColumn('buildings_json', 'buildings_json TEXT');
+
+  addColumn('farm_json', `farm_json TEXT NOT NULL DEFAULT '{}'`);
+  addColumn('configs_json', `configs_json TEXT NOT NULL DEFAULT '{}'`);
   addColumn('license_level', 'license_level INTEGER NOT NULL DEFAULT 0');
   addColumn('protection_level', 'protection_level INTEGER NOT NULL DEFAULT 0');
   addColumn('raid_power', 'raid_power INTEGER NOT NULL DEFAULT 0');
-  addColumn('turret_json', 'turret_json TEXT');
-  addColumn('synced_from_wizebot_at', 'synced_from_wizebot_at INTEGER');
-
-  database.exec(`
-    UPDATE farm_profiles SET
-      farm_balance = COALESCE(farm_balance, 0),
-      upgrade_balance = COALESCE(upgrade_balance, 0),
-      total_income = COALESCE(total_income, 0),
-      parts = COALESCE(parts, 0),
-      license_level = COALESCE(license_level, 0),
-      protection_level = COALESCE(protection_level, 0),
-      raid_power = COALESCE(raid_power, 0)
-  `);
+  addColumn('turret_json', `turret_json TEXT NOT NULL DEFAULT '{}'`);
+  addColumn('last_wizebot_sync_at', 'last_wizebot_sync_at INTEGER');
 }
 
 function closeDb() {
