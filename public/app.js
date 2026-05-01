@@ -133,8 +133,20 @@ function refreshVisibleData() {
   }
 }
 
+function ordinaryCoins(profile) {
+  return Number(profile?.twitch_balance ?? profile?.twitchBalance ?? profile?.gold ?? 0) || 0;
+}
+
+function farmCoins(profile) {
+  return Number(profile?.farm_balance ?? profile?.farmBalance ?? 0) || 0;
+}
+
+function bonusCoins(profile) {
+  return Number(profile?.upgrade_balance ?? profile?.upgradeBalance ?? 0) || 0;
+}
+
 function currentCoins(profile) {
-  return Number(profile?.farm_balance || 0) + Number(profile?.upgrade_balance || 0);
+  return ordinaryCoins(profile) + farmCoins(profile) + bonusCoins(profile);
 }
 
 function resourceStatus(profile, needCoins = 0, needParts = 0) {
@@ -176,6 +188,7 @@ function renderQuickStatus(data) {
   }
 
   const coins = currentCoins(profile);
+  const twitchCoins = ordinaryCoins(profile);
   const parts = Number(profile.parts || 0);
   let upgradeText = '✅ Ферма уже на максимальном уровне';
 
@@ -192,9 +205,10 @@ function renderQuickStatus(data) {
   box.innerHTML = `
     <div><b>Текущие ресурсы</b></div>
     <div class="quick-status-grid">
-      <span>💰 Доступно для трат: <b>${formatNumber(coins)}</b></span>
-      <span>🌾 Ферма: <b>${formatNumber(profile.farm_balance)}</b></span>
-      <span>💎 Ап-баланс: <b>${formatNumber(profile.upgrade_balance)}</b></span>
+      <span>💰 Голда: <b>${formatNumber(twitchCoins)}</b></span>
+      <span>🌾 Ферма: <b>${formatNumber(farmCoins(profile))}</b></span>
+      <span>💎 Бонусные: <b>${formatNumber(bonusCoins(profile))}</b></span>
+      <span>💳 Доступно для трат: <b>${formatNumber(coins)}</b></span>
       <span>🔧 Запчасти: <b>${formatNumber(parts)}</b></span>
     </div>
     <div class="quick-status-upgrade">${upgradeText}</div>
@@ -227,6 +241,7 @@ function render(data) {
   const p = data.profile;
   const next = data.nextUpgrade;
   const totalCoins = currentCoins(p);
+  const twitchCoins = ordinaryCoins(p);
   const syncText = p.last_wizebot_sync_at
     ? new Date(Number(p.last_wizebot_sync_at)).toLocaleString('ru-RU')
     : 'ещё не было';
@@ -247,9 +262,10 @@ function render(data) {
 
       <div class="profile-stats-final">
         <div class="stat-tile accent"><span>🌾 Уровень</span><b>${p.level}</b></div>
-        <div class="stat-tile"><span>💰 Доступно для трат</span><b>${formatNumber(totalCoins)}</b></div>
-        <div class="stat-tile"><span>🌾 Ферма</span><b>${formatNumber(p.farm_balance)}</b></div>
-        <div class="stat-tile"><span>💎 Ап-баланс</span><b>${formatNumber(p.upgrade_balance)}</b></div>
+        <div class="stat-tile gold"><span>💰 Голда</span><b>${formatNumber(twitchCoins)}</b></div>
+        <div class="stat-tile"><span>🌾 Ферма</span><b>${formatNumber(farmCoins(p))}</b></div>
+        <div class="stat-tile"><span>💎 Бонусные</span><b>${formatNumber(bonusCoins(p))}</b></div>
+        <div class="stat-tile"><span>💳 Доступно для трат</span><b>${formatNumber(totalCoins)}</b></div>
         <div class="stat-tile"><span>🔧 Запчасти</span><b>${formatNumber(p.parts)}</b></div>
         <div class="stat-tile"><span>📈 Доход</span><b>${formatNumber(p.total_income)}</b></div>
         <div class="stat-tile"><span>🛡 Защита</span><b>${formatNumber(p.protection_level || 0)}</b></div>
@@ -953,7 +969,7 @@ async function loadTops() {
       <h3>🏆 Топы</h3>
       <div class="tops-grid pretty-tops">
         <div class="top-card"><b>🏴 Топ рейдов за ${data.days}д</b><ol>${raids.length ? raids.map((r) => `<li><span>${r.nick}</span><strong>${formatNumber(r.money)}💰 / ${formatNumber(r.bonus)}💎</strong><em>${r.attacks}⚔ · ${r.defends}🛡</em></li>`).join('') : '<li>нет рейдов</li>'}</ol></div>
-        <div class="top-card"><b>💰 Топ игроков</b><ol>${players.length ? players.map((p) => `<li><span>${p.nick}</span><strong>${formatNumber(p.twitch_balance || 0)}💰 / ${formatNumber(p.farm_balance || 0)}🌾 / ${formatNumber(p.upgrade_balance || 0)}💎</strong><em>ур. ${p.level} · 🔧${formatNumber(p.parts)}</em></li>`).join('') : '<li>нет игроков</li>'}</ol></div>
+        <div class="top-card"><b>💰 Топ игроков</b><ol>${players.length ? players.map((p) => `<li><span>${p.nick}</span><strong>💰${formatNumber(ordinaryCoins(p))} / 🌾${formatNumber(farmCoins(p))} / 💎${formatNumber(bonusCoins(p))}</strong><em>ур. ${p.level} · 🔧${formatNumber(p.parts)}</em></li>`).join('') : '<li>нет игроков</li>'}</ol></div>
       </div>
     `;
   } catch (error) {

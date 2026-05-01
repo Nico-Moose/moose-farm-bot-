@@ -1092,3 +1092,12 @@ body {
 .pretty-tops .top-card span { font-weight:900; color:#fff; }
 .pretty-tops .top-card strong { color:#d8ffb8; }
 .pretty-tops .top-card em { font-style:normal; color:rgba(255,255,255,0.68); font-size:13px; }
+
+/* ChatGPT fix: separate gold/farm/bonus balances */
+.stat-tile.gold {
+  border-color: rgba(255, 210, 74, 0.35);
+  background: linear-gradient(135deg, rgba(255, 210, 74, 0.14), rgba(18, 52, 27, 0.92));
+}
+.stat-tile.gold b {
+  color: #ffe66d;
+}

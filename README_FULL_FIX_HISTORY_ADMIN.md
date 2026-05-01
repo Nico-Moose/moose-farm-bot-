@@ -1,33 +1,41 @@
-# ChatGPT fix: обычные монеты, топы, доход, рейды
+# Moose Farm full fix: admin extension, history UI, logs, refresh sync
 
-Что исправлено:
+## Добавлено
 
-1. Добавлено поле `twitch_balance` в SQLite `farm_profiles`.
-   Это отдельные обычные Twitch/WizeBot монеты из `!мани`.
+### 1. Авто-sync WizeBot при обновлении страницы
+- При первом открытии `/farm` для `Nico_Moose` сайт пробует вызвать `POST /api/farm/sync-wizebot`.
+- Если `WIZEBOT_API_KEY` не задан или WizeBot недоступен, страница не ломается.
+- Можно отключить для страницы: `/farm?nosync=1`.
 
-2. `farm_balance` больше не считается обычными монетами.
-   Теперь это виртуальный баланс фермы `farm_virtual_balance_*`.
+### 2. История и журнал действий
+- Новый endpoint: `GET /api/farm/history?type=&limit=100`.
+- Новый UI-блок: `📜 Истории и журнал`.
+- Фильтры по типу события: апы, здания, рынок, рейды, кейсы, GAMUS, оффсбор.
 
-3. В sync payload добавлено поле:
+### 3. Расширенная админка Nico_Moose
+Backend защищён через `middleware/requireAdmin.js` по `req.session.twitchUser.login`.
 
-```js
-twitch_balance: parseInt(JS.wizebot.call_tag('currency', ['get', user]) || '0', 10) || 0,
-```
+Новые admin endpoints:
+- `POST /api/admin/transfer-farm`
+- `POST /api/admin/clear-debt`
+- `POST /api/admin/reset-cases`
+- `POST /api/admin/reset-gamus`
+- `POST /api/admin/set-market-stock`
+- `GET /api/admin/events`
+- `GET /api/admin/checklist`
 
-Важно: обнови команду `!синкферма` в WizeBot, иначе сайт не сможет узнать обычные монеты.
-Старые sync JSON без `twitch_balance` будут показывать обычные монеты как `0` до следующего sync.
+UI добавлен в админ-панель:
+- перенос фермы;
+- списание долгов игрока/всех;
+- сброс кейсов игрока/всех;
+- сброс GAMUS;
+- правка склада рынка;
+- админ-журнал с фильтрами.
 
-4. Топы и инфо теперь показывают отдельно:
-- обычные монеты 💰
-- ферма 🌾
-- ап-баланс 💎
-- запчасти 🔧
+### 4. farm_events
+Добавлено чтение событий для UI и админ-журнала.
+События игровых действий уже логируются через `logFarmEvent`, новые админ-действия тоже пишутся в `farm_events`.
 
-5. После рейда, если открыт раздел `Топ / инфо`, топы автоматически перезагружаются.
-
-6. Таймеры теперь в формате `14ч 56м`, без `896м 40с`.
-
-7. Причина `доход 0` у Nico_Moose:
-сайт считает доход из `configs.plants`, `configs.animals`, `configs.buildings` и текущих building levels.
-Если sync payload пришёл без configs или с пустыми configs/buildings, доход будет 0 даже при уровне фермы.
-Нужно проверить, что `!синкферма` отправляет configs полностью.
+## Важно
+- Обратный sync сайт → WizeBot currency всё ещё не реализован полностью. Это следующий отдельный большой этап.
+- Перенос фермы требует, чтобы новый ник хотя бы раз вошёл на сайт через Twitch, чтобы существовал `twitch_users` профиль.

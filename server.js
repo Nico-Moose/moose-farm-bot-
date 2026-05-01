@@ -1,20 +1,57 @@
-# Twitch balance display fix
+const path = require('path');
+const express = require('express');
+const session = require('express-session');
 
-Исправлено отображение обычных монет из WizeBot !мани.
+const { config } = require('./config');
+const { getDb } = require('./services/dbService');
 
-Что изменено:
-- currentCoins() теперь считает обычные монеты twitch_balance + ферму + ап-баланс.
-- На главной карточке добавлена отдельная плитка 💰 Монеты.
-- В блоке Текущие ресурсы добавлены 💰 Обычные монеты и 💳 Доступно для трат.
-- Импорт WizeBot больше не затирает обычные монеты в 0, если payload старый и не содержит twitch_balance.
+const authRoutes = require('./routes/authRoutes');
+const apiRoutes = require('./routes/apiRoutes');
+const bridgeRoutes = require('./routes/bridgeRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
-После установки:
-1. Перезапусти сервер.
-2. Выполни в Twitch !синкферма.
-3. Обнови страницу фермы через Ctrl+F5.
+function startWebServer() {
+  const app = express();
 
-В WizeBot-команде sync должно быть поле:
+  app.set('trust proxy', 1);
 
-```js
-twitch_balance: parseInt(JS.wizebot.call_tag("currency", ["get", user]) || "0", 10) || 0
-```
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+  app.use(session({
+    secret: config.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: 'auto',
+      maxAge: 1000 * 60 * 60 * 24 * 14,
+    },
+  }));
+
+  app.use(express.static(path.join(__dirname, 'public')));
+
+  app.use('/auth', authRoutes);
+
+  // ВАЖНО: админка должна быть ДО общего /api
+  app.use('/api/admin', adminRoutes(getDb()));
+
+  app.use('/api', apiRoutes);
+  app.use('/bridge', bridgeRoutes);
+
+  app.get('/farm', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'farm.html'));
+  });
+
+  app.get('/health', (req, res) => {
+    res.json({ ok: true, service: 'moose-farm-bot' });
+  });
+
+  app.listen(config.port, () => {
+    console.log(`[WEB] Server started on port ${config.port}`);
+    console.log(`[WEB] Public URL: ${config.publicBaseUrl}`);
+  });
+}
+
+module.exports = { startWebServer };

@@ -1,30 +1,20 @@
-require('dotenv').config();
-const { validateConfig } = require('./config');
-const { getDb, closeDb } = require('./services/dbService');
-const { startWebServer } = require('./server');
-const { startTwitchChatBot } = require('./services/twitchChatService');
+# Buildings UI/API fix 2
 
-validateConfig();
-getDb();
-startWebServer();
-startTwitchChatBot();
+Исправлено:
 
-process.on('SIGINT', () => {
-  console.log('[APP] SIGINT received. Closing DB...');
-  closeDb();
-  process.exit(0);
-});
+1. Ошибка `❌ Здание не улучшено: undefined`.
+   - Backend теперь возвращает `error: stopReason` для ошибок апгрейда зданий.
+   - Frontend показывает человекочитаемую причину: не хватает монет, запчастей, максимум уровня, ограничения шахты/фабрики и т.д.
 
-process.on('SIGTERM', () => {
-  console.log('[APP] SIGTERM received. Closing DB...');
-  closeDb();
-  process.exit(0);
-});
+2. Покупка новых зданий.
+   - Кнопка покупки больше не становится молча disabled при недостаточном уровне фермы.
+   - При клике сайт показывает причину: какой уровень фермы нужен и какой сейчас.
 
-process.on('unhandledRejection', (error) => {
-  console.error('[APP] Unhandled rejection:', error);
-});
+3. Защита backend от падения при ошибках апгрейда.
+   - `/api/farm/building/upgrade` больше не вызывает `updateProfile(undefined)`.
+   - Ранние ошибки `building_not_found` и `building_not_built` возвращают профиль безопасно.
 
-process.on('uncaughtException', (error) => {
-  console.error('[APP] Uncaught exception:', error);
-});
+Файлы:
+- `services/farm/buildingService.js`
+- `routes/apiRoutes.js`
+- `public/app.js`

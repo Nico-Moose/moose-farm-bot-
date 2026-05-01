@@ -238,10 +238,14 @@ function importPayloadToSqlite(payload) {
     displayName
   });
 
+  const previousProfile = loadProfileByTwitchId(userRow.twitch_id) || {};
+  const hasTwitchBalance = Object.prototype.hasOwnProperty.call(payload, 'twitch_balance');
+
   const imported = {
     level: normalizeNumber(farm.level),
     farm_balance: normalizeNumber(payload.farm_balance),
-    twitch_balance: normalizeNumber(payload.twitch_balance),
+    // Обычные монеты WizeBot из !мани. Если старый sync не прислал twitch_balance, не затираем сохранённое значение в 0.
+    twitch_balance: hasTwitchBalance ? normalizeNumber(payload.twitch_balance) : normalizeNumber(previousProfile.twitch_balance),
     upgrade_balance: normalizeNumber(payload.upgrade_balance),
     total_income: normalizeNumber(payload.total_income),
     parts: normalizeNumber(farm.resources.parts),

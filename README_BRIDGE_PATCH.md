@@ -1,45 +1,77 @@
-require('dotenv').config();
+# Moose Farm Bridge Patch
 
-const config = {
-  port: Number(process.env.PORT || 3000),
-  publicBaseUrl: process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
-  sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-me',
-  databasePath: process.env.DATABASE_PATH || './data/farm.sqlite',
+Этот ZIP добавляет безопасный bridge sync из старой WizeBot-фермы в новую SQLite сайт-ферму.
 
-  twitch: {
-    channel: process.env.TWITCH_CHANNEL,
-    botUsername: process.env.TWITCH_BOT_USERNAME,
-    botOauth: process.env.TWITCH_BOT_OAUTH,
-    clientId: process.env.TWITCH_CLIENT_ID,
-    clientSecret: process.env.TWITCH_CLIENT_SECRET,
-    redirectUri: process.env.TWITCH_REDIRECT_URI,
-  },
+## Что заменять в проекте
 
-  wizebot: {
-    apiKey: process.env.WIZEBOT_API_KEY,
-    apiKeyRw: process.env.WIZEBOT_API_KEY_RW,
-    bridgeSecret: process.env.WIZEBOT_BRIDGE_SECRET || 'change-me-bridge-secret',
-  },
-};
+Скопируй файлы из архива в проект с заменой:
 
-function validateConfig() {
-  const missing = [];
+- `config.js` -> заменить
+- `server.js` -> заменить
+- `services/dbService.js` -> заменить
+- `services/userService.js` -> заменить
+- `services/wizebotBridgeService.js` -> добавить
+- `routes/bridgeRoutes.js` -> добавить
+- `routes/apiRoutes.js` -> заменить
+- `public/app.js` -> заменить
+- `public/farm.html` -> заменить
 
-  if (!config.twitch.channel) missing.push('TWITCH_CHANNEL');
-  if (!config.twitch.botUsername) missing.push('TWITCH_BOT_USERNAME');
-  if (!config.twitch.botOauth) missing.push('TWITCH_BOT_OAUTH');
-  if (!config.twitch.clientId) missing.push('TWITCH_CLIENT_ID');
-  if (!config.twitch.clientSecret) missing.push('TWITCH_CLIENT_SECRET');
-  if (!config.twitch.redirectUri) missing.push('TWITCH_REDIRECT_URI');
-  if (!config.publicBaseUrl) missing.push('PUBLIC_BASE_URL');
+## Переменные окружения
 
-  if (!process.env.WIZEBOT_BRIDGE_SECRET) {
-    console.warn('[CONFIG] WIZEBOT_BRIDGE_SECRET is not set. Use a strong secret in production.');
-  }
+Добавь в `.env` или в панель bothost:
 
-  if (missing.length) {
-    console.warn('[CONFIG] Missing env:', missing.join(', '));
-  }
-}
+```env
+WIZEBOT_BRIDGE_SECRET=любой_длинный_секрет
+```
 
-module.exports = { config, validateConfig };
+Такой же секрет вставь в WizeBot-команду вместо:
+
+```js
+PASTE_YOUR_WIZEBOT_BRIDGE_SECRET_HERE
+```
+
+## WizeBot команда
+
+Создай новую JS-команду в WizeBot:
+
+```txt
+!синкферма
+```
+
+Код возьми из:
+
+```txt
+wizebot_commands/!синкферма.txt
+```
+
+Команда читает старые переменные:
+
+- `farm_nico_moose`
+- `farm_virtual_balance_nico_moose`
+- `farm_upgrade_balance_nico_moose`
+- `farm_total_income_nico_moose`
+- `farm_last_nico_moose`
+- `farm_license_nico_moose`
+- `farm_protection_level_nico_moose`
+- `farm_raid_power_nico_moose`
+- `farm_defense_building_nico_moose`
+
+и отправляет их на сайт:
+
+```txt
+POST /bridge/wizebot-sync
+```
+
+## Важно
+
+Сначала Nico_Moose должен хотя бы один раз войти на сайт через Twitch, чтобы профиль появился в SQLite.
+
+## Если WizeBot JS не поддерживает fetch()
+
+Если команда выдаст ошибку `fetch is not defined`, значит в JS-командах WizeBot нельзя делать POST-запросы напрямую.
+Тогда используем fallback:
+
+1. WizeBot-команда создаёт longtext/JSON с данными.
+2. Сайт импортирует этот JSON вручную или через отдельный endpoint.
+
+Но сначала проверь основной вариант — во многих JS sandbox `fetch` доступен.
