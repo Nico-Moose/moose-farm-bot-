@@ -503,32 +503,112 @@ module.exports = function (db) {
     `).all();
   }
 
-  function saveFarmObject(twitchId, farm) {
-    db.prepare(`
-      UPDATE farm_profiles
-      SET farm_json = ?, updated_at = ?
-      WHERE twitch_id = ?
-    `).run(JSON.stringify(farm || {}), Date.now(), twitchId);
+function deepCloneSafe(value, fallback = {}) {
+  try {
+    return JSON.parse(JSON.stringify(value ?? fallback));
+  } catch (_) {
+    return fallback;
   }
+}
 
-
-  function saveFarmBackup(profile, reason) {
-    if (!profile) return null;
-    const backup = {
-      createdAt: Date.now(), reason: reason || 'admin_backup', twitch_id: profile.twitch_id,
-      login: profile.login, display_name: profile.display_name, level: profile.level,
-      farm_balance: profile.farm_balance, upgrade_balance: profile.upgrade_balance,
-      total_income: profile.total_income, parts: profile.parts, last_collect_at: profile.last_collect_at,
-      farm: profile.farm || {}, configs: profile.configs || {}, license_level: profile.license_level,
-      protection_level: profile.protection_level, raid_power: profile.raid_power, turret: profile.turret || {}
-    };
-    const farm = profile.farm || {};
-    farm.adminBackups = Array.isArray(farm.adminBackups) ? farm.adminBackups : [];
-    farm.adminBackups.unshift(backup);
-    farm.adminBackups = farm.adminBackups.slice(0, 10);
-    saveFarmObject(profile.twitch_id, farm);
-    return backup;
+function stripAdminBackups(farm) {
+  const cleanFarm = deepCloneSafe(farm, {});
+  if (cleanFarm && typeof cleanFarm === 'object' && cleanFarm.adminBackups) {
+    delete cleanFarm.adminBackups;
   }
+  return cleanFarm;
+}
+
+function saveFarmObject(twitchId, farm) {
+  const cleanFarm = deepCloneSafe(farm || {}, {});
+  db.prepare(`
+    UPDATE farm_profiles
+    SET farm_json = ?, updated_at = ?
+    WHERE twitch_id = ?
+  `).run(JSON.stringify(cleanFarm), Date.now(), twitchId);
+}
+
+function saveFarmBackup(profile, reason) {
+  if (!profile) return null;
+
+  const sourceFarm = profile.farm || {};
+  const farmSnapshot = stripAdminBackups(sourceFarm);
+
+  const backup = {
+    createdAt: Date.now(),
+    reason: reason || 'admin_backup',
+    twitch_id: profile.twitch_id,
+    login: profile.login,
+    display_name: profile.display_name,
+    level: profile.level,
+    farm_balance: profile.farm_balance,
+    upgrade_balance: profile.upgrade_balance,
+    total_income: profile.total_income,
+    parts: profile.parts,
+    last_collect_at: profile.last_collect_at,
+    farm: farmSnapshot,
+    configs: deepCloneSafe(profile.configs || {}, {}),
+    license_level: profile.license_level,
+    protection_level: profile.protection_level,
+    raid_power: profile.raid_power,
+    turret: deepCloneSafe(profile.turret || {}, {})
+  };
+
+  const farmToSave = deepCloneSafe(sourceFarm, {});
+  const existingBackups = Array.isArray(farmToSave.adminBackups) ? farmToSave.adminBackups : [];
+
+  farmToSave.adminBackups = [backup, ...existingBackups].slice(0, 10);
+
+  saveFarmObject(profile.twitch_id, farmToSave);
+  return backup;
+}
+
+function restoreFarmBackup(profile) {
+  const farm = profile?.farm || {};
+  const backups = Array.isArray(farm.adminBackups) ? farm.adminBackups : [];
+  const backup = backups[0];
+
+  if (!backup) return null;
+
+  const restoredFarm = deepCloneSafe(backup.farm || {}, {});
+  restoredFarm.adminBackups = backups;
+
+  db.prepare(`
+    UPDATE farm_profiles
+    SET
+      level=?,
+      farm_balance=?,
+      upgrade_balance=?,
+      total_income=?,
+      parts=?,
+      last_collect_at=?,
+      farm_json=?,
+      configs_json=?,
+      license_level=?,
+      protection_level=?,
+      raid_power=?,
+      turret_json=?,
+      updated_at=?
+    WHERE twitch_id=?
+  `).run(
+    Number(backup.level || 0),
+    Number(backup.farm_balance || 0),
+    Number(backup.upgrade_balance || 0),
+    Number(backup.total_income || 0),
+    Number(backup.parts || 0),
+    backup.last_collect_at || null,
+    JSON.stringify(restoredFarm),
+    JSON.stringify(deepCloneSafe(backup.configs || {}, {})),
+    Number(backup.license_level || 0),
+    Number(backup.protection_level || 0),
+    Number(backup.raid_power || 0),
+    JSON.stringify(deepCloneSafe(backup.turret || {}, {})),
+    Date.now(),
+    profile.twitch_id
+  );
+
+  return backup;
+}
 
   function restoreFarmBackup(profile) {
     const farm = profile?.farm || {};
