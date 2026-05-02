@@ -30,22 +30,37 @@ function buildFarmV2FromProfile(profile) {
     defense: {
       turret: profile.turret || farm.turret || {}
     },
-    farm: {
-      savedPassive: Number(farm.savedPassive || 0),
-      resources,
-      unlocked_at: unlockedAt,
-      unlocked_at_ani: unlockedAtAni,
-      buildings,
-      zavodBonus: Number(farm.zavodBonus || 0),
-      fabrikaBonus: Number(farm.fabrikaBonus || 0),
-      mineBonus: Number(farm.mineBonus || 0),
-      lastWithdrawAt: Number(farm.lastWithdrawAt || 0),
-      lastRaidAt: Number(farm.lastRaidAt || 0),
-      raidCooldownUntil: Number(farm.raidCooldownUntil || 0),
-      shieldUntil: Number(farm.shieldUntil || farm.shield_until || 0),
-      shield_until: Number(farm.shieldUntil || farm.shield_until || 0),
-      raidLogs
-    }
+farm: {
+  savedPassive: Number(farm.savedPassive || 0),
+  resources,
+  unlocked_at: unlockedAt,
+  unlocked_at_ani: unlockedAtAni,
+  buildings,
+  zavodBonus: Number(farm.zavodBonus || 0),
+  fabrikaBonus: Number(farm.fabrikaBonus || 0),
+  mineBonus: Number(farm.mineBonus || 0),
+
+  lastWithdrawAt: Number(farm.lastWithdrawAt || 0),
+
+  lastRaidAt: Number(farm.lastRaidAt || 0),
+  raidCooldownUntil: Number(farm.raidCooldownUntil || 0),
+  shieldUntil: Number(farm.shieldUntil || farm.shield_until || 0),
+  shield_until: Number(farm.shieldUntil || farm.shield_until || 0),
+  raidLogs,
+
+  // кейсы
+  lastCaseAt: Number(farm.lastCaseAt || 0),
+  caseCooldownUntil: Number(farm.caseCooldownUntil || 0),
+  caseHistory: Array.isArray(farm.caseHistory) ? farm.caseHistory : [],
+  caseStats: farm.caseStats && typeof farm.caseStats === 'object'
+    ? {
+        opened: Number(farm.caseStats.opened || 0),
+        spent: Number(farm.caseStats.spent || 0),
+        coins: Number(farm.caseStats.coins || 0),
+        parts: Number(farm.caseStats.parts || 0)
+      }
+    : { opened: 0, spent: 0, coins: 0, parts: 0 }
+}
   };
 }
 
