@@ -134,7 +134,13 @@ function refreshVisibleData() {
 }
 
 function ordinaryCoins(profile) {
-  return Number(profile?.twitch_balance ?? profile?.twitchBalance ?? profile?.gold ?? 0) || 0;
+  return Number(
+    profile?.twitch_balance ??
+    profile?.twitchBalance ??
+    profile?.balance ??
+    profile?.gold ??
+    0
+  ) || 0;
 }
 
 function farmCoins(profile) {

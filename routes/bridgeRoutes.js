@@ -198,7 +198,10 @@ const progression = farmV2.progression || {};
 const farm = farmV2.farm || {};
 const defense = farmV2.defense || {};
 
-const twitchBalance = Number(balances.twitch_balance || 0);
+const hasIncomingTwitchBalance = Object.prototype.hasOwnProperty.call(balances, 'twitch_balance');
+const twitchBalance = hasIncomingTwitchBalance
+  ? Number(balances.twitch_balance || 0)
+  : Number(profile.twitch_balance ?? profile.balance ?? 0);
 
 const nextProfile = {
   ...profile,
