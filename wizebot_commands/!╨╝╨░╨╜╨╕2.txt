@@ -1,0 +1,30 @@
+// WizeBot command: !мани2 [login]
+let caller = (JS.datas('nick') || JS.wizebot.command.user_name() || '').toLowerCase();
+let displayName = JS.datas('display_name') || JS.wizebot.command.display_name() || caller;
+let argTarget = (JS.wizebot.command.args(1) || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+let user = argTarget || caller;
+function readJsonVar(key, fallback) {
+  try {
+    let raw = JS.wizebot.get_var(key);
+    if (!raw || raw === 'null' || raw === '{}') return JSON.parse(fallback);
+    return JSON.parse(raw);
+  } catch (_) {
+    try { return JSON.parse(fallback); } catch (__) { return null; }
+  }
+}
+function fmt(n) {
+  n = Number(n || 0);
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'м';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'к';
+  return String(Math.round(n));
+}
+let farmV2 = readJsonVar('farm_v2_' + user, '{}') || {};
+if (!farmV2 || typeof farmV2 !== 'object' || !farmV2.balances) {
+  JS.wizebot.send_chat_message(`❌ ${displayName}, баланс v2 ${user} не найден. Сначала сделай !v2sync.`);
+  JS.utils.stop();
+}
+let twitchBalance = Number((farmV2.balances && farmV2.balances.twitch_balance) || 0);
+let farmBalance = Number((farmV2.balances && farmV2.balances.farm_balance) || 0);
+let upgradeBalance = Number((farmV2.balances && farmV2.balances.upgrade_balance) || 0);
+let parts = Number((((farmV2.farm||{}).resources||{}).parts) || 0);
+JS.wizebot.send_chat_message(`💰 ${user}: ${fmt(twitchBalance)} (⬆️${fmt(upgradeBalance)} 🌾${fmt(farmBalance)}) | 🔧${fmt(parts)}`);

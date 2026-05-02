@@ -5,6 +5,7 @@ const { importPayloadToSqlite, importWizebotPayloadByLogin } = require('../servi
 const { getWizebotStateByLogin } = require('../services/wizebotStateExportService');
 const { getProfileByLogin, updateProfile, logFarmEvent } = require('../services/userService');
 const { syncWizebotFarmToProfile } = require('../services/wizebotSyncService');
+const { buildFarmV2FromProfile } = require('../services/farmV2Service');
 
 const router = express.Router();
 
@@ -37,6 +38,31 @@ router.post('/wizebot-sync', (req, res) => {
   });
 });
 
+
+router.get('/farm-v2-state', (req, res) => {
+  const providedSecret = getProvidedSecret(req);
+
+  if (!providedSecret || providedSecret !== config.wizebot.bridgeSecret) {
+    return res.status(403).json({ ok: false, error: 'invalid_bridge_secret' });
+  }
+
+  const login = String(req.query.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+  if (!login) {
+    return res.status(400).json({ ok: false, error: 'missing_login' });
+  }
+
+  const profile = getProfileByLogin(login);
+  if (!profile) {
+    return res.status(404).json({ ok: false, error: 'profile_not_found', login });
+  }
+
+  const farmV2 = buildFarmV2FromProfile(profile);
+  if (!farmV2 || !farmV2.progression || !farmV2.progression.level) {
+    return res.status(400).json({ ok: false, error: 'invalid_farm_v2_state', login });
+  }
+
+  res.json({ ok: true, login, farm_v2: farmV2 });
+});
 
 router.get('/web-master-state', (req, res) => {
   const providedSecret = getProvidedSecret(req);

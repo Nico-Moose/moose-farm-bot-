@@ -1,0 +1,31 @@
+// WizeBot command: !v2sync [login]
+// Забирает farm_v2 с сайта и пишет в farm_v2_<login>. Доступ только nico_moose.
+let caller = (JS.datas('nick') || JS.wizebot.command.user_name() || '').toLowerCase();
+let displayName = JS.datas('display_name') || JS.wizebot.command.display_name() || caller;
+let argTarget = (JS.wizebot.command.args(1) || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+if (caller !== 'nico_moose') { JS.utils.stop(); }
+let login = argTarget || caller;
+const BASE_URL = 'https://farm-moose.bothost.tech';
+const SECRET = 'moose_super_secret_2026';
+let url = BASE_URL + '/bridge/farm-v2-state?login=' + encodeURIComponent(login) + '&secret=' + encodeURIComponent(SECRET);
+try {
+  let text = JS.wizebot.call_tag('urlcall', [url]) || '';
+  if (!text) {
+    JS.wizebot.send_chat_message(`❌ ${displayName}, farm_v2 sync: пустой ответ сайта.`);
+    JS.utils.stop();
+  }
+  let data = JSON.parse(text);
+  if (!data.ok || !data.farm_v2) {
+    JS.wizebot.send_chat_message(`❌ ${displayName}, farm_v2 sync: ${data.error || 'invalid payload'}`);
+    JS.utils.stop();
+  }
+  JS.wizebot.set_var('farm_v2_' + login, JSON.stringify(data.farm_v2));
+  JS.wizebot.set_var('farm_v2_migrated_' + login, '1');
+  JS.wizebot.set_var('farm_v2_migrated_at_' + login, String(Date.now()));
+  let b = data.farm_v2.balances || {};
+  let p = data.farm_v2.progression || {};
+  let r = ((data.farm_v2.farm || {}).resources || {});
+  JS.wizebot.send_chat_message(`✅ ${displayName}, farm_v2 обновлена: ур.${p.level || 0} | 💰${b.twitch_balance || 0} | 🌾${b.farm_balance || 0} | 💎${b.upgrade_balance || 0} | 🔧${r.parts || 0}`);
+} catch (e) {
+  JS.wizebot.send_chat_message(`❌ ${displayName}, farm_v2 sync failed: ${e.message || e}`);
+}

@@ -1,4 +1,5 @@
 const { config, isWebMasterLogin } = require('../config');
+const { triggerWizebotWebMasterApply } = require('./twitchChatService');
 
 const WIZEBOT_API_BASE = 'https://wapi.wizebot.tv/api';
 
@@ -60,6 +61,11 @@ async function setCustomData(key, value) {
 
   const attempts = [
     {
+      name: 'path_value_post',
+      url: `${WIZEBOT_API_BASE}/custom-data/${config.wizebot.apiKeyRw}/set/${encodedKey}/${encodedValue}`,
+      options: { method: 'POST' }
+    },
+    {
       name: 'query_value_post',
       url: `${WIZEBOT_API_BASE}/custom-data/${config.wizebot.apiKeyRw}/set/${encodedKey}/1?DATA_VAL=${encodedValue}`,
       options: { method: 'POST' }
@@ -72,11 +78,6 @@ async function setCustomData(key, value) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `DATA_VAL=${encodedValue}`
       }
-    },
-    {
-      name: 'path_value_post',
-      url: `${WIZEBOT_API_BASE}/custom-data/${config.wizebot.apiKeyRw}/set/${encodedKey}/${encodedValue}`,
-      options: { method: 'POST' }
     }
   ];
 
@@ -85,13 +86,7 @@ async function setCustomData(key, value) {
     const res = await fetch(attempt.url, attempt.options);
     const data = await parseApiResponse(res);
     if (res.ok && data.success) {
-      try {
-        const verify = await getCustomDataRaw(key);
-        if (verify && verify.success) {
-          return { ...data, attempt: attempt.name, verified: true };
-        }
-      } catch (e) {}
-      return { ...data, attempt: attempt.name, verified: false };
+      return { ...data, attempt: attempt.name };
     }
     errors.push({ attempt: attempt.name, status: res.status, data });
   }
@@ -184,7 +179,22 @@ async function syncProfileToWizebot(profile) {
     results.push({ key: 'currency', ok: false, message: error.message, details: error.details || null });
   }
 
-  const chatApply = { ok: false, skipped: true, reason: 'direct_api_only' };
+  let chatApply = null;
+  if (config.wizebotChatTriggerEnabled) {
+    try {
+      chatApply = await triggerWizebotWebMasterApply(state.login);
+      results.push({ key: 'wizebot_js_set_var_chat_trigger', ok: !!chatApply.ok, details: chatApply });
+      if (chatApply.ok) syncedKeys.push('wizebot_js_set_var_chat_trigger');
+      else failedKeys.push({ key: 'wizebot_js_set_var_chat_trigger', message: chatApply.error || chatApply.reason || 'chat_trigger_failed', details: chatApply });
+    } catch (error) {
+      chatApply = { ok: false, error: error.message };
+      failedKeys.push({ key: 'wizebot_js_set_var_chat_trigger', message: error.message, details: error.details || null });
+      results.push({ key: 'wizebot_js_set_var_chat_trigger', ok: false, message: error.message, details: error.details || null });
+    }
+  } else {
+    chatApply = { ok: false, skipped: true, reason: 'chat_trigger_disabled' };
+    results.push({ key: 'wizebot_js_set_var_chat_trigger', ok: false, skipped: true, reason: 'chat_trigger_disabled' });
+  }
 
   const syncedAt = Date.now();
   const ok = failedKeys.length === 0;
