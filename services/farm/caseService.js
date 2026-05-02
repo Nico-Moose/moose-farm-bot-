@@ -19,6 +19,7 @@ function getCaseTier(profile) {
   ensureFarmShape(profile);
   const level = num(profile.level, 0);
   const mineLevel = num(profile.farm.buildings?.['шахта'], 0);
+
   let cost = 1000;
   let baseMultiplier = 1;
 
@@ -53,14 +54,6 @@ function getCaseStatus(profile, now = Date.now()) {
   ensureFarmShape(profile);
   const tier = getCaseTier(profile);
   const lastCaseAt = num(profile.farm.lastCaseAt, 0);
-  return {
-    ...tier,
-    cooldownMs: CASE_COOLDOWN_MS,
-    lastCaseAt,
-   function getCaseStatus(profile, now = Date.now()) {
-  ensureFarmShape(profile);
-  const tier = getCaseTier(profile);
-  const lastCaseAt = num(profile.farm.lastCaseAt, 0);
   const caseCooldownUntil = num(profile.farm.caseCooldownUntil, 0);
   const nextCaseAt = Math.max(lastCaseAt + CASE_COOLDOWN_MS, caseCooldownUntil);
 
@@ -73,29 +66,45 @@ function getCaseStatus(profile, now = Date.now()) {
     history: Array.isArray(profile.farm.caseHistory) ? profile.farm.caseHistory.slice(0, 50) : []
   };
 }
-    history: Array.isArray(profile.farm.caseHistory) ? profile.farm.caseHistory.slice(0, 50) : []
-  };
-}
 
 function openCase(profile, now = Date.now()) {
   ensureFarmShape(profile);
+
   const status = getCaseStatus(profile, now);
-  if (!status.unlocked) return { ok: false, error: 'farm_level_too_low', requiredLevel: status.requiredLevel, profile };
-  if (status.remainingMs > 0) return { ok: false, error: 'cooldown', remainingMs: status.remainingMs, profile };
+  if (!status.unlocked) {
+    return { ok: false, error: 'farm_level_too_low', requiredLevel: status.requiredLevel, profile };
+  }
+
+  if (status.remainingMs > 0) {
+    return { ok: false, error: 'cooldown', remainingMs: status.remainingMs, profile };
+  }
 
   const paid = spendCoins(profile, status.cost, { mode: 'building' });
-  if (!paid.ok) return { ok: false, error: 'not_enough_money', needed: paid.needed, available: paid.available, missing: paid.missing, profile };
+  if (!paid.ok) {
+    return {
+      ok: false,
+      error: 'not_enough_money',
+      needed: paid.needed,
+      available: paid.available,
+      missing: paid.missing,
+      profile
+    };
+  }
 
   const index = Math.floor(Math.random() * BASE_PRIZES.length);
   const prize = BASE_PRIZES[index];
   const finalValue = Math.floor(prize.value * status.finalMultiplier);
 
-  if (prize.type === 'coins') profile.upgrade_balance = num(profile.upgrade_balance, 0) + finalValue;
-  else addParts(profile, finalValue);
+  if (prize.type === 'coins') {
+    profile.upgrade_balance = num(profile.upgrade_balance, 0) + finalValue;
+  } else {
+    addParts(profile, finalValue);
+  }
 
   profile.farm.lastCaseAt = now;
   profile.farm.caseCooldownUntil = now + CASE_COOLDOWN_MS;
   profile.farm.caseHistory = Array.isArray(profile.farm.caseHistory) ? profile.farm.caseHistory : [];
+
   const record = {
     id: `${now}-${index}`,
     date: now,
@@ -107,8 +116,22 @@ function openCase(profile, now = Date.now()) {
     multiplier: status.finalMultiplier,
     cost: status.cost
   };
+
   profile.farm.caseHistory.unshift(record);
   profile.farm.caseHistory = profile.farm.caseHistory.slice(0, 50);
+
+  profile.farm.caseStats = profile.farm.caseStats && typeof profile.farm.caseStats === 'object'
+    ? profile.farm.caseStats
+    : { opened: 0, spent: 0, coins: 0, parts: 0 };
+
+  profile.farm.caseStats.opened = num(profile.farm.caseStats.opened, 0) + 1;
+  profile.farm.caseStats.spent = num(profile.farm.caseStats.spent, 0) + status.cost;
+
+  if (prize.type === 'coins') {
+    profile.farm.caseStats.coins = num(profile.farm.caseStats.coins, 0) + finalValue;
+  } else {
+    profile.farm.caseStats.parts = num(profile.farm.caseStats.parts, 0) + finalValue;
+  }
 
   return { ok: true, cost: status.cost, spent: paid.spent, prize: record, profile };
 }
