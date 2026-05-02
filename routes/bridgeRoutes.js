@@ -151,5 +151,119 @@ router.get('/wizebot-pull-sync', async (req, res) => {
     return res.status(500).json({ ok: false, error: 'wizebot_pull_sync_failed', message: error.message });
   }
 });
+router.get('/farm-v2-push', (req, res) => {
+  const providedSecret = getProvidedSecret(req);
 
+  if (!providedSecret || providedSecret !== config.wizebot.bridgeSecret) {
+    return res.status(403).json({ ok: false, error: 'invalid_bridge_secret' });
+  }
+
+  const login = String(req.query.login || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^@/, '')
+    .replace(/[^a-z0-9_]/g, '');
+
+  const payloadRaw = String(req.query.payload || '').trim();
+
+  if (!login) {
+    return res.status(400).json({ ok: false, error: 'missing_login' });
+  }
+
+  if (!payloadRaw) {
+    return res.status(400).json({ ok: false, error: 'missing_payload' });
+  }
+
+  let farmV2 = null;
+  try {
+    farmV2 = JSON.parse(payloadRaw);
+  } catch (_) {
+    return res.status(400).json({ ok: false, error: 'invalid_payload_json' });
+  }
+
+  if (!farmV2 || typeof farmV2 !== 'object') {
+    return res.status(400).json({ ok: false, error: 'invalid_payload_object' });
+  }
+
+  const profile = getProfileByLogin(login);
+  if (!profile) {
+    return res.status(404).json({ ok: false, error: 'profile_not_found', login });
+  }
+
+  try {
+    const db = getDb();
+
+    const balances = farmV2.balances || {};
+    const progression = farmV2.progression || {};
+    const farm = farmV2.farm || {};
+    const defense = farmV2.defense || {};
+
+    const nextProfile = {
+      ...profile,
+      level: Number(progression.level || 0),
+      farm_balance: Number(balances.farm_balance || 0),
+      upgrade_balance: Number(balances.upgrade_balance || 0),
+      total_income: Number(balances.total_income || 0),
+      parts: Number(((farm.resources || {}).parts) || 0),
+      last_collect_at: progression.last_collect_at ? Number(progression.last_collect_at) : null,
+      license_level: Number(progression.license_level || 0),
+      protection_level: Number(progression.protection_level || 0),
+      raid_power: Number(progression.raid_power || 0),
+      farm,
+      turret: defense.turret || {},
+      last_wizebot_sync_at: Date.now()
+    };
+
+    // Обновляем farm_profiles через существующий сервис
+    const updatedProfile = updateProfile(nextProfile);
+
+    // Если обычное золото хранится в twitch_users или users — пробуем обновить напрямую.
+    // Если таблицы/колонки нет, просто молча пропустим.
+    const twitchBalance = Number(balances.twitch_balance || 0);
+
+    try {
+      db.prepare(`
+        UPDATE twitch_users
+        SET balance = ?
+        WHERE twitch_id = ?
+      `).run(twitchBalance, profile.twitch_id);
+    } catch (_) {}
+
+    try {
+      db.prepare(`
+        UPDATE users
+        SET balance = ?
+        WHERE twitch_id = ?
+      `).run(twitchBalance, profile.twitch_id);
+    } catch (_) {}
+
+    logFarmEvent(updatedProfile.twitch_id, 'farm_v2_push_from_wizebot', {
+      login,
+      source: 'wizebot_command',
+      balances: {
+        twitch_balance: twitchBalance,
+        farm_balance: Number(balances.farm_balance || 0),
+        upgrade_balance: Number(balances.upgrade_balance || 0),
+        parts: Number(((farm.resources || {}).parts) || 0)
+      }
+    });
+
+    return res.json({
+      ok: true,
+      login,
+      updated: true,
+      twitch_balance: twitchBalance,
+      farm_balance: Number(balances.farm_balance || 0),
+      upgrade_balance: Number(balances.upgrade_balance || 0),
+      parts: Number(((farm.resources || {}).parts) || 0)
+    });
+  } catch (error) {
+    console.error('[FARM V2 PUSH] Error:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'farm_v2_push_failed',
+      message: error.message
+    });
+  }
+});
 module.exports = router;
