@@ -143,11 +143,18 @@ async function syncProfileToWizebot(profile) {
   if (!profile?.login) throw new Error('profile_login_missing');
 
   const state = buildFarmState(profile);
+  const syncedAt = Date.now();
+
   const farmV2 = buildFarmV2FromProfile(profile) || {};
-  farmV2.updated_at = Date.now();
+  farmV2.updated_at = syncedAt;
   farmV2.source = 'website_auto_push';
   farmV2.farm = farmV2.farm || {};
-  farmV2.farm.lastWithdrawAt = Date.now();
+  farmV2.farm.lastWithdrawAt = Number(profile?.farm?.lastWithdrawAt || farmV2.farm.lastWithdrawAt || syncedAt) || syncedAt;
+  farmV2.farm.lastRaidAt = Number(profile?.farm?.lastRaidAt || farmV2.farm.lastRaidAt || 0) || 0;
+  farmV2.farm.raidCooldownUntil = Number(profile?.farm?.raidCooldownUntil || farmV2.farm.raidCooldownUntil || 0) || 0;
+  farmV2.farm.shieldUntil = Number(profile?.farm?.shieldUntil || profile?.farm?.shield_until || farmV2.farm.shieldUntil || 0) || 0;
+  farmV2.farm.shield_until = farmV2.farm.shieldUntil;
+  farmV2.farm.raidLogs = Array.isArray(profile?.farm?.raidLogs) ? profile.farm.raidLogs : (Array.isArray(farmV2.farm.raidLogs) ? farmV2.farm.raidLogs : []);
 
   const rawTasks = [
     ['farm_' + state.login, state.farm],
@@ -161,21 +168,20 @@ async function syncProfileToWizebot(profile) {
     ['farm_defense_building_' + state.login, state.turret],
     ['farm_v2_' + state.login, farmV2],
     ['farm_v2_migrated_' + state.login, '1'],
-    ['farm_v2_migrated_at_' + state.login, String(Date.now())]
+    ['farm_v2_migrated_at_' + state.login, String(syncedAt)]
   ];
 
+  let currentPlayers = [];
   try {
     const currentPlayersRaw = await getCustomDataRaw('farm_players_v2');
-    let currentPlayers = [];
-    if (currentPlayersRaw && currentPlayersRaw.success) {
-      currentPlayers = parseMaybeJson(currentPlayersRaw.val);
-      if (!Array.isArray(currentPlayers)) currentPlayers = [];
-    }
-    if (currentPlayers.indexOf(state.login) === -1) {
-      currentPlayers.push(state.login);
-    }
-    rawTasks.push(['farm_players_v2', currentPlayers]);
-  } catch (_) {}
+    currentPlayers = Array.isArray(parseMaybeJson(currentPlayersRaw?.val)) ? parseMaybeJson(currentPlayersRaw?.val) : [];
+  } catch (_) {
+    currentPlayers = [];
+  }
+  if (currentPlayers.indexOf(state.login) === -1) {
+    currentPlayers.push(state.login);
+  }
+  rawTasks.push(['farm_players_v2', currentPlayers]);
 
   const results = [];
   const syncedKeys = [];
@@ -219,7 +225,6 @@ async function syncProfileToWizebot(profile) {
     results.push({ key: 'wizebot_js_set_var_chat_trigger', ok: false, skipped: true, reason: 'chat_trigger_disabled' });
   }
 
-  const syncedAt = Date.now();
   const ok = failedKeys.length === 0;
 
   return { ok, login: state.login, syncedAt, keys: syncedKeys, skippedKeys, failedKeys, chatApply, results };

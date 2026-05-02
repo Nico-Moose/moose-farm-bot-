@@ -228,17 +228,6 @@ module.exports = function (db) {
     return { ok: true, profile: getProfileById(profile.twitch_id), result };
   }
 
-  async function pushUpdatedProfileToWizebot(login) {
-    try {
-      const updatedProfile = getProfileByLogin(db, login);
-      if (!updatedProfile) return { ok: false, skipped: true, reason: 'profile_not_found' };
-      const result = await syncProfileToWizebot(updatedProfile);
-      return { ok: !!result.ok, result, profile: updatedProfile };
-    } catch (error) {
-      return { ok: false, error: error.message, details: error.details || null };
-    }
-  }
-
   router.get("/players", (req, res) => {
     res.json({ ok: true, players: listPlayerLogins(req.query.prefix || '') });
   });
@@ -440,18 +429,20 @@ module.exports = function (db) {
 
     logAdminEvent(db, profile.twitch_id, "admin_reset_raid_cooldown", {});
 
-    const pushResult = await pushUpdatedProfileToWizebot(login);
-    const updatedProfile = getProfileByLogin(db, login);
+    try {
+      await syncProfileToWizebot(getProfileByLogin(db, login));
+    } catch (error) {
+      console.error('[ADMIN RESET RAID COOLDOWN PUSH] Error:', error);
+    }
 
     res.json({
       ok: true,
       message: `КД рейда сброшен для ${login}`,
-      profile: updatedProfile,
-      wizebotSync: pushResult
+      profile: getProfileByLogin(db, login)
     });
   });
 
-  router.post("/delete-buildings", async (req, res) => {
+  router.post("/delete-buildings", (req, res) => {
     const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
 
     const profile = getProfileByLogin(db, login);
@@ -469,16 +460,14 @@ module.exports = function (db) {
 
     logAdminEvent(db, profile.twitch_id, "admin_delete_buildings", {});
 
-    const pushResult = await pushUpdatedProfileToWizebot(login);
     res.json({
       ok: true,
       message: `Постройки удалены у ${login}`,
-      profile: getProfileByLogin(db, login),
-      wizebotSync: pushResult
+      profile: getProfileByLogin(db, login)
     });
   });
 
-  router.post("/delete-farm", async (req, res) => {
+  router.post("/delete-farm", (req, res) => {
     const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
 
     const profile = getProfileByLogin(db, login);
@@ -506,12 +495,10 @@ module.exports = function (db) {
 
     logAdminEvent(db, profile.twitch_id, "admin_delete_farm", {});
 
-    const pushResult = await pushUpdatedProfileToWizebot(login);
     res.json({
       ok: true,
       message: `Ферма ${login} сброшена`,
-      profile: getProfileByLogin(db, login),
-      wizebotSync: pushResult
+      profile: getProfileByLogin(db, login)
     });
   });
 
@@ -751,7 +738,7 @@ function restoreFarmBackup(profile) {
     res.json({ ok: true, message: `Кейсы сброшены всем игрокам: ${count}` });
   });
 
-  router.post('/delete-turret', async (req, res) => {
+  router.post('/delete-turret', (req, res) => {
     const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
     if (!login) return res.status(400).json({ ok: false, error: 'Нужен login' });
     const profile = getProfileByLogin(db, login);
@@ -759,11 +746,10 @@ function restoreFarmBackup(profile) {
     saveFarmBackup(profile, 'before_delete_turret');
     db.prepare(`UPDATE farm_profiles SET turret_json='{}', updated_at=? WHERE twitch_id=?`).run(Date.now(), profile.twitch_id);
     logAdminEvent(db, profile.twitch_id, 'admin_delete_turret', { login });
-    const pushResult = await pushUpdatedProfileToWizebot(login);
-    res.json({ ok: true, message: `Турель удалена у ${login}`, profile: getProfileByLogin(db, login), wizebotSync: pushResult });
+    res.json({ ok: true, message: `Турель удалена у ${login}`, profile: getProfileByLogin(db, login) });
   });
 
-  router.post('/restore-backup', async (req, res) => {
+  router.post('/restore-backup', (req, res) => {
     const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
     if (!login) return res.status(400).json({ ok: false, error: 'Нужен login' });
     const profile = getProfileByLogin(db, login);
@@ -771,8 +757,7 @@ function restoreFarmBackup(profile) {
     const backup = restoreFarmBackup(profile);
     if (!backup) return res.status(404).json({ ok: false, error: 'Бэкап не найден. Бэкап создаётся перед переносом/удалением/опасными действиями.' });
     logAdminEvent(db, profile.twitch_id, 'admin_restore_backup', { login, backupAt: backup.createdAt, reason: backup.reason });
-    const pushResult = await pushUpdatedProfileToWizebot(login);
-    res.json({ ok: true, message: `Бэкап восстановлен для ${login}`, profile: getProfileByLogin(db, login), wizebotSync: pushResult });
+    res.json({ ok: true, message: `Бэкап восстановлен для ${login}`, profile: getProfileByLogin(db, login) });
   });
 
   router.post('/set-roulette-tickets', (req, res) => {
