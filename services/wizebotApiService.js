@@ -1,5 +1,6 @@
 const { config, isWebMasterLogin } = require('../config');
 const { triggerWizebotWebMasterApply } = require('./twitchChatService');
+const { buildFarmV2FromProfile } = require('./farmV2Service');
 
 const WIZEBOT_API_BASE = 'https://wapi.wizebot.tv/api';
 
@@ -142,6 +143,12 @@ async function syncProfileToWizebot(profile) {
   if (!profile?.login) throw new Error('profile_login_missing');
 
   const state = buildFarmState(profile);
+  const farmV2 = buildFarmV2FromProfile(profile) || {};
+  farmV2.updated_at = Date.now();
+  farmV2.source = 'website_auto_push';
+  farmV2.farm = farmV2.farm || {};
+  farmV2.farm.lastWithdrawAt = Date.now();
+
   const rawTasks = [
     ['farm_' + state.login, state.farm],
     ['farm_virtual_balance_' + state.login, String(state.farm_balance)],
@@ -151,8 +158,24 @@ async function syncProfileToWizebot(profile) {
     ['farm_license_' + state.login, String(state.license_level)],
     ['farm_protection_level_' + state.login, String(state.protection_level)],
     ['farm_raid_power_' + state.login, String(state.raid_power)],
-    ['farm_defense_building_' + state.login, state.turret]
+    ['farm_defense_building_' + state.login, state.turret],
+    ['farm_v2_' + state.login, farmV2],
+    ['farm_v2_migrated_' + state.login, '1'],
+    ['farm_v2_migrated_at_' + state.login, String(Date.now())]
   ];
+
+  try {
+    const currentPlayersRaw = await getCustomDataRaw('farm_players_v2');
+    let currentPlayers = [];
+    if (currentPlayersRaw && currentPlayersRaw.success) {
+      currentPlayers = parseMaybeJson(currentPlayersRaw.val);
+      if (!Array.isArray(currentPlayers)) currentPlayers = [];
+    }
+    if (currentPlayers.indexOf(state.login) === -1) {
+      currentPlayers.push(state.login);
+    }
+    rawTasks.push(['farm_players_v2', currentPlayers]);
+  } catch (_) {}
 
   const results = [];
   const syncedKeys = [];
@@ -203,9 +226,6 @@ async function syncProfileToWizebot(profile) {
 }
 
 async function syncProfileToWizebotIfNeeded(profile) {
-  if (!isWebMasterProfile(profile)) {
-    return { ok: false, skipped: true, reason: 'not_web_master_profile' };
-  }
   return syncProfileToWizebot(profile);
 }
 

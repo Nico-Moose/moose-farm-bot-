@@ -1,11 +1,26 @@
 function buildFarmV2FromProfile(profile) {
   if (!profile) return null;
 
-  const farm = profile.farm || {};
-  const resources = farm.resources || {};
-  const buildings = farm.buildings || {};
-  const unlockedAt = farm.unlocked_at || {};
-  const unlockedAtAni = farm.unlocked_at_ani || {};
+  const sourceFarm = profile.farm && typeof profile.farm === 'object'
+    ? JSON.parse(JSON.stringify(profile.farm))
+    : {};
+
+  const farm = sourceFarm;
+  farm.resources = farm.resources || {};
+  farm.buildings = farm.buildings || {};
+  farm.unlocked_at = farm.unlocked_at || {};
+  farm.unlocked_at_ani = farm.unlocked_at_ani || {};
+  farm.raidLogs = Array.isArray(farm.raidLogs) ? farm.raidLogs : [];
+  farm.lastWithdrawAt = Number(farm.lastWithdrawAt || 0);
+  farm.lastRaidAt = Number(farm.lastRaidAt || 0);
+  farm.raidCooldownUntil = Number(farm.raidCooldownUntil || 0);
+  farm.shieldUntil = Number(farm.shieldUntil || farm.shield_until || 0);
+  farm.shield_until = Number(farm.shieldUntil || farm.shield_until || 0);
+  farm.savedPassive = Number(farm.savedPassive || 0);
+  farm.zavodBonus = Number(farm.zavodBonus || 0);
+  farm.fabrikaBonus = Number(farm.fabrikaBonus || 0);
+  farm.mineBonus = Number(farm.mineBonus || 0);
+  farm.level = Number(profile.level || farm.level || 0);
 
   return {
     version: 2,
@@ -29,16 +44,7 @@ function buildFarmV2FromProfile(profile) {
     defense: {
       turret: profile.turret || farm.turret || {}
     },
-    farm: {
-      savedPassive: Number(farm.savedPassive || 0),
-      resources,
-      unlocked_at: unlockedAt,
-      unlocked_at_ani: unlockedAtAni,
-      buildings,
-      zavodBonus: Number(farm.zavodBonus || 0),
-      fabrikaBonus: Number(farm.fabrikaBonus || 0),
-      mineBonus: Number(farm.mineBonus || 0)
-    }
+    farm
   };
 }
 
