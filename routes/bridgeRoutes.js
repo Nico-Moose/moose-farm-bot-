@@ -191,7 +191,7 @@ router.get('/farm-v2-push', (req, res) => {
   }
 
   try {
-    const db = getDb();
+
 
     const balances = farmV2.balances || {};
     const progression = farmV2.progression || {};
