@@ -193,41 +193,34 @@ router.get('/farm-v2-push', (req, res) => {
   try {
 
 
-    const balances = farmV2.balances || {};
-    const progression = farmV2.progression || {};
-    const farm = farmV2.farm || {};
-    const defense = farmV2.defense || {};
+const balances = farmV2.balances || {};
+const progression = farmV2.progression || {};
+const farm = farmV2.farm || {};
+const defense = farmV2.defense || {};
 
-    const nextProfile = {
-      ...profile,
-      level: Number(progression.level || 0),
-      farm_balance: Number(balances.farm_balance || 0),
-      upgrade_balance: Number(balances.upgrade_balance || 0),
-      total_income: Number(balances.total_income || 0),
-      parts: Number(((farm.resources || {}).parts) || 0),
-      last_collect_at: progression.last_collect_at ? Number(progression.last_collect_at) : null,
-      license_level: Number(progression.license_level || 0),
-      protection_level: Number(progression.protection_level || 0),
-      raid_power: Number(progression.raid_power || 0),
-      farm,
-      turret: defense.turret || {},
-      last_wizebot_sync_at: Date.now()
-    };
+const twitchBalance = Number(balances.twitch_balance || 0);
 
-    // Обновляем farm_profiles через существующий сервис
-    const updatedProfile = updateProfile(nextProfile);
+const nextProfile = {
+  ...profile,
+  level: Number(progression.level || 0),
+  farm_balance: Number(balances.farm_balance || 0),
+  upgrade_balance: Number(balances.upgrade_balance || 0),
+  total_income: Number(balances.total_income || 0),
+  parts: Number(((farm.resources || {}).parts) || 0),
+  last_collect_at: progression.last_collect_at ? Number(progression.last_collect_at) : null,
+  license_level: Number(progression.license_level || 0),
+  protection_level: Number(progression.protection_level || 0),
+  raid_power: Number(progression.raid_power || 0),
+  farm,
+  turret: defense.turret || {},
+  last_wizebot_sync_at: Date.now(),
 
-    // Если обычное золото хранится в twitch_users или users — пробуем обновить напрямую.
-    // Если таблицы/колонки нет, просто молча пропустим.
-    const twitchBalance = Number(balances.twitch_balance || 0);
+  // важно: пробуем прокинуть обычное золото в профиль
+  twitch_balance: twitchBalance,
+  balance: twitchBalance
+};
 
-    try {
-      db.prepare(`
-        UPDATE twitch_users
-        SET balance = ?
-        WHERE twitch_id = ?
-      `).run(twitchBalance, profile.twitch_id);
-    } catch (_) {}
+const updatedProfile = updateProfile(nextProfile);
 
     try {
       db.prepare(`
