@@ -79,6 +79,14 @@ function normalizeTurret(raw) {
   }
 }
 
+function hasMeaningfulFarmPayload(farm) {
+  if (!farm || typeof farm !== 'object') return false;
+  const level = Number(farm.level || 0) || 0;
+  const resources = farm.resources && typeof farm.resources === 'object' ? farm.resources : {};
+  const buildings = farm.buildings && typeof farm.buildings === 'object' ? farm.buildings : {};
+  return level > 0 || Object.keys(resources).length > 0 || Object.keys(buildings).length > 0;
+}
+
 function makeWizebotTwitchId(login) {
   return `wizebot_${normalizeLogin(login)}`;
 }
@@ -214,6 +222,9 @@ function importPayloadToSqlite(payload) {
   const now = Date.now();
 
   const farm = payload.farm || {};
+  if (!hasMeaningfulFarmPayload(farm)) {
+    return { ok: false, error: 'invalid_or_empty_farm_payload' };
+  }
   farm.resources = farm.resources || {};
   farm.buildings = farm.buildings || {};
 

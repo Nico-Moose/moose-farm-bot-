@@ -1,7 +1,7 @@
 const express = require('express');
 const { config } = require('../config');
 const { getNextUpgrade, listBuildings } = require('../services/farmGameService');
-const { importPayloadToSqlite } = require('../services/wizebotBridgeImportService');
+const { importPayloadToSqlite, importWizebotPayloadByLogin } = require('../services/wizebotBridgeImportService');
 const { getWizebotStateByLogin } = require('../services/wizebotStateExportService');
 const { getProfileByLogin, updateProfile, logFarmEvent } = require('../services/userService');
 const { syncWizebotFarmToProfile } = require('../services/wizebotSyncService');
@@ -77,8 +77,9 @@ router.get('/wizebot-sync-url', async (req, res) => {
   }
 
   try {
-    const result = await importPayloadToSqlite({ login, url });
+    const result = await importWizebotPayloadByLogin({ login, url });
     if (!result.ok) {
+      console.warn('[WIZEBOT SYNC URL] Rejected payload:', { login, url, error: result.error });
       return res.status(400).json(result);
     }
     return res.json({ ok: true, login, imported: result.imported, profile: result.profile });
