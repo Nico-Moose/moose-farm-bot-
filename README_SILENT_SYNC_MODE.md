@@ -11,3 +11,8 @@
 
 ## Safety guard
 Silent WizeBot -> site sync now rejects empty farm payloads with `invalid_or_empty_farm_payload` instead of overwriting the site profile with zero level/parts/farm balance.
+
+
+## Chat trigger
+
+`WIZEBOT_CHAT_TRIGGER_ENABLED=false` keeps site -> WizeBot sync silent and prevents sending `!сайтфермапуш <login>` into Twitch chat.

@@ -27,6 +27,7 @@ const config = {
     .filter(Boolean),
 
   harvestManagedByWizebot: String(process.env.HARVEST_MANAGED_BY_WIZEBOT || 'true').toLowerCase() !== 'false',
+  wizebotChatTriggerEnabled: String(process.env.WIZEBOT_CHAT_TRIGGER_ENABLED || 'false').toLowerCase() === 'true',
 };
 
 function validateConfig() {
