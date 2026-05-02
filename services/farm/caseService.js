@@ -57,7 +57,22 @@ function getCaseStatus(profile, now = Date.now()) {
     ...tier,
     cooldownMs: CASE_COOLDOWN_MS,
     lastCaseAt,
-    remainingMs: Math.max(0, lastCaseAt + CASE_COOLDOWN_MS - now),
+   function getCaseStatus(profile, now = Date.now()) {
+  ensureFarmShape(profile);
+  const tier = getCaseTier(profile);
+  const lastCaseAt = num(profile.farm.lastCaseAt, 0);
+  const caseCooldownUntil = num(profile.farm.caseCooldownUntil, 0);
+  const nextCaseAt = Math.max(lastCaseAt + CASE_COOLDOWN_MS, caseCooldownUntil);
+
+  return {
+    ...tier,
+    cooldownMs: CASE_COOLDOWN_MS,
+    lastCaseAt,
+    caseCooldownUntil,
+    remainingMs: Math.max(0, nextCaseAt - now),
+    history: Array.isArray(profile.farm.caseHistory) ? profile.farm.caseHistory.slice(0, 50) : []
+  };
+}
     history: Array.isArray(profile.farm.caseHistory) ? profile.farm.caseHistory.slice(0, 50) : []
   };
 }
@@ -79,6 +94,7 @@ function openCase(profile, now = Date.now()) {
   else addParts(profile, finalValue);
 
   profile.farm.lastCaseAt = now;
+  profile.farm.caseCooldownUntil = now + CASE_COOLDOWN_MS;
   profile.farm.caseHistory = Array.isArray(profile.farm.caseHistory) ? profile.farm.caseHistory : [];
   const record = {
     id: `${now}-${index}`,
