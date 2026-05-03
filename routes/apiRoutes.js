@@ -180,6 +180,47 @@ function profilePayload(profile) {
   };
 }
 
+
+function isFreshEnoughForWrite(req, profile) {
+  const expectedUpdatedAt = Number(req.body?.expectedUpdatedAt || 0);
+  if (!expectedUpdatedAt) return { ok: true };
+
+  const actualUpdatedAt = Number(profile?.updated_at || 0);
+  if (!actualUpdatedAt || actualUpdatedAt === expectedUpdatedAt) {
+    return { ok: true };
+  }
+
+  return {
+    ok: false,
+    status: 409,
+    error: 'stale_profile',
+    message: 'Профиль уже изменился. Обновили данные перед следующим действием.',
+    expectedUpdatedAt,
+    actualUpdatedAt
+  };
+}
+
+function fastSyncMeta(profile, req, source) {
+  const queued = enqueueProfileSync(profile, {
+    source,
+    twitchUserId: req.session?.twitchUser?.id || profile?.twitch_id
+  });
+  return {
+    mode: 'async_queue',
+    queued: !!queued?.queued,
+    queue: getQueueStats(profile?.login),
+    requestedAt: queued?.requestedAt || Date.now()
+  };
+}
+
+function conflictResponse(req, res, stale, profile) {
+  return res.status(stale.status || 409).json({
+    ok: false,
+    ...stale,
+    ...profilePayload(profile)
+  });
+}
+
 router.use('/farm', requireAuth, farmActionGuard);
 
 router.get('/me', requireAuth, async (req, res) => {
@@ -230,12 +271,11 @@ router.post('/farm/collect', requireAuth, async (req, res) => {
     minutes: result.minutes
   });
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'building_buy');
 
   res.json({
     ok: true,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     income: result.income,
     partsIncome: result.partsIncome,
     minutes: result.minutes,
@@ -246,6 +286,8 @@ router.post('/farm/collect', requireAuth, async (req, res) => {
 router.post('/farm/upgrade', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
   const count = req.body.count || 1;
+  const stale = isFreshEnoughForWrite(req, profile);
+  if (!stale.ok) return conflictResponse(req, res, stale, profile);
 
   const result = upgradeFarm(profile, count);
   let updatedProfile = updateProfile(result.profile);
@@ -259,12 +301,11 @@ router.post('/farm/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'building_upgrade');
 
   res.json({
     ok: result.ok,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     upgraded: result.upgraded,
     totalCost: result.totalCost,
     totalParts: result.totalParts,
@@ -283,12 +324,11 @@ router.post('/farm/test-balance', requireAuth, async (req, res) => {
     amount: result.amount
   });
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'building_buy');
 
   res.json({
     ok: true,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     amount: result.amount,
     ...profilePayload(updatedProfile)
   });
@@ -297,6 +337,8 @@ router.post('/farm/test-balance', requireAuth, async (req, res) => {
 router.post('/farm/building/buy', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
   const key = req.body.key;
+  const stale = isFreshEnoughForWrite(req, profile);
+  if (!stale.ok) return conflictResponse(req, res, stale, profile);
 
   const result = buyBuilding(profile, key);
 
@@ -316,12 +358,11 @@ router.post('/farm/building/buy', requireAuth, async (req, res) => {
     totalParts: result.totalParts
   });
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'building_buy');
 
   res.json({
     ok: true,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     building: result.building,
     name: result.name,
     level: result.level,
@@ -336,6 +377,8 @@ router.post('/farm/building/upgrade', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
   const key = req.body.key;
   const count = req.body.count || 1;
+  const stale = isFreshEnoughForWrite(req, profile);
+  if (!stale.ok) return conflictResponse(req, res, stale, profile);
 
   const result = upgradeBuilding(profile, key, count);
   let updatedProfile = result.profile ? updateProfile(result.profile) : profile;
@@ -350,12 +393,11 @@ router.post('/farm/building/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'building_upgrade');
 
   res.json({
     ok: result.ok,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     building: result.building,
     name: result.name,
     upgraded: result.upgraded,
@@ -383,12 +425,11 @@ router.post('/farm/market/buy', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
 
   res.json({
     ...result,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     profile: updatedProfile,
     nextUpgrade: getNextUpgrade(updatedProfile),
     nextLicense: getNextLicense(updatedProfile),
@@ -409,12 +450,11 @@ router.post('/farm/market/sell', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
 
   res.json({
     ...result,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     profile: updatedProfile,
     nextUpgrade: getNextUpgrade(updatedProfile),
     nextLicense: getNextLicense(updatedProfile),
@@ -425,6 +465,8 @@ router.post('/farm/market/sell', requireAuth, async (req, res) => {
 
 router.post('/farm/raid-power/upgrade', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
+  const stale = isFreshEnoughForWrite(req, profile);
+  if (!stale.ok) return conflictResponse(req, res, stale, profile);
   const result = upgradeRaidPower(profile, req.body.count || 1);
   let updatedProfile = updateProfile(result.profile);
 
@@ -436,18 +478,19 @@ router.post('/farm/raid-power/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
 
   res.json({
     ...result,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     ...profilePayload(updatedProfile)
   });
 });
 
 router.post('/farm/protection/upgrade', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
+  const stale = isFreshEnoughForWrite(req, profile);
+  if (!stale.ok) return conflictResponse(req, res, stale, profile);
   const result = upgradeProtection(profile, req.body.count || 1);
   let updatedProfile = updateProfile(result.profile);
 
@@ -459,18 +502,19 @@ router.post('/farm/protection/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
 
   res.json({
     ...result,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     ...profilePayload(updatedProfile)
   });
 });
 
 router.post('/farm/turret/upgrade', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
+  const stale = isFreshEnoughForWrite(req, profile);
+  if (!stale.ok) return conflictResponse(req, res, stale, profile);
   const result = upgradeTurret(profile);
   let updatedProfile = updateProfile(result.profile);
 
@@ -482,12 +526,11 @@ router.post('/farm/turret/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
 
   res.json({
     ...result,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     ...profilePayload(updatedProfile)
   });
 });
@@ -554,12 +597,11 @@ router.post('/farm/case/open', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
 
   res.json({
     ...result,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     ...profilePayload(updatedProfile)
   });
 });
@@ -583,12 +625,11 @@ router.post('/farm/gamus/claim', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
 
   res.json({
     ...result,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     ...profilePayload(updatedProfile)
   });
 });
@@ -618,12 +659,11 @@ router.post('/farm/off-collect', requireAuth, async (req, res) => {
     });
   }
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
 
   res.json({
     ...result,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     ...profilePayload(updatedProfile)
   });
 });
@@ -675,12 +715,11 @@ router.post('/farm/license/buy', requireAuth, async (req, res) => {
     spent: result.spent
   });
 
-  const syncResult = await pushProfileToWizebotForTest(req, updatedProfile);
-  updatedProfile = syncResult.profile;
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'building_buy');
 
   res.json({
     ok: true,
-    wizebotSync: syncResult.wizebotSync,
+    wizebotSync,
     licenseLevel: result.licenseLevel,
     cost: result.cost,
     spent: result.spent,

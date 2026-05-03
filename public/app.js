@@ -4956,3 +4956,98 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 })();
+
+/* ==========================================================================
+   PATCH: ultra-fast site actions + optimistic state refresh + stale guard
+   ========================================================================== */
+(function(){
+  function buildExpectedUpdatedAt(url, body) {
+    if (!String(url || '').startsWith('/api/farm/')) return body;
+    if (!state?.profile?.updated_at) return body;
+    if (body && Object.prototype.hasOwnProperty.call(body, 'expectedUpdatedAt')) return body;
+    return { ...(body || {}), expectedUpdatedAt: Number(state.profile.updated_at || 0) };
+  }
+
+  function hasRenderablePayload(data) {
+    return !!(data && data.profile && data.farmInfo && data.market && data.raidUpgrades && data.turret);
+  }
+
+  function applyServerState(data) {
+    if (!hasRenderablePayload(data)) return false;
+    state = data;
+    render(data);
+    return true;
+  }
+
+  const oldPostJsonFast = postJson;
+  postJson = async function postJson(url, body = {}) {
+    const nextBody = buildExpectedUpdatedAt(url, body);
+    return oldPostJsonFast(url, nextBody);
+  };
+
+  async function refreshIfNeeded(data, force) {
+    if (!applyServerState(data) || force) {
+      await loadMe(true);
+    }
+  }
+
+  async function handleFastAction(data, options = {}) {
+    const stale = data?.error === 'stale_profile';
+    const inProgress = data?.error === 'action_in_progress' || data?.httpStatus === 409;
+    if (stale || inProgress) {
+      showMessage(`⏳ ${data.message || 'Профиль уже изменился. Обновляем данные...'}`);
+      await loadMe(true);
+      return true;
+    }
+    if (!data?.ok) {
+      showMessage(options.failMessage || `❌ Ошибка: ${data?.error || 'unknown_error'}`);
+      await refreshIfNeeded(data, true);
+      return true;
+    }
+    applyServerState(data);
+    return false;
+  }
+
+  const oldUpgradeBuilding = upgradeBuilding;
+  upgradeBuilding = async function upgradeBuilding(key, count) {
+    const data = await postJson('/api/farm/building/upgrade', { key, count });
+    if (await handleFastAction(data, { failMessage: `❌ Не удалось улучшить ${key}: ${data?.stopReason || data?.error || 'ошибка'}` })) return;
+    showMessage(`🏗 ${data.name || key}: +${formatNumber(data.upgraded || 0)} ур. Потрачено ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
+  };
+
+  const oldBuyBuilding = buyBuilding;
+  buyBuilding = async function buyBuilding(key) {
+    const data = await postJson('/api/farm/building/buy', { key });
+    if (await handleFastAction(data, { failMessage: `❌ Не удалось купить ${key}: ${data?.error || 'ошибка'}` })) return;
+    showMessage(`🏗 Куплено: ${data.name || key}. Потрачено ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
+  };
+
+  upgradeRaidPower = async function upgradeRaidPower(count) {
+    const data = await postJson('/api/farm/raid-power/upgrade', { count });
+    if (await handleFastAction(data, { failMessage: `❌ Рейд-сила не улучшена: ${data?.error || 'ошибка'}` })) return;
+    showMessage(`⚔️ Рейд-сила +${data.upgraded}. Новый уровень: ${data.level}. Потрачено ${formatNumber(data.totalCost || 0)}💎`);
+  };
+
+  upgradeProtection = async function upgradeProtection(count) {
+    const data = await postJson('/api/farm/protection/upgrade', { count });
+    if (await handleFastAction(data, { failMessage: `❌ Защита не улучшена: ${data?.error || 'ошибка'}` })) return;
+    showMessage(`🛡 Защита +${data.upgraded}. Новый уровень: ${data.level}. Потрачено ${formatNumber(data.totalCost || 0)}💎`);
+  };
+
+  upgradeTurret = async function upgradeTurret() {
+    const data = await postJson('/api/farm/turret/upgrade');
+    if (await handleFastAction(data, { failMessage: `❌ Турель не улучшена: ${data?.error || 'ошибка'}` })) return;
+    showMessage(`🔫 Турель улучшена до ${data.level} ур. Потрачено ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
+  };
+
+  const oldLoadMeFast = loadMe;
+  loadMe = async function loadMe(force) {
+    await oldLoadMeFast(force);
+    if (state?.profile) {
+      document.querySelectorAll('[data-building-upgrade],[data-building-buy],[data-raid-power],[data-protection],#turretUpgradeBtn').forEach((btn) => {
+        if (!btn) return;
+        btn.dataset.profileRevision = String(state.profile.updated_at || '0');
+      });
+    }
+  };
+})();
