@@ -1290,3 +1290,24 @@ body {
   #combatBox { grid-template-columns: 1fr; }
   .building-cost-readable { grid-template-columns: 1fr; }
 }
+
+
+/* === HOTFIX: exact case roulette winner + multiplied prizes === */
+.case-strip-fixed {
+  animation: none !important;
+  will-change: transform;
+}
+.case-overlay-card-fixed .case-cell span {
+  font-size: 18px;
+}
+.case-overlay-card-fixed .case-result small {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255,255,255,.72);
+  font-size: 14px;
+}
+.case-overlay-card-fixed .case-win {
+  background: linear-gradient(180deg,#6b4712,#25180c);
+  border-color: rgba(255,203,58,.95);
+  box-shadow: 0 0 28px rgba(255,203,58,.35), inset 0 1px 0 rgba(255,255,255,.14);
+}
