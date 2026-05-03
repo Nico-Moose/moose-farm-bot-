@@ -4505,3 +4505,14 @@ function ensureMainActionButtons(data) {
     upgrade10Btn.innerHTML = `🚀 Улучшить ферму +10<br><small>${isMaxFarm ? 'максимум' : 'до 10 уровней'}</small>`;
   }
 }
+
+
+/* LONG NICKNAME HOVER TITLE */
+function installLongNicknameTitle() {
+  const name = document.querySelector('.profile-name-final');
+  if (name && !name.title) name.title = name.textContent.trim();
+}
+document.addEventListener('DOMContentLoaded', () => {
+  installLongNicknameTitle();
+  setInterval(installLongNicknameTitle, 1500);
+});

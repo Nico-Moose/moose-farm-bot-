@@ -1985,3 +1985,68 @@ button.farm-max-disabled {
     max-height: 220px;
   }
 }
+
+
+/* ==========================================================================
+   LONG NICKNAME LAYOUT FIX
+   ========================================================================== */
+
+/* Не даём левому блоку профиля растягивать всю карточку */
+.profile-card-final,
+.visual-profile-patch {
+  min-width: 0;
+}
+
+.profile-main-left {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Текстовый блок рядом с аватаркой может сжиматься */
+.profile-main-left > div:not(.profile-avatar-big) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Длинные ники не вылезают за рамку */
+.profile-name-final,
+.profile-main-left .profile-name-final {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* На узких экранах/при очень длинном нике разрешаем перенос */
+@media (max-width: 900px) {
+  .profile-name-final,
+  .profile-main-left .profile-name-final {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.05;
+  }
+}
+
+/* Сетка статов не должна налезать на имя */
+.profile-stats-final,
+.stats-2row-grid {
+  min-width: 0;
+}
+
+.stat-tile {
+  min-width: 0;
+}
+
+.stat-tile b,
+.stat-tile span,
+.stat-tile small {
+  overflow-wrap: anywhere;
+}
+
+/* Аватар фиксированный, имя занимает только доступное место */
+.profile-avatar-big {
+  flex: 0 0 auto;
+}
+
