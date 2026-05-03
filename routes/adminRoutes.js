@@ -4,6 +4,7 @@ const { syncWizebotFarmToProfile } = require("../services/wizebotSyncService");
 const { syncProfileToWizebot } = require("../services/wizebotApiService");
 const { getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
 const { getStreamStatus, setSetting } = require("../services/streamStatusService");
+const { setMarketStock } = require("../services/farm/marketService");
 
 function parseAmount(value) {
   if (typeof value === "number") return Math.trunc(value);
@@ -667,15 +668,12 @@ function restoreFarmBackup(profile) {
   router.post('/set-market-stock', (req, res) => {
     const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
     const stock = clampInt(req.body.stock, 0, 2000000000);
-    if (!login || !Number.isFinite(stock)) return res.status(400).json({ ok: false, error: 'Нужен login и stock' });
-    const profile = getProfileByLogin(db, login);
-    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
-    const farm = profile.farm || {};
-    farm.market = farm.market || {};
-    farm.market.partsStock = stock;
-    saveFarmObject(profile.twitch_id, farm);
-    logAdminEvent(db, profile.twitch_id, 'admin_set_market_stock', { stock });
-    res.json({ ok: true, message: `Склад рынка установлен: ${stock}`, profile: getProfileByLogin(db, login) });
+    if (!Number.isFinite(stock)) return res.status(400).json({ ok: false, error: 'Нужен stock' });
+    const market = setMarketStock(stock);
+    let profile = null;
+    if (login) profile = getProfileByLogin(db, login);
+    logAdminEvent(db, profile ? profile.twitch_id : 'admin', 'admin_set_market_stock', { stock, global: true });
+    res.json({ ok: true, message: `Общий склад рынка установлен: ${stock}`, market, profile });
   });
 
   router.post('/clear-debt', (req, res) => {

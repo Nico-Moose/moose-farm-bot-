@@ -1,26 +1,32 @@
 const { ensureFarmShape } = require('./profileShape');
 const { num } = require('./numberUtils');
 const { WIZEBOT } = require('./economyConfig');
-const { getPassiveIncomePerHour, getPlantIncomePerHour, getAnimalIncomePerHour, getBuildingIncomePerHour } = require('./incomeService');
+const { getPassiveIncomePerHour, getPlantIncomePerHour, getAnimalIncomePerHour } = require('./incomeService');
 
 function offCollect(profile, now = Date.now()) {
   ensureFarmShape(profile);
   const last = num(profile.last_collect_at || profile.created_at || now, now);
   const diff = now - last;
-  if (diff < WIZEBOT.COLLECT_COOLDOWN_MS) return { ok: false, error: 'cooldown', remainingMs: WIZEBOT.COLLECT_COOLDOWN_MS - diff, profile };
+  if (diff < WIZEBOT.COLLECT_COOLDOWN_MS) {
+    return { ok: false, error: 'cooldown', remainingMs: WIZEBOT.COLLECT_COOLDOWN_MS - diff, profile };
+  }
 
   const minutes = Math.min(60, Math.floor(diff / 60000));
   const hours = minutes / 60;
-  const building = getBuildingIncomePerHour(profile);
+
+  // Оффсбор = 50% только от дохода фермы: пассив + растения + животные.
+  // Бонусные, фабрика, шахта и другие монетные здания здесь НЕ учитываются.
   const passive = getPassiveIncomePerHour(profile) * hours;
   const harvest = (getPlantIncomePerHour(profile) + getAnimalIncomePerHour(profile)) * hours;
-  const buildingCoins = building.coins * hours;
-  const income = Math.round((passive + harvest + buildingCoins) * 0.5);
+  const income = Math.round((passive + harvest) * 0.5);
 
+  // Запчасти = только завод / 2. Фабрика и шахта НЕ усиливают оффсбор.
   let partsIncome = 0;
   const lvl = num(profile.farm.buildings?.['завод'], 0);
   const conf = profile.configs.buildings?.['завод'];
-  if (lvl > 0 && conf) partsIncome = Math.floor((num(conf.baseProduction, 0) + num(conf.perLevel, 0) * Math.max(0, lvl - 1)) * 0.5);
+  if (lvl > 0 && conf) {
+    partsIncome = Math.floor((num(conf.baseProduction, 0) + num(conf.perLevel, 0) * Math.max(0, lvl - 1)) * 0.5);
+  }
 
   profile.farm_balance = num(profile.farm_balance, 0) + income;
   profile.total_income = num(profile.total_income, 0) + income;
@@ -29,7 +35,7 @@ function offCollect(profile, now = Date.now()) {
   profile.last_collect_at = now;
   profile.farm.lastWithdrawAt = now;
 
-  return { ok: true, income, partsIncome, minutes, profile };
+  return { ok: true, income, partsIncome, minutes, passive: Math.round(passive), harvest: Math.round(harvest), profile };
 }
 
 module.exports = { offCollect };

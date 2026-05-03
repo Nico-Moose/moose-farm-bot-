@@ -81,7 +81,21 @@ function getTopRaids(profiles, days = 14) {
 function getTopProfiles(profiles) {
   return profiles.map((p) => {
     ensureFarmShape(p);
-    return { nick: p.login || p.display_name || p.twitch_id, level: num(p.level, 0), farm_balance: num(p.farm_balance, 0), twitch_balance: num(p.twitch_balance, 0), upgrade_balance: num(p.upgrade_balance, 0), parts: num(p.parts, 0), total: num(p.farm_balance, 0) + num(p.twitch_balance, 0) + num(p.upgrade_balance, 0) };
+    const buildings = Object.entries(p.farm.buildings || {}).map(([key, level]) => {
+      const config = p.configs.buildings?.[key] || {};
+      const lvl = num(level, 0);
+      return {
+        key,
+        name: config.name || key,
+        level: lvl,
+        coinsPerHour: num(config.coinsPerHour, 0) * lvl + num(config.coinsPerLevel, 0) * lvl,
+        partsBase: key === 'завод' ? num(config.baseProduction, 0) + num(config.perLevel, 0) * Math.max(0, lvl - 1) : 0,
+        bonusCoins: key === 'завод' ? lvl * 2000 : key === 'фабрика' ? lvl * 4000 : 0,
+        protection: key === 'укрепления' ? num(config.baseProduction, 0) + num(config.perLevel, 0) * Math.max(0, lvl - 1) : 0,
+        weapon: key === 'кузница' ? num(config.baseProduction, 0) + num(config.perLevel, 0) * Math.max(0, lvl - 1) : 0
+      };
+    }).filter((b) => b.level > 0);
+    return { nick: p.login || p.display_name || p.twitch_id, level: num(p.level, 0), farm_balance: num(p.farm_balance, 0), twitch_balance: num(p.twitch_balance, 0), upgrade_balance: num(p.upgrade_balance, 0), parts: num(p.parts, 0), total: num(p.farm_balance, 0) + num(p.twitch_balance, 0) + num(p.upgrade_balance, 0), buildings };
   }).sort((a, b) => b.total - a.total).slice(0, 50);
 }
 
