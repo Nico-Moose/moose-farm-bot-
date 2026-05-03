@@ -5357,3 +5357,276 @@ document.addEventListener('DOMContentLoaded', () => {
     bindFinalFarmUpgradeButton('upgrade10Btn', 10);
   };
 })();
+
+/* ===========================================================================
+   PATCH: live buildings refresh + clean buildings cards
+   =========================================================================== */
+(function(){
+  const buildingLiveLocks = new Set();
+
+  function mergeActionState(data) {
+    const prev = state || {};
+    const next = data || {};
+    return {
+      ...prev,
+      ...next,
+      user: next.user || prev.user || null,
+      streamStatus: next.streamStatus || prev.streamStatus || {},
+      streamOnline: Object.prototype.hasOwnProperty.call(next, 'streamOnline') ? next.streamOnline : prev.streamOnline,
+      harvestManagedByWizebot: Object.prototype.hasOwnProperty.call(next, 'harvestManagedByWizebot') ? next.harvestManagedByWizebot : prev.harvestManagedByWizebot
+    };
+  }
+
+  function applyActionState(data) {
+    if (!data || !data.profile) return false;
+    const merged = mergeActionState(data);
+    state = merged;
+    try {
+      render(merged);
+      return true;
+    } catch (e) {
+      console.warn('[BUILDINGS LIVE APPLY]', e);
+      return false;
+    }
+  }
+
+  function buildingErrorText(data = {}) {
+    const labels = {
+      not_found: 'здание не найдено',
+      already_built: 'здание уже построено',
+      not_built: 'здание ещё не построено',
+      farm_level_too_low: `нужен ${data.requiredLevel || data.required || '?'} уровень фермы`,
+      not_enough_money: `не хватает монет: сейчас ${formatNumber(data.availableCoins || data.available || 0)} / нужно ${formatNumber(data.neededCoins || data.needed || data.cost || 0)}`,
+      not_enough_parts: `не хватает запчастей: сейчас ${formatNumber(data.availableParts || data.partsAvailable || 0)} / нужно ${formatNumber(data.neededParts || data.partsNeeded || data.parts || 0)}`,
+      max_level: 'достигнут максимум уровня',
+      action_in_progress: 'действие уже выполняется',
+      stale_profile: 'профиль уже обновился'
+    };
+    return labels[data.error] || labels[data.stopReason] || data.message || data.error || data.stopReason || 'ошибка';
+  }
+
+  async function runBuildingBuyLive(key) {
+    let data = await postJson('/api/farm/building/buy', { key });
+
+    if (data?.error === 'stale_profile') {
+      applyActionState(data);
+      data = await postJson('/api/farm/building/buy', { key });
+    }
+
+    if (data?.error === 'action_in_progress' || (data?.httpStatus === 409 && data?.error !== 'stale_profile')) {
+      applyActionState(data);
+      showMessage('⏳ Действие уже выполняется. Данные обновлены.');
+      setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
+      return;
+    }
+
+    if (!data?.ok) {
+      applyActionState(data);
+      showMessage(`❌ Здание не куплено: ${buildingErrorText(data)}`);
+      setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
+      return;
+    }
+
+    applyActionState(data);
+    showMessage(`✅ Куплено: ${data.name || data.building || key}. Потрачено: ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
+    setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
+  }
+
+  async function runBuildingUpgradeLive(key, count) {
+    let data = await postJson('/api/farm/building/upgrade', { key, count });
+
+    if (data?.error === 'stale_profile') {
+      applyActionState(data);
+      data = await postJson('/api/farm/building/upgrade', { key, count });
+    }
+
+    if (data?.error === 'action_in_progress' || (data?.httpStatus === 409 && data?.error !== 'stale_profile')) {
+      applyActionState(data);
+      showMessage('⏳ Действие уже выполняется. Данные обновлены.');
+      setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
+      return;
+    }
+
+    if (!data?.ok) {
+      applyActionState(data);
+      showMessage(`❌ Здание не улучшено: ${buildingErrorText(data)}`);
+      setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
+      return;
+    }
+
+    applyActionState(data);
+    showMessage(`⬆️ ${data.name || data.building || key}: +${formatNumber(data.upgraded || 0)} ур. Потрачено: ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
+    setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
+  }
+
+  async function withBuildingButtonLock(btn, lockKey, fn) {
+    if (buildingLiveLocks.has(lockKey)) {
+      showMessage('⏳ Действие уже выполняется. Подожди ответ сервера.');
+      return;
+    }
+
+    buildingLiveLocks.add(lockKey);
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('is-busy');
+      btn.innerHTML = '⏳ Выполняется...';
+    }
+
+    try {
+      await fn();
+    } finally {
+      buildingLiveLocks.delete(lockKey);
+      if (btn) {
+        btn.classList.remove('is-busy');
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+      }
+    }
+  }
+
+  buyBuilding = async function patchedBuyBuildingLive(key) {
+    return runBuildingBuyLive(key);
+  };
+
+  upgradeBuilding = async function patchedUpgradeBuildingLive(key, count) {
+    return runBuildingUpgradeLive(key, Number(count || 1));
+  };
+
+  function orderedBuildingKeys(config = {}) {
+    const preferred = ['завод', 'фабрика', 'кузница', 'шахта', 'укрепления', 'глушилка', 'центр'];
+    const keys = Object.keys(config || {});
+    return keys.sort((a, b) => {
+      const ia = preferred.indexOf(a);
+      const ib = preferred.indexOf(b);
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+      if (typeof buildingSortKey === 'function') return buildingSortKey(a) - buildingSortKey(b);
+      return String(a).localeCompare(String(b), 'ru');
+    });
+  }
+
+  function compactBuildingStatus(profile, conf, currentLevel, requiredLevel, maxed) {
+    const farmLevel = Number(profile?.level || 0);
+    if (requiredLevel && farmLevel < requiredLevel) return `нужен ${requiredLevel} ур. фермы`;
+    if (maxed) return 'максимум';
+    const cost = calcBuildingCost(conf, Number(currentLevel || 0) + 1);
+    const coins = currentCoins(profile);
+    const parts = Number(profile?.parts || 0);
+    const missing = [];
+    if (coins < cost.coins) missing.push(`${formatNumber(cost.coins - coins)}💰`);
+    if (parts < cost.parts) missing.push(`${formatNumber(cost.parts - parts)}🔧`);
+    return missing.length ? `не хватает ${missing.join(' / ')}` : 'можно улучшать';
+  }
+
+  function buildingEffectShort(key, conf, nextLevel) {
+    if (typeof shortBuildingEffect === 'function') return shortBuildingEffect(key, conf, nextLevel);
+    if (typeof buildingNextBenefit === 'function') return buildingNextBenefit(key, conf, nextLevel - 1, nextLevel);
+    return 'усилит здание';
+  }
+
+  function tenUpgradeLine(afford10 = {}, locked, maxed) {
+    if (locked || maxed) return '<span class="pack-muted">+10 недоступно</span>';
+    const count = Number(afford10.count || 0);
+    if (count <= 0) return '<span class="pack-muted">+10 недоступно</span>';
+    return `<span>+10: <b>${formatNumber(count)} ур.</b></span><span><b>${formatNumber(afford10.cost || 0)}💰 / ${formatNumber(afford10.parts || 0)}🔧</b></span>`;
+  }
+
+  renderBuildings = function patchedRenderBuildingsLive(data) {
+    const el = document.getElementById('buildings');
+    if (!el) return;
+
+    const p = data.profile || {};
+    const buildingsConfig = p.configs?.buildings || {};
+    const owned = (p.farm && p.farm.buildings) || {};
+    const keys = orderedBuildingKeys(buildingsConfig);
+
+    if (!keys.length) {
+      el.innerHTML = '<p>Нет данных зданий. Сделай !синкферма.</p>';
+      return;
+    }
+
+    const resourceBar = `
+      <section class="quick-status buildings-quick-status buildings-resource-bar-live">
+        <div><b>Текущие ресурсы</b></div>
+        <div class="quick-status-grid compact-stats">
+          <span>💰 Голда: <b>${formatNumber(ordinaryCoins(p))}</b></span>
+          <span>🌾 Ферма: <b>${formatNumber(farmCoins(p))}</b></span>
+          <span>💎 Бонусные: <b>${formatNumber(bonusCoins(p))}</b></span>
+          <span>🔧 Запчасти: <b>${formatNumber(p.parts || 0)}</b></span>
+        </div>
+      </section>`;
+
+    el.innerHTML = `${resourceBar}<div class="buildings-grid-clean">${keys.map((key) => {
+      const conf = buildingsConfig[key] || {};
+      const lvl = Number(owned[key] || 0);
+      const isBuilt = lvl > 0;
+      const maxLevel = Number(conf.maxLevel || 0) || 0;
+      const farmLevel = Number(p.level || 0);
+      const requiredLevel = Number(conf.levelRequired || 0);
+      const levelLocked = requiredLevel > 0 && farmLevel < requiredLevel;
+      const nextLevel = lvl + 1;
+      const nextCost = calcBuildingCost(conf, nextLevel);
+      const maxed = isBuilt && maxLevel && lvl >= maxLevel;
+      const affordAll = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0));
+      const afford10 = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0), 10);
+      const status = compactBuildingStatus(p, conf, lvl, requiredLevel, maxed);
+      const ready = !levelLocked && !maxed && status === 'можно улучшать';
+      const cardState = maxed ? 'maxed' : levelLocked ? 'locked' : ready ? 'ready' : 'blocked';
+      const reqText = requiredLevel ? `${requiredLevel} ур. фермы` : 'нет';
+      const nextLabel = maxed ? 'MAX' : `${nextLevel} ур.`;
+      const effect = maxed ? 'здание уже на максимуме' : buildingEffectShort(key, conf, nextLevel);
+
+      return `
+        <div class="building-card building-card-v3 ${cardState}">
+          <div class="building-head-v3">
+            <h3>${escapeHtml(conf.name || key)}</h3>
+            <span class="building-level-pill">${isBuilt ? `ур. ${formatNumber(lvl)}${maxLevel ? '/' + formatNumber(maxLevel) : ''}` : 'не построено'}</span>
+          </div>
+
+          <div class="building-summary-v3">
+            <div><span>Требование</span><b>${reqText}</b></div>
+            <div><span>Статус</span><b>${status}</b></div>
+          </div>
+
+          <div class="building-main-v3">
+            <div><span>След. ур.</span><b>${nextLabel}</b></div>
+            <div><span>Цена</span><b>${formatNumber(nextCost.coins)}💰</b><b>${formatNumber(nextCost.parts)}🔧</b></div>
+            <div><span>Хватит</span><b>${levelLocked || maxed ? '—' : `${formatNumber(affordAll.count)} ур.`}</b></div>
+          </div>
+
+          <div class="building-effect-v3">✨ ${effect}</div>
+          <div class="building-pack-v3">${tenUpgradeLine(afford10, levelLocked, maxed)}</div>
+
+          <div class="building-actions building-actions-v3">
+            ${!isBuilt
+              ? `<button type="button" data-building-buy="${key}" ${levelLocked ? 'disabled' : ''} title="${escapeHtml(status)}">🏗 Купить</button>`
+              : `<button type="button" data-building-upgrade="${key}" data-count="1" ${maxed || levelLocked ? 'disabled' : ''}>⬆️ Ап +1</button><button type="button" data-building-upgrade="${key}" data-count="10" ${maxed || levelLocked || afford10.count < 1 ? 'disabled' : ''}>🚀 Ап +10</button>`}
+          </div>
+        </div>`;
+    }).join('')}</div>`;
+
+    document.querySelectorAll('[data-building-buy]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-building-buy');
+        withBuildingButtonLock(btn, `building-buy:${key}`, () => runBuildingBuyLive(key));
+      });
+    });
+
+    document.querySelectorAll('[data-building-upgrade]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-building-upgrade');
+        const count = Number(btn.getAttribute('data-count') || 1);
+        withBuildingButtonLock(btn, `building-upgrade:${key}:${count}`, () => runBuildingUpgradeLive(key, count));
+      });
+    });
+  };
+
+  const prevRenderBuildingsLive = render;
+  render = function patchedRenderBuildingsAfterRender(data) {
+    const merged = mergeActionState(data);
+    prevRenderBuildingsLive(merged);
+    // prevRender already calls renderBuildings, but this guarantees the final clean version wins
+    // even if an older patch re-bound renderBuildings earlier in the file.
+    renderBuildings(merged);
+  };
+})();
