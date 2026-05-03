@@ -27,7 +27,33 @@ function getRanges(profile) {
   else if (mineLevel >= 50) { minMoney = 3000000; maxMoney = 4000000; minParts = 300000; maxParts = 350000; tierLevel = 9; }
   else if (mineLevel >= 25) { minMoney = 1500000; maxMoney = 3000000; minParts = 150000; maxParts = 300000; tierLevel = 8; }
 
-  return { minMoney, maxMoney, minParts, maxParts, tierLevel, mineLevel };
+  const effectiveMineLevel = Math.min(Math.max(0, mineLevel), 300);
+  const minePercentMultiplier = 1 + (effectiveMineLevel / 100);
+
+  const baseMinMoney = minMoney;
+  const baseMaxMoney = maxMoney;
+  const baseMinParts = minParts;
+  const baseMaxParts = maxParts;
+
+  minMoney = Math.floor(baseMinMoney * minePercentMultiplier);
+  maxMoney = Math.floor(baseMaxMoney * minePercentMultiplier);
+  minParts = Math.floor(baseMinParts * minePercentMultiplier);
+  maxParts = Math.floor(baseMaxParts * minePercentMultiplier);
+
+  return {
+    minMoney,
+    maxMoney,
+    minParts,
+    maxParts,
+    baseMinMoney,
+    baseMaxMoney,
+    baseMinParts,
+    baseMaxParts,
+    tierLevel,
+    mineLevel,
+    effectiveMineLevel,
+    minePercentMultiplier
+  };
 }
 
 function getGamusStatus(profile, now = Date.now()) {
@@ -46,12 +72,34 @@ function claimGamus(profile, now = Date.now()) {
   const status = getGamusStatus(profile, now);
   if (!status.available) return { ok: false, error: 'cooldown', remainingMs: status.remainingMs, profile };
   const r = status.ranges;
-  const money = randInt(r.minMoney, r.maxMoney);
-  const parts = randInt(r.minParts, r.maxParts);
+
+  const baseMoney = randInt(r.baseMinMoney || r.minMoney, r.baseMaxMoney || r.maxMoney);
+  const baseParts = randInt(r.baseMinParts || r.minParts, r.baseMaxParts || r.maxParts);
+  const multiplier = Number(r.minePercentMultiplier || 1);
+
+  const money = Math.floor(baseMoney * multiplier);
+  const parts = Math.floor(baseParts * multiplier);
+  const mineBonusMoney = Math.max(0, money - baseMoney);
+  const mineBonusParts = Math.max(0, parts - baseParts);
+
   profile.upgrade_balance = num(profile.upgrade_balance, 0) + money;
   addParts(profile, parts);
   profile.farm.lastGamusAt = now;
-  return { ok: true, money, parts, tierLevel: r.tierLevel, nextReset: status.nextReset, profile };
+
+  return {
+    ok: true,
+    money,
+    parts,
+    baseMoney,
+    baseParts,
+    mineBonusMoney,
+    mineBonusParts,
+    mineLevel: r.mineLevel,
+    effectiveMineLevel: r.effectiveMineLevel,
+    tierLevel: r.tierLevel,
+    nextReset: status.nextReset,
+    profile
+  };
 }
 
 module.exports = { nextMoscowSix, getGamusStatus, claimGamus };

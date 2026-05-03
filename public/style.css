@@ -1311,3 +1311,44 @@ body {
   border-color: rgba(255,203,58,.95);
   box-shadow: 0 0 28px rgba(255,203,58,.35), inset 0 1px 0 rgba(255,255,255,.14);
 }
+
+
+/* === HOTFIX: prettier +10 building note === */
+.pack10-note {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  line-height: 1.25;
+}
+.pack10-note > div:not(.pack10-stop) {
+  display: grid;
+  grid-template-columns: minmax(130px, .8fr) 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(0,0,0,.12);
+}
+.pack10-note span {
+  color: rgba(255,255,255,.72);
+  font-size: 13px;
+}
+.pack10-note b {
+  color: #f4fff1;
+  font-size: 17px;
+}
+.pack10-stop {
+  padding: 8px 10px;
+  border-radius: 12px;
+  color: #ffd27a;
+  background: rgba(255,190,60,.08);
+  border: 1px solid rgba(255,190,60,.16);
+}
+.result-mini-grid {
+  align-items: stretch;
+}
+@media (max-width: 620px) {
+  .pack10-note > div:not(.pack10-stop) {
+    grid-template-columns: 1fr;
+  }
+}
