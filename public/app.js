@@ -4161,3 +4161,209 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(bootAdminViewPatch, 1500);
 });
 setInterval(bootAdminViewPatch, 2500);
+
+
+/* ==========================================================================
+   ADMIN SINGLE WINDOW EDITOR FIX
+   - backup panel moved into its own admin tab
+   - profile preview becomes editable inside same admin window
+   - prevents second modal window over admin panel
+   ========================================================================== */
+
+function ensureAdminBackupTab() {
+  const modal = document.querySelector('#adminModal, .admin-modal, .admin-panel-modal, .admin-modal-polished');
+  if (!modal || modal.dataset.backupTabReady === '1') return;
+
+  const tabRow = modal.querySelector('.admin-tabs, .admin-tab-row, [data-admin-tabs]') || modal.querySelector('.admin-panel-tabs') || modal.querySelector('div:has(> button)');
+  const panelsParent = modal.querySelector('.admin-panels, .admin-body, .admin-content') || modal;
+
+  // Убираем плавающий внешний Backup / Restore, если он уже был создан
+  const floating = document.getElementById('backupPreviewPanel');
+  if (floating) floating.remove();
+
+  if (tabRow && !document.getElementById('admin-backup-tab-btn')) {
+    const btn = document.createElement('button');
+    btn.id = 'admin-backup-tab-btn';
+    btn.type = 'button';
+    btn.textContent = 'Backup';
+    btn.addEventListener('click', () => {
+      modal.querySelectorAll('[data-admin-panel]').forEach(p => p.classList.add('hidden'));
+      modal.querySelectorAll('.admin-tabs button, .admin-tab-row button, [data-admin-tabs] button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('admin-backup-panel')?.classList.remove('hidden');
+    });
+    tabRow.appendChild(btn);
+  }
+
+  if (!document.getElementById('admin-backup-panel')) {
+    const panel = document.createElement('div');
+    panel.id = 'admin-backup-panel';
+    panel.setAttribute('data-admin-panel', 'backup');
+    panel.className = 'admin-panel hidden';
+    panel.innerHTML = `
+      <div class="admin-card admin-backup-card-inline">
+        <h3>🧯 Backup / Restore</h3>
+        <p>Preview перед восстановлением. Выбери backup и блок восстановления.</p>
+        <div class="backup-controls inline">
+          <button id="backupLoadBtnInline" type="button">Показать backup’и игрока</button>
+          <select id="backupBlockSelectInline">
+            <option value="all">Всё</option>
+            <option value="balances">Балансы</option>
+            <option value="progression">Прогресс</option>
+            <option value="farm">Ферма</option>
+            <option value="buildings">Здания</option>
+            <option value="raids">Рейды</option>
+            <option value="cases">Кейсы</option>
+          </select>
+        </div>
+        <div id="backupListBoxInline" class="backup-list-box"></div>
+      </div>`;
+    panelsParent.appendChild(panel);
+
+    document.getElementById('backupLoadBtnInline')?.addEventListener('click', async () => {
+      const login = adminLoginValue?.();
+      if (!login) return setAdminStatus?.('Укажи игрока', true);
+      const data = await adminGet(`backups?login=${encodeURIComponent(login)}`);
+      const list = data.backups || [];
+      const box = document.getElementById('backupListBoxInline');
+      box.innerHTML = list.length ? list.map((b, i)=>`
+        <div class="backup-item">
+          <b>#${i+1} · ${new Date(b.createdAt || Date.now()).toLocaleString('ru-RU')}</b>
+          <small>${b.reason || 'backup'} · уровень ${b.level ?? '—'} · 🌾${stageFormat(b.farm_balance||0)} · 💎${stageFormat(b.upgrade_balance||0)} · 🔧${stageFormat(b.parts||0)}</small>
+          <details>
+            <summary>Preview</summary>
+            <pre class="backup-preview-json">${JSON.stringify(b, null, 2).slice(0, 3500)}</pre>
+          </details>
+          <button data-backup-restore-inline="${i}" type="button">Восстановить выбранный блок</button>
+        </div>`).join('') : '<p>Backup’ов нет.</p>';
+      box.querySelectorAll('[data-backup-restore-inline]').forEach(btn=>btn.addEventListener('click', async()=>{
+        const index = Number(btn.dataset.backupRestoreInline||0);
+        const block = document.getElementById('backupBlockSelectInline')?.value || 'all';
+        if (!confirm(`Восстановить backup #${index + 1}, блок: ${block}?`)) return;
+        await adminPost('restore-backup-index', { login, index, block });
+        setAdminStatus?.('Backup восстановлен');
+        await refreshAdminPlayer?.();
+      }));
+    });
+  }
+
+  modal.dataset.backupTabReady = '1';
+}
+
+function editableProfileField(label, field, value, suffix = '') {
+  return `
+    <label class="editable-profile-field">
+      <span>${label}</span>
+      <input data-profile-edit-field="${field}" type="number" value="${Number(value || 0)}" />
+      ${suffix ? `<em>${suffix}</em>` : ''}
+    </label>`;
+}
+
+async function saveEditableProfileField(field, value) {
+  const login = adminLoginValue?.();
+  if (!login) return setAdminStatus?.('Укажи игрока', true);
+  const data = await adminPost('player/set-field', { login, field, value });
+  setAdminStatus?.(`Поле ${field} обновлено`);
+  if (data.profile) renderAdminEditableProfile(data.profile);
+}
+
+function renderAdminEditableProfile(profile) {
+  const host = document.getElementById('admin-player-info');
+  if (!host || !profile) return;
+
+  const farm = profile.farm || {};
+  const resources = farm.resources || {};
+  const turret = profile.turret || {};
+  const buildings = farm.buildings || {};
+  const buildingList = Object.keys(buildings).filter(k => Number(buildings[k] || 0) > 0);
+
+  host.innerHTML = `
+    <div class="admin-edit-profile-card">
+      <div class="admin-edit-profile-head">
+        <div>
+          <h3>${profile.display_name || profile.twitch_login || profile.login}</h3>
+          <small>@${profile.login || profile.twitch_login}</small>
+        </div>
+        <button id="admin-refresh-profile-edit" type="button">↻ Обновить</button>
+      </div>
+
+      <div class="editable-profile-grid">
+        ${editableProfileField('🌾 Уровень', 'level', profile.level)}
+        ${editableProfileField('🌾 Ферма', 'farm_balance', profile.farm_balance)}
+        ${editableProfileField('💎 Бонусные', 'upgrade_balance', profile.upgrade_balance)}
+        ${editableProfileField('🔧 Запчасти', 'parts', profile.parts ?? resources.parts)}
+        ${editableProfileField('📜 Лицензия', 'license_level', profile.license_level)}
+        ${editableProfileField('⚔️ Рейд-сила', 'raid_power', profile.raid_power)}
+        ${editableProfileField('🛡 Защита', 'protection_level', profile.protection_level)}
+        ${editableProfileField('🔫 Турель ур.', 'turret_level', turret.level)}
+        ${editableProfileField('🎯 Турель шанс', 'turret_chance', turret.chance, '%')}
+      </div>
+
+      <div class="admin-edit-actions">
+        <button id="admin-save-all-visible-fields" type="button">💾 Сохранить все поля</button>
+      </div>
+
+      <div class="admin-edit-section">
+        <h4>🏗 Постройки</h4>
+        <div class="admin-edit-buildings">
+          ${buildingList.length ? buildingList.map(k => `<div><b>${k}</b><span>ур. ${stageFormat(buildings[k])}</span></div>`).join('') : '<p>Построек нет.</p>'}
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('admin-refresh-profile-edit')?.addEventListener('click', () => refreshAdminPlayer?.());
+
+  document.getElementById('admin-save-all-visible-fields')?.addEventListener('click', async () => {
+    const inputs = Array.from(document.querySelectorAll('[data-profile-edit-field]'));
+    for (const input of inputs) {
+      await saveEditableProfileField(input.dataset.profileEditField, input.value);
+    }
+    setAdminStatus?.('Все видимые поля сохранены');
+    await refreshAdminPlayer?.();
+  });
+
+  document.querySelectorAll('[data-profile-edit-field]').forEach((input) => {
+    input.addEventListener('change', async () => {
+      await saveEditableProfileField(input.dataset.profileEditField, input.value);
+    });
+  });
+}
+
+// Override old card renderer: now edit profile in the same admin window.
+renderAdminPlayer = function(profile) {
+  if (!profile) {
+    const host = document.getElementById('admin-player-info');
+    if (host) host.innerHTML = '';
+    return;
+  }
+  renderAdminEditableProfile(profile);
+};
+
+// Override view button: do not open second modal, scroll to editor.
+async function adminViewPlayerAsProfile() {
+  const login = adminLoginValue?.();
+  if (!login) return setAdminStatus?.('Укажи ник игрока', true);
+  const data = await adminGet(`player/${encodeURIComponent(login)}`);
+  renderAdminEditableProfile(data.profile || {});
+  document.getElementById('admin-player-info')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setAdminStatus?.('Профиль открыт в этом же окне. Поля можно редактировать.');
+}
+
+function removeFloatingBackupPanel() {
+  const floating = document.getElementById('backupPreviewPanel');
+  if (floating) floating.remove();
+}
+
+function bootSingleWindowAdminFix() {
+  removeFloatingBackupPanel();
+  ensureAdminBackupTab();
+  installAdminLoginClearButton?.();
+  installAdminViewButton?.();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  bootSingleWindowAdminFix();
+  setTimeout(bootSingleWindowAdminFix, 700);
+  setTimeout(bootSingleWindowAdminFix, 1800);
+});
+setInterval(bootSingleWindowAdminFix, 2500);

@@ -157,6 +157,68 @@ function logAdminEvent(db, twitchId, type, payload) {
   } catch (_) {}
 }
 
+
+// Admin: set one editable player field from profile preview
+router.post('/player/set-field', requireAdminApi, (req, res) => {
+  try {
+    const login = normalizeLogin(req.body.login);
+    const field = String(req.body.field || '').trim();
+    const valueRaw = req.body.value;
+
+    if (!login || !field) return res.status(400).json({ ok: false, error: 'missing_login_or_field' });
+
+    const allowed = new Set([
+      'level','farm_balance','upgrade_balance','parts','license_level','raid_power','protection_level',
+      'turret_level','turret_chance'
+    ]);
+
+    if (!allowed.has(field)) return res.status(400).json({ ok: false, error: 'field_not_allowed' });
+
+    const db = getDb();
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'profile_not_found' });
+
+    const farm = deepCloneSafe(profile.farm || {}, {});
+    farm.resources = farm.resources || {};
+    farm.buildings = farm.buildings || {};
+
+    createAdminBackup(db, profile, `set_field_${field}`);
+
+    const value = Number(valueRaw || 0);
+    if (!Number.isFinite(value)) return res.status(400).json({ ok: false, error: 'invalid_number' });
+
+    if (field === 'level') {
+      db.prepare(`UPDATE farm_profiles SET level=?, updated_at=? WHERE twitch_id=?`).run(Math.max(0, Math.floor(value)), Date.now(), profile.twitch_id);
+      farm.level = Math.max(0, Math.floor(value));
+    } else if (field === 'farm_balance') {
+      db.prepare(`UPDATE farm_profiles SET farm_balance=?, updated_at=? WHERE twitch_id=?`).run(value, Date.now(), profile.twitch_id);
+    } else if (field === 'upgrade_balance') {
+      db.prepare(`UPDATE farm_profiles SET upgrade_balance=?, updated_at=? WHERE twitch_id=?`).run(value, Date.now(), profile.twitch_id);
+    } else if (field === 'license_level') {
+      db.prepare(`UPDATE farm_profiles SET license_level=?, updated_at=? WHERE twitch_id=?`).run(Math.max(0, Math.floor(value)), Date.now(), profile.twitch_id);
+    } else if (field === 'raid_power') {
+      db.prepare(`UPDATE farm_profiles SET raid_power=?, updated_at=? WHERE twitch_id=?`).run(Math.max(0, Math.floor(value)), Date.now(), profile.twitch_id);
+    } else if (field === 'protection_level') {
+      db.prepare(`UPDATE farm_profiles SET protection_level=?, updated_at=? WHERE twitch_id=?`).run(Math.max(0, Math.floor(value)), Date.now(), profile.twitch_id);
+    } else if (field === 'parts') {
+      farm.resources.parts = value;
+      db.prepare(`UPDATE farm_profiles SET farm_json=?, updated_at=? WHERE twitch_id=?`).run(JSON.stringify(farm), Date.now(), profile.twitch_id);
+    } else if (field === 'turret_level' || field === 'turret_chance') {
+      const currentTurret = deepCloneSafe(profile.turret || {}, {});
+      if (field === 'turret_level') currentTurret.level = Math.max(0, Math.floor(value));
+      if (field === 'turret_chance') currentTurret.chance = Math.max(0, value);
+      db.prepare(`UPDATE farm_profiles SET turret_json=?, updated_at=? WHERE twitch_id=?`).run(JSON.stringify(currentTurret), Date.now(), profile.twitch_id);
+    }
+
+    logAdminAction(db, 'set_field', login, { field, value });
+    const updated = getProfileByLogin(db, login);
+    return res.json({ ok: true, profile: adminProfileView(updated) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+
 module.exports = function (db) {
   const router = express.Router();
 

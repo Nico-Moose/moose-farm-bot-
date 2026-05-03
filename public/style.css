@@ -1793,3 +1793,112 @@ body {
     flex-direction: column;
   }
 }
+
+
+/* ==========================================================================
+   ADMIN SINGLE WINDOW EDITOR FIX styles
+   ========================================================================== */
+#backupPreviewPanel {
+  display: none !important;
+}
+.admin-backup-card-inline {
+  margin-top: 14px;
+}
+.backup-controls.inline {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 12px;
+  align-items: center;
+}
+.admin-edit-profile-card {
+  margin-top: 12px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.admin-edit-profile-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.admin-edit-profile-head h3 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+.admin-edit-profile-head small {
+  color: rgba(255,255,255,.62);
+}
+.editable-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+.editable-profile-field {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(0,0,0,.16);
+  border: 1px solid rgba(255,255,255,.075);
+}
+.editable-profile-field span {
+  color: rgba(255,255,255,.72);
+  font-weight: 800;
+}
+.editable-profile-field input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.24);
+  color: #fff;
+  padding: 0 10px;
+  font-weight: 900;
+}
+.editable-profile-field em {
+  color: rgba(255,255,255,.62);
+  font-style: normal;
+}
+.admin-edit-actions {
+  margin-top: 14px;
+}
+.admin-edit-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.admin-edit-section h4 {
+  margin: 0 0 12px;
+}
+.admin-edit-buildings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.admin-edit-buildings > div {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(0,0,0,.14);
+  border: 1px solid rgba(255,255,255,.06);
+}
+.admin-edit-buildings b {
+  display: block;
+  margin-bottom: 5px;
+}
+.admin-edit-buildings span {
+  color: #9be070;
+  font-weight: 900;
+}
+@media (max-width: 720px) {
+  .backup-controls.inline,
+  .editable-profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-edit-profile-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
