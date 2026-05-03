@@ -1048,7 +1048,7 @@ async function adminPost(path, body) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok || data.ok === false) {
-      throw new Error(data.error || "Ошибка админ-действия");
+      throw new Error(data.error || data.message || `Ошибка админ-действия (${res.status})`);
     }
 
     setTimeout(refreshVisibleData, 60);
@@ -1508,7 +1508,7 @@ function bindExtendedAdminPanel() {
       if (!login) return;
       const data = await adminPost('sync-from-wizebot', { login });
       renderAdminPlayer(data.profile);
-      setAdminStatus(data.message);
+      setAdminStatus(data.message || `Игрок ${login} импортирован из WizeBot`);
       await loadMe();
     } catch (e) { setAdminStatus(e.message, true); }
   });

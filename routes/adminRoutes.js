@@ -2,7 +2,7 @@ const express = require("express");
 const { requireAdmin } = require("../middleware/requireAdmin");
 const { syncWizebotFarmToProfile } = require("../services/wizebotSyncService");
 const { syncProfileToWizebot } = require("../services/wizebotApiService");
-const { getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
+const { upsertTwitchUser, getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
 const { getStreamStatus, setSetting } = require("../services/streamStatusService");
 const { setMarketStock } = require("../services/farm/marketService");
 
@@ -291,10 +291,28 @@ module.exports = function (db) {
 
 
   async function syncPlayerFromWizebot(login, source = 'admin_sync_from_wizebot') {
-    const profile = getProfileByLogin(db, login);
-    if (!profile) return { ok: false, error: 'Игрок не найден' };
+    login = String(login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+    if (!login) return { ok: false, error: 'Укажи ник игрока' };
+
+    let profile = getProfileByLogin(db, login);
+
+    // ВАЖНО: импорт из WizeBot должен работать даже если игрок ещё не заходил на сайт.
+    // Создаём локальную карточку игрока с техническим twitch_id.
+    if (!profile) {
+      upsertTwitchUser({
+        id: `wizebot:${login}`,
+        login,
+        display_name: login,
+        profile_image_url: ''
+      });
+      profile = getProfileByLogin(db, login);
+    }
+
+    if (!profile) return { ok: false, error: 'Не удалось создать профиль игрока на сайте' };
+
     const result = await syncWizebotFarmToProfile({ login, profile, allowAnyLogin: true });
     if (!result.ok) return result;
+
     const updatedProfile = updateProfile({ ...profile, ...result.profile, twitch_id: profile.twitch_id });
     logAdminEvent(db, profile.twitch_id, source, { login, imported: result.imported || null });
     return { ok: true, profile: updatedProfile, imported: result.imported || null };
