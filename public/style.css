@@ -1902,3 +1902,86 @@ body {
     flex-direction: column;
   }
 }
+
+
+/* ==========================================================================
+   RAID HISTORY + MAX FARM BUTTONS PATCH styles
+   ========================================================================== */
+.raid-action-wrap {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.raid-action-wrap > .compact-action {
+  width: 100%;
+}
+.raid-history-small-btn {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  font-size: 13px;
+  background: rgba(255,255,255,.09);
+  color: #f5fff2;
+  border: 1px solid rgba(255,255,255,.12);
+}
+.raid-history-small-btn:not(:disabled):hover {
+  background: rgba(145,226,109,.24);
+}
+.raid-history-small-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.farm-max-disabled,
+.farm-max-disabled:hover,
+button.farm-max-disabled {
+  opacity: .48 !important;
+  filter: grayscale(.35) brightness(.82);
+  cursor: not-allowed !important;
+  background: rgba(142, 226, 109, .45) !important;
+  color: rgba(0,0,0,.72) !important;
+}
+.raid-history-modal-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 310px) 1fr;
+  gap: 16px;
+}
+.raid-history-sidebar {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  max-height: 58vh;
+  overflow: auto;
+}
+.raid-history-mini {
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #f5fff2;
+}
+.raid-history-mini b,
+.raid-history-mini span {
+  display: block;
+}
+.raid-history-mini span {
+  margin-top: 4px;
+  color: rgba(255,255,255,.68);
+  font-size: 13px;
+}
+.raid-history-mini.active {
+  border-color: rgba(151,232,105,.65);
+  background: rgba(151,232,105,.16);
+}
+.raid-history-detail {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .raid-history-modal-layout {
+    grid-template-columns: 1fr;
+  }
+  .raid-history-sidebar {
+    max-height: 220px;
+  }
+}
