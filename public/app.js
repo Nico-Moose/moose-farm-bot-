@@ -5051,3 +5051,105 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 })();
+
+
+/* ==========================================================================
+   HOTFIX: false stale_profile from async sync + instant farm upgrade retry
+   ========================================================================== */
+(function(){
+  const fastUpgradeLocks = new Set();
+
+  function canApplyPayload(data) {
+    return !!(data && data.profile && data.farmInfo && data.market && data.raidUpgrades && data.turret);
+  }
+
+  function applyPayloadSilently(data) {
+    if (!canApplyPayload(data)) return false;
+    state = data;
+    render(data);
+    return true;
+  }
+
+  async function postFarmUpgradeWithSoftRetry(count) {
+    let data = await postJson('/api/farm/upgrade', { count });
+
+    // Если получили stale_profile, сначала тихо применяем свежий state из ответа,
+    // затем один раз автоматически повторяем тот же ап с новым expectedUpdatedAt.
+    if (data?.error === 'stale_profile') {
+      applyPayloadSilently(data);
+      data = await postJson('/api/farm/upgrade', { count });
+    }
+
+    return data;
+  }
+
+  async function runFastFarmUpgrade(btn, count) {
+    const key = 'farm-upgrade:' + count;
+    if (fastUpgradeLocks.has(key)) {
+      showMessage('⏳ Улучшение уже выполняется. Подожди ответ сервера.');
+      return;
+    }
+
+    fastUpgradeLocks.add(key);
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('is-busy');
+      btn.innerHTML = '⏳ Выполняется...';
+    }
+
+    try {
+      const data = await postFarmUpgradeWithSoftRetry(count);
+
+      if (data?.error === 'action_in_progress' || (data?.httpStatus === 409 && data?.error !== 'stale_profile')) {
+        applyPayloadSilently(data);
+        showMessage('⏳ Действие уже выполняется. Данные обновлены.');
+        return;
+      }
+
+      if (!data?.ok) {
+        const applied = applyPayloadSilently(data);
+        showMessage(farmUpgradeErrorMessage(data));
+        if (!applied) await loadMe(true);
+        return;
+      }
+
+      if (!applyPayloadSilently(data)) {
+        await loadMe(true);
+      }
+
+      showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost || 0)}💰${data.totalParts ? ` / ${formatNumber(data.totalParts)}🔧` : ''}`);
+    } finally {
+      fastUpgradeLocks.delete(key);
+      if (btn) {
+        btn.classList.remove('is-busy');
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+      }
+    }
+  }
+
+  function rebindFarmUpgradeButton(id, count) {
+    const btn = document.getElementById(id);
+    if (!btn || btn.dataset.fastFarmUpgradeBound === '1') return;
+    const clone = btn.cloneNode(true);
+    clone.dataset.fastFarmUpgradeBound = '1';
+    btn.parentNode.replaceChild(clone, btn);
+    clone.addEventListener('click', () => runFastFarmUpgrade(clone, count));
+  }
+
+  const oldRenderForFastUpgrade = typeof render === 'function' ? render : null;
+  if (oldRenderForFastUpgrade && !window.__mooseFastFarmUpgradePatch) {
+    window.__mooseFastFarmUpgradePatch = true;
+    render = function patchedRenderForFastUpgrade(data) {
+      oldRenderForFastUpgrade(data);
+      rebindFarmUpgradeButton('upgrade1Btn', 1);
+      rebindFarmUpgradeButton('upgrade10Btn', 10);
+    };
+  }
+
+  setTimeout(function() {
+    rebindFarmUpgradeButton('upgrade1Btn', 1);
+    rebindFarmUpgradeButton('upgrade10Btn', 10);
+  }, 0);
+})();

@@ -163,11 +163,13 @@ function updateProfile(profile) {
 
 
 function markWizebotSyncAt(twitchId, timestamp = Date.now()) {
+  // Важный момент: фоновый sync в WizeBot не должен менять updated_at профиля.
+  // Иначе следующий клик на сайте ловит ложный stale_profile, хотя игровое состояние не менялось.
   getDb().prepare(`
     UPDATE farm_profiles
-    SET last_wizebot_sync_at = ?, updated_at = ?
+    SET last_wizebot_sync_at = ?
     WHERE twitch_id = ?
-  `).run(timestamp, timestamp, twitchId);
+  `).run(timestamp, twitchId);
 
   return getProfile(twitchId);
 }
