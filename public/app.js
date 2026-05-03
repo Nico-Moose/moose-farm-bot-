@@ -5358,226 +5358,276 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 })();
 
-/* ======================================================================
-   FINAL SAFE PATCH: buildings tab restored, top resources like main, 3-per-row
-   ====================================================================== */
+
+/* === BUILDINGS UI SAFE FIX === */
 (function(){
-  const BUILDING_ORDER_SAFE = ['завод','фабрика','шахта','кузница','укрепления','глушилка','центр'];
+  const BUILDING_ORDER = ['завод', 'фабрика', 'шахта', 'кузница', 'укрепления', 'глушилка', 'центр'];
 
-  function safeNum(v){ const n = Number(v); return Number.isFinite(n) ? n : 0; }
-  function safeProfile(data){ return data?.profile || state?.profile || {}; }
-  function safeConfigs(profile){ return profile?.configs?.buildings || {}; }
-  function safeOwned(profile){ return profile?.farm?.buildings || {}; }
-  function safeEscape(s){ return typeof escapeHtml === 'function' ? escapeHtml(String(s ?? '')) : String(s ?? '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-  function fmt(n){ return typeof formatNumber === 'function' ? formatNumber(n) : String(Math.round(safeNum(n))); }
-  function coins(profile){ return typeof currentCoins === 'function' ? currentCoins(profile) : safeNum(profile?.twitch_balance)+safeNum(profile?.farm_balance)+safeNum(profile?.upgrade_balance); }
-  function parts(profile){ return safeNum(profile?.parts); }
-  function ordinary(profile){ return typeof ordinaryCoins === 'function' ? ordinaryCoins(profile) : safeNum(profile?.twitch_balance); }
-  function farmBal(profile){ return typeof farmCoins === 'function' ? farmCoins(profile) : safeNum(profile?.farm_balance); }
-  function bonusBal(profile){ return typeof bonusCoins === 'function' ? bonusCoins(profile) : safeNum(profile?.upgrade_balance); }
-  function calcCostSafe(conf, level){
-    return typeof calcBuildingCost === 'function'
-      ? calcBuildingCost(conf, level)
-      : { coins: safeNum(conf?.baseCost) + Math.max(0, level - 1) * safeNum(conf?.costIncreasePerLevel), parts: safeNum(conf?.partsBase) + Math.max(0, level - 1) * safeNum(conf?.partsPerLevel) };
-  }
-  function affordableSafe(conf, lvl, profile, maxCount){
-    if (typeof calcAffordableLevelsDetailed === 'function') return calcAffordableLevelsDetailed(conf, lvl, coins(profile), parts(profile), maxCount);
-    let count = 0, totalCoins = 0, totalParts = 0, c = coins(profile), p = parts(profile);
-    const maxLevel = safeNum(conf?.maxLevel) || 100000;
-    for (let step = 1; step <= (maxCount || 999); step++) {
-      const next = lvl + step;
-      if (next > maxLevel) break;
-      const cost = calcCostSafe(conf, next);
-      if (c < cost.coins || p < cost.parts) break;
-      c -= cost.coins; p -= cost.parts; totalCoins += cost.coins; totalParts += cost.parts; count++;
-    }
-    return { count, totalCoins, totalParts };
-  }
-  function reqText(key, conf, profile, nextLevel){
-    const farmLevel = safeNum(profile?.level);
-    const owned = safeOwned(profile);
-    const zavod = safeNum(owned['завод']);
-    const factory = safeNum(owned['фабрика']);
-    const levelRequired = safeNum(conf?.levelRequired);
-    if (levelRequired > 0 && farmLevel < levelRequired) return `${levelRequired} ур. фермы`;
-    if (key === 'фабрика' && nextLevel > 5 && zavod < 10) return 'завод 10 ур.';
-    if (key === 'шахта') {
-      if (nextLevel <= 25 && (zavod < 50 || factory < 50)) return 'завод 50 ур. + фабрика 50 ур.';
-      if (nextLevel <= 50 && (zavod < 100 || factory < 100)) return 'завод 100 ур. + фабрика 100 ур.';
-      if (nextLevel <= 75 && (zavod < 125 || factory < 125)) return 'завод 125 ур. + фабрика 125 ур.';
-      if (nextLevel <= 100 && (zavod < 200 || factory < 200)) return 'завод 200 ур. + фабрика 200 ур.';
-      if (nextLevel >= 200 && (zavod < 300 || factory < 300)) return 'завод 300 ур. + фабрика 300 ур.';
-    }
-    return levelRequired > 0 ? `${levelRequired} ур. фермы` : 'нет';
-  }
-  function isBlocked(key, conf, profile, lvl){
-    const nextLevel = lvl + 1;
-    const maxLevel = safeNum(conf?.maxLevel);
-    const levelRequired = safeNum(conf?.levelRequired);
-    const farmLevel = safeNum(profile?.level);
-    if (maxLevel && lvl >= maxLevel) return { blocked: true, reason: 'максимум' };
-    if (levelRequired > 0 && farmLevel < levelRequired) return { blocked: true, reason: `нужен ${levelRequired} ур. фермы` };
-    const req = reqText(key, conf, profile, nextLevel);
-    if (req !== (levelRequired > 0 ? `${levelRequired} ур. фермы` : 'нет') && req !== 'нет') return { blocked: true, reason: req };
-    const cost = calcCostSafe(conf, nextLevel);
-    const missingCoins = Math.max(0, cost.coins - coins(profile));
-    const missingParts = Math.max(0, cost.parts - parts(profile));
-    if (missingCoins > 0 || missingParts > 0) {
-      const bits = [];
-      if (missingCoins > 0) bits.push(`${fmt(missingCoins)}💰`);
-      if (missingParts > 0) bits.push(`${fmt(missingParts)}🔧`);
-      return { blocked: true, reason: `не хватает ${bits.join(' / ')}` };
-    }
-    return { blocked: false, reason: 'можно улучшать' };
-  }
-  function buildingMetrics(profile, key, lvl){
-    const configs = safeConfigs(profile);
-    const zavodConf = configs['завод'] || {};
-    const fabConf = configs['фабрика'] || {};
-    const mineConf = configs['шахта'] || {};
-    const forgeConf = configs['кузница'] || {};
-    const wallConf = configs['укрепления'] || {};
-    const baseParts = lvl > 0 && key === 'завод' ? safeNum(zavodConf.baseProduction) + safeNum(zavodConf.perLevel) * Math.max(0, lvl - 1) : 0;
-    const factoryLvl = safeNum(safeOwned(profile)['фабрика']);
-    const factoryPercent = factoryLvl > 0 ? safeNum(fabConf.baseProduction) + safeNum(fabConf.perLevel) * Math.max(0, factoryLvl - 1) : 0;
-    const mineLvl = safeNum(safeOwned(profile)['шахта']);
-    const minePercent = mineLvl > 0 ? mineLvl : 0;
-    const forgeValue = safeNum(forgeConf.baseProduction) + safeNum(forgeConf.perLevel) * Math.max(0, safeNum(safeOwned(profile)['кузница']) - 1);
-    const wallValue = safeNum(wallConf.baseProduction) + safeNum(wallConf.perLevel) * Math.max(0, safeNum(safeOwned(profile)['укрепления']) - 1);
-    return { baseParts, factoryPercent, minePercent, forgeValue, wallValue };
-  }
-  function descriptionFor(profile, key, conf, lvl){
-    const owned = safeOwned(profile);
-    const level = safeNum(lvl);
-    const currentLevel = level > 0 ? level : 1;
-    const value = safeNum(conf?.baseProduction) + safeNum(conf?.perLevel) * Math.max(0, currentLevel - 1);
-    const m = buildingMetrics(profile, key, safeNum(owned['завод']));
-    if (key === 'завод') return `✨ производит запчасти: <b>+${fmt(value)}🔧/ч</b>.`;
-    if (key === 'фабрика') {
-      const percent = value;
-      const extra = Math.round(m.baseParts * percent / 100);
-      return `✨ усиливает производство завода на <b>${fmt(percent)}%</b>. Сейчас это примерно <b>+${fmt(extra)}🔧/ч</b> от завода.`;
-    }
-    if (key === 'шахта') return `✨ усиливает бонусные монеты и запчасти на <b>${fmt(currentLevel)}%</b> за уровень.`;
-    if (key === 'кузница') return `✨ усиливает оружие и рейды на <b>${fmt(value)}</b>. Сейчас даёт около <b>${fmt(m.forgeValue)}</b> к оружию.`;
-    if (key === 'укрепления') return `✨ усиливает щит и защиту на <b>${fmt(value)}</b>. Сейчас даёт около <b>${fmt(m.wallValue)}</b> к щиту.`;
-    if (key === 'глушилка') return `✨ снижает шанс турели цели на <b>${fmt(currentLevel * 5)}%</b>.`;
-    if (key === 'центр') return `✨ снижает кд рейда на <b>${fmt(Math.min(currentLevel * 5, 45))} мин.</b>`;
-    return `✨ ${safeEscape(conf?.name || key)} усиливает ферму.`;
-  }
-  function nextDescriptionFor(profile, key, conf, lvl){
-    const next = safeNum(lvl) + 1;
-    const confClone = conf || {};
-    if (key === 'фабрика') {
-      const zavodLvl = safeNum(safeOwned(profile)['завод']);
-      const zavodConf = safeConfigs(profile)['завод'] || {};
-      const zavodParts = zavodLvl > 0 ? safeNum(zavodConf.baseProduction) + safeNum(zavodConf.perLevel) * Math.max(0, zavodLvl - 1) : 0;
-      const nextPercent = safeNum(confClone.baseProduction) + safeNum(confClone.perLevel) * Math.max(0, next - 1);
-      const extra = Math.round(zavodParts * nextPercent / 100);
-      return `следующий уровень даст <b>${fmt(nextPercent)}%</b> и примерно <b>+${fmt(extra)}🔧/ч</b>`;
-    }
-    if (key === 'завод') {
-      const nextValue = safeNum(confClone.baseProduction) + safeNum(confClone.perLevel) * Math.max(0, next - 1);
-      return `следующий уровень даст <b>+${fmt(nextValue)}🔧/ч</b>`;
-    }
-    if (key === 'шахта') return `следующий уровень даст <b>${fmt(next)}%</b> к бонусным и запчастям`;
-    if (key === 'кузница') {
-      const nextValue = safeNum(confClone.baseProduction) + safeNum(confClone.perLevel) * Math.max(0, next - 1);
-      return `следующий уровень даст <b>${fmt(nextValue)}</b> к оружию/рейдам`;
-    }
-    if (key === 'укрепления') {
-      const nextValue = safeNum(confClone.baseProduction) + safeNum(confClone.perLevel) * Math.max(0, next - 1);
-      return `следующий уровень даст <b>${fmt(nextValue)}</b> к щиту/защите`;
-    }
-    if (key === 'глушилка') return `следующий уровень даст <b>${fmt(next * 5)}%</b> снижения турели`;
-    if (key === 'центр') return `следующий уровень даст <b>${fmt(Math.min(next * 5, 45))} мин.</b> снижения кд`;
-    return 'следующий уровень усилит здание';
+  function byOrder(a, b) {
+    const ai = BUILDING_ORDER.indexOf(String(a || '').toLowerCase());
+    const bi = BUILDING_ORDER.indexOf(String(b || '').toLowerCase());
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   }
 
-  async function runBuildingAction(btn, fn){
-    const lock = typeof withButtonLock === 'function';
-    if (lock) return withButtonLock(btn, btn.dataset.lockKey || btn.dataset.buildingAction || 'building-action', fn);
-    btn.disabled = true;
-    try { await fn(); } finally { btn.disabled = false; }
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>\"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   }
 
-  renderBuildings = function renderBuildingsFinalSafe(data) {
-    const el = document.getElementById('buildings');
+  function fmt(v) {
+    try { return formatNumber(v || 0); } catch (_) { return String(v || 0); }
+  }
+
+  function getBuildingsHost() {
+    return document.getElementById('buildings');
+  }
+
+  function getBuildingsResourcesHost() {
+    let el = document.getElementById('buildingsResourcesSection');
+    if (el) return el;
+    const panel = document.querySelector('.farm-tab-panel[data-farm-panel="buildings"]');
+    if (!panel) return null;
+    el = document.createElement('section');
+    el.id = 'buildingsResourcesSection';
+    el.className = 'quick-status buildings-resources-section';
+    panel.insertBefore(el, panel.firstChild);
+    return el;
+  }
+
+  function buildingCostSafe(conf, level) {
+    if (typeof calcBuildingCost === 'function') return calcBuildingCost(conf, level);
+    const lvl = Math.max(1, Number(level || 1));
+    return {
+      coins: Number(conf.baseCost || 0) + Math.max(0, lvl - 1) * Number(conf.costIncreasePerLevel || 0),
+      parts: Number(conf.partsBase || 0) + Math.max(0, lvl - 1) * Number(conf.partsPerLevel || 0)
+    };
+  }
+
+  function affordableDetailedSafe(conf, lvl, coins, parts, maxCount) {
+    if (typeof calcAffordableLevelsDetailed === 'function') return calcAffordableLevelsDetailed(conf, lvl, coins, parts, maxCount);
+    let totalCost = 0, totalParts = 0, count = 0;
+    const max = Number(maxCount || 999);
+    for (let i = 1; i <= max; i += 1) {
+      const cost = buildingCostSafe(conf, Number(lvl || 0) + i);
+      if (totalCost + cost.coins > Number(coins || 0) || totalParts + cost.parts > Number(parts || 0)) break;
+      totalCost += cost.coins;
+      totalParts += cost.parts;
+      count += 1;
+    }
+    return { count, cost: totalCost, parts: totalParts };
+  }
+
+  function buildingTitle(key, conf) {
+    return conf.name || {
+      'завод': '🏭 Завод запчастей',
+      'фабрика': '🏭 Фабрика',
+      'шахта': '⛏ Шахта',
+      'кузница': '⚒ Кузница',
+      'укрепления': '🛡 Укреп',
+      'глушилка': '📡 Глушилка',
+      'центр': '🏢 Центр рейдов'
+    }[key] || key;
+  }
+
+  function effectLines(profile, key, conf, lvl) {
+    const level = Number(lvl || 0);
+    const nextLevel = level + 1;
+    const base = Number(conf.baseProduction || 0);
+    const per = Number(conf.perLevel || 0);
+    const currentProd = base + Math.max(0, level - 1) * per;
+    const nextProd = base + Math.max(0, nextLevel - 1) * per;
+    const zavodLevel = Number(profile?.farm?.buildings?.['завод'] || 0);
+    const zavodBasePerHour = (() => {
+      const zconf = profile?.configs?.buildings?.['завод'] || {};
+      return Number(zconf.baseProduction || 25) + Math.max(0, zavodLevel - 1) * Number(zconf.perLevel || 25);
+    })();
+    const factoryPercent = level * 10;
+    const nextFactoryPercent = nextLevel * 10;
+    const factoryBoostNow = Math.floor(zavodBasePerHour * (factoryPercent / 100));
+    const factoryBoostNext = Math.floor(zavodBasePerHour * (nextFactoryPercent / 100));
+    const shieldNow = currentProd;
+    const shieldNext = nextProd;
+    const keyLc = String(key || '').toLowerCase();
+
+    if (keyLc === 'завод') {
+      return [
+        `✨ производит запчасти: <b>+${fmt(currentProd)}🔧/ч</b>`,
+        `✨ следующий уровень даст: <b>+${fmt(nextProd)}🔧/ч</b>`
+      ];
+    }
+    if (keyLc === 'фабрика') {
+      return [
+        `✨ усиливает производство завода на <b>${fmt(factoryPercent)}%</b>. Сейчас примерно <b>+${fmt(factoryBoostNow)}🔧/ч</b>`,
+        `✨ следующий уровень даст <b>${fmt(nextFactoryPercent)}%</b>. Будет примерно <b>+${fmt(factoryBoostNext)}🔧/ч</b>`
+      ];
+    }
+    if (keyLc === 'шахта') {
+      return [
+        `✨ усиливает бонусные монеты и запчасти на <b>${fmt(level)}%</b> за уровень`,
+        `✨ следующий уровень даст <b>${fmt(nextLevel)}%</b> бонусным и запчастям`
+      ];
+    }
+    if (keyLc === 'кузница') {
+      return [
+        `✨ усиливает оружие и рейды на <b>${fmt(currentProd)}%</b>`,
+        `✨ следующий уровень даст <b>${fmt(nextProd)}%</b> к оружию и рейдам`
+      ];
+    }
+    if (keyLc === 'укрепления') {
+      return [
+        `✨ усиливает щит и защиту: <b>+${fmt(shieldNow)}</b>`,
+        `✨ следующий уровень даст щит и защиту: <b>+${fmt(shieldNext)}</b>`
+      ];
+    }
+    if (keyLc === 'глушилка') {
+      return [
+        `✨ снижает шанс турели цели на <b>${fmt(level * 5)}%</b>`,
+        `✨ следующий уровень снизит шанс турели на <b>${fmt(nextLevel * 5)}%</b>`
+      ];
+    }
+    if (keyLc === 'центр') {
+      const nowCd = Math.min(level * 5, 45);
+      const nextCd = Math.min(nextLevel * 5, 45);
+      return [
+        `✨ снижает кд рейда на <b>${fmt(nowCd)} мин.</b>`,
+        `✨ следующий уровень снизит кд рейда на <b>${fmt(nextCd)} мин.</b>`
+      ];
+    }
+    return [esc(conf.description || '✨ улучшает ферму')];
+  }
+
+  function renderBuildingsResources(data) {
+    const host = getBuildingsResourcesHost();
+    if (!host) return;
+    const p = data?.profile || state?.profile || {};
+    const next = data?.nextUpgrade || state?.nextUpgrade || null;
+    let upgradeText = '✅ Ферма уже на максимальном уровне';
+    if (next) {
+      const st = typeof resourceStatus === 'function' ? resourceStatus(p, next.cost, next.parts) : { coinsOk: true, partsOk: true, missingCoins: 0, missingParts: 0 };
+      const possible = (st.coinsOk && st.partsOk)
+        ? 'Ресурсов хватает для следующего уровня.'
+        : `Не хватает: ${st.missingCoins ? fmt(st.missingCoins) + '💰 ' : ''}${st.missingParts ? fmt(st.missingParts) + '🔧' : ''}`.trim();
+      upgradeText = `⬆️ Следующий ап: ${fmt(next.cost)}💰${next.parts ? ' / ' + fmt(next.parts) + '🔧' : ''}. ${possible}`;
+    }
+    host.innerHTML = `
+      <div><b>Текущие ресурсы</b></div>
+      <div class="quick-status-grid compact-stats">
+        <span>💰 Голда: <b>${fmt(typeof ordinaryCoins === 'function' ? ordinaryCoins(p) : currentCoins(p))}</b></span>
+        <span>🌾 Ферма: <b>${fmt(typeof farmCoins === 'function' ? farmCoins(p) : Number(p.farm_balance || 0))}</b></span>
+        <span>💎 Бонусные: <b>${fmt(typeof bonusCoins === 'function' ? bonusCoins(p) : Number(p.upgrade_balance || 0))}</b></span>
+        <span>🔧 Запчасти: <b>${fmt(Number(p.parts || 0))}</b></span>
+      </div>
+      <div class="quick-status-upgrade">${upgradeText}</div>`;
+  }
+
+  renderBuildings = function renderBuildings(data) {
+    const el = getBuildingsHost();
     if (!el) return;
-    const profile = safeProfile(data);
-    const configs = safeConfigs(profile);
-    const owned = safeOwned(profile);
-    const keys = BUILDING_ORDER_SAFE.filter((key) => configs[key]).concat(Object.keys(configs).filter((key) => !BUILDING_ORDER_SAFE.includes(key)));
+    const p = data?.profile || {};
+    const buildingsConfig = p?.configs?.buildings || {};
+    const owned = p?.farm?.buildings || {};
+    renderBuildingsResources(data);
+
+    const keys = Object.keys(buildingsConfig).sort(byOrder);
     if (!keys.length) {
       el.innerHTML = '<p>Нет данных зданий. Сделай !синкферма.</p>';
       return;
     }
 
-    const next = data?.nextUpgrade || state?.nextUpgrade || null;
-    const upgradeText = next
-      ? `⬆️ Следующий ап: <b>${fmt(next.cost)}💰 / ${fmt(next.parts || 0)}🔧</b>. ${Math.max(0, coins(profile) - safeNum(next.cost)) >= 0 && Math.max(0, parts(profile) - safeNum(next.parts)) >= 0 ? 'Ресурсов хватает для следующего уровня.' : 'Проверь баланс перед апом.'}`
-      : '✅ Ферма уже на максимальном уровне';
+    el.classList.add('buildings-grid-fixed');
+    el.innerHTML = keys.map((key) => {
+      const conf = buildingsConfig[key] || {};
+      const lvl = Number(owned[key] || 0);
+      const isBuilt = lvl > 0;
+      const farmLevel = Number(p.level || 0);
+      const requiredLevel = Number(conf.levelRequired || 0);
+      const levelLocked = requiredLevel > 0 && farmLevel < requiredLevel;
+      const maxLevel = Number(conf.maxLevel || 0);
+      const maxed = isBuilt && maxLevel > 0 && lvl >= maxLevel;
+      const nextLevel = lvl + 1;
+      const nextCost = buildingCostSafe(conf, nextLevel);
+      const affordable = affordableDetailedSafe(conf, lvl, currentCoins(p), Number(p.parts || 0), 999);
+      const afford10 = affordableDetailedSafe(conf, lvl, currentCoins(p), Number(p.parts || 0), 10);
+      const status = maxed ? 'максимум' : levelLocked ? `нужен ${requiredLevel} ур. фермы` : 'можно улучшать';
+      const effect = effectLines(p, key, conf, Math.max(1, lvl || 1));
+      const title = buildingTitle(key, conf);
+      return `
+        <div class="building-card building-card-clean ${levelLocked ? 'locked-building' : ''}">
+          <div class="building-title-row building-title-row-clean">
+            <h3>${title}</h3>
+            <span class="building-badge">${isBuilt ? 'ур. ' + fmt(lvl) + (maxLevel ? '/' + fmt(maxLevel) : '') : 'не построено'}</span>
+          </div>
+          <div class="building-meta-grid">
+            <div class="building-meta-item"><span>Требование</span><b>${requiredLevel ? fmt(requiredLevel) + ' ур. фермы' : 'нет'}</b></div>
+            <div class="building-meta-item"><span>Статус</span><b>${status}</b></div>
+            <div class="building-meta-item"><span>След. ур.</span><b>${maxed ? 'MAX' : fmt(nextLevel) + ' ур.'}</b></div>
+            <div class="building-meta-item"><span>Цена</span><b>${fmt(nextCost.coins)}💰 / ${fmt(nextCost.parts)}🔧</b></div>
+          </div>
+          <div class="building-effects-list">${effect.map((line) => `<div class="building-effect-line">${line}</div>`).join('')}</div>
+          ${isBuilt && !maxed ? `<div class="building-pack-note">+10 доступно: <b>${fmt(afford10.count)} ур.</b></div>` : ''}
+          <div class="building-actions building-actions-clean">
+            ${!isBuilt
+              ? `<button type="button" data-building-buy="${key}" ${levelLocked ? 'disabled' : ''}>🏗 Купить</button>`
+              : `<button type="button" data-building-upgrade="${key}" data-count="1" ${levelLocked || maxed ? 'disabled' : ''}>⬆️ Ап +1</button>
+                 <button type="button" data-building-upgrade="${key}" data-count="10" ${levelLocked || maxed || afford10.count < 1 ? 'disabled' : ''}>🚀 Ап +10</button>`}
+          </div>
+        </div>`;
+    }).join('');
 
-    el.innerHTML = `
-      <section class="quick-status buildings-top-status">
-        <div><b>Текущие ресурсы</b></div>
-        <div class="quick-status-grid buildings-top-grid">
-          <span>💰 Голда: <b>${fmt(ordinary(profile))}</b></span>
-          <span>🌾 Ферма: <b>${fmt(farmBal(profile))}</b></span>
-          <span>💎 Бонусные: <b>${fmt(bonusBal(profile))}</b></span>
-          <span>🔧 Запчасти: <b>${fmt(parts(profile))}</b></span>
-        </div>
-        <div class="quick-status-upgrade">${upgradeText}</div>
-      </section>
-      <div class="buildings-grid-fixed">${keys.map((key) => {
-        const conf = configs[key] || {};
-        const lvl = safeNum(owned[key]);
-        const isBuilt = lvl > 0;
-        const nextLevel = lvl + 1;
-        const cost = calcCostSafe(conf, nextLevel);
-        const afford1 = affordableSafe(conf, lvl, profile, 1);
-        const afford10 = affordableSafe(conf, lvl, profile, 10);
-        const maxLevel = safeNum(conf.maxLevel);
-        const blocked = isBlocked(key, conf, profile, lvl);
-        const req = reqText(key, conf, profile, nextLevel);
-        const cardLevel = isBuilt ? `ур. ${fmt(lvl)}${maxLevel ? '/' + fmt(maxLevel) : ''}` : 'не построено';
-        const status = blocked.reason;
-        const nextDesc = nextDescriptionFor(profile, key, conf, lvl);
-        return `
-          <article class="building-card-fixed ${blocked.blocked ? 'is-blocked' : 'is-ready'} ${maxLevel && lvl >= maxLevel ? 'is-maxed' : ''}">
-            <div class="building-card-fixed__head">
-              <h3>${safeEscape(conf.name || key)}</h3>
-              <span class="building-card-fixed__pill">${cardLevel}</span>
-            </div>
-            <div class="building-card-fixed__meta">
-              <div><span>Требование</span><b>${safeEscape(req)}</b></div>
-              <div><span>Статус</span><b>${safeEscape(status)}</b></div>
-              <div><span>След. ур.</span><b>${maxLevel && lvl >= maxLevel ? 'MAX' : fmt(nextLevel) + ' ур.'}</b></div>
-              <div><span>Цена</span><b>${fmt(cost.coins)}💰 / ${fmt(cost.parts)}🔧</b></div>
-            </div>
-            <div class="building-card-fixed__desc">${descriptionFor(profile, key, conf, lvl)}</div>
-            <div class="building-card-fixed__next">✨ ${nextDesc}</div>
-            <div class="building-card-fixed__extra">+10 доступно: <b>${fmt(afford10.count)} ур.</b></div>
-            <div class="building-card-fixed__actions">
-              ${!isBuilt
-                ? `<button type="button" data-building-buy-fixed="${key}" data-lock-key="building-buy:${key}" ${blocked.blocked ? 'disabled' : ''}>🏗 Купить</button>`
-                : `<button type="button" data-building-upgrade-fixed="${key}" data-count="1" data-lock-key="building-upgrade:${key}:1" ${(maxLevel && lvl >= maxLevel) || blocked.blocked ? 'disabled' : ''}>⬆️ Ап +1</button><button type="button" data-building-upgrade-fixed="${key}" data-count="10" data-lock-key="building-upgrade:${key}:10" ${(maxLevel && lvl >= maxLevel) || blocked.blocked || afford10.count < 1 ? 'disabled' : ''}>🚀 Ап +10</button>`}
-            </div>
-          </article>`;
-      }).join('')}</div>`;
-
-    el.querySelectorAll('[data-building-buy-fixed]').forEach((btn) => {
+    el.querySelectorAll('[data-building-buy]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const key = btn.getAttribute('data-building-buy-fixed');
-        await runBuildingAction(btn, async () => { await buyBuilding(key); });
+        await withButtonLock(btn, 'building-buy:' + btn.getAttribute('data-building-buy'), async () => {
+          await buyBuilding(btn.getAttribute('data-building-buy'));
+        });
       });
     });
-    el.querySelectorAll('[data-building-upgrade-fixed]').forEach((btn) => {
+
+    el.querySelectorAll('[data-building-upgrade]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const key = btn.getAttribute('data-building-upgrade-fixed');
-        const count = Number(btn.getAttribute('data-count') || 1);
-        await runBuildingAction(btn, async () => { await upgradeBuilding(key, count); });
+        await withButtonLock(btn, 'building-upgrade:' + btn.getAttribute('data-building-upgrade') + ':' + btn.getAttribute('data-count'), async () => {
+          await upgradeBuilding(btn.getAttribute('data-building-upgrade'), Number(btn.getAttribute('data-count') || 1));
+        });
       });
     });
+  };
+
+  buyBuilding = async function buyBuilding(key) {
+    const data = await postJson('/api/farm/building/buy', { key });
+    if (!data?.ok) {
+      const p = data?.profile || state?.profile || {};
+      const b = (data?.buildings || []).find((item) => item.key === key);
+      const needCoins = Number(data?.totalCost || b?.buyCost?.coins || 0);
+      const needParts = Number(data?.totalParts || b?.buyCost?.parts || 0);
+      const details = (typeof formatNeedLine === 'function' && (needCoins || needParts)) ? `\n${formatNeedLine(p, needCoins, needParts)}` : '';
+      showMessage(`❌ Здание не куплено: ${typeof buildingErrorLabel === 'function' ? buildingErrorLabel(data?.error || data?.stopReason, data) : (data?.error || 'ошибка')}${details}`);
+      await loadMe(true);
+      return;
+    }
+    showMessage(`✅ Куплено: ${data.name || data.building}. Потрачено: ${fmt(data.totalCost)}💰 / ${fmt(data.totalParts)}🔧`);
+    await loadMe(true);
+  };
+
+  upgradeBuilding = async function upgradeBuilding(key, count) {
+    const data = await postJson('/api/farm/building/upgrade', { key, count });
+    if (!data?.ok) {
+      const p = data?.profile || state?.profile || {};
+      const b = (data?.buildings || []).find((item) => item.key === key);
+      const needCoins = Number(b?.upgradeCost?.coins || data?.nextCost || 0);
+      const needParts = Number(b?.upgradeCost?.parts || data?.nextParts || 0);
+      const details = (typeof formatNeedLine === 'function' && (needCoins || needParts)) ? `\n${formatNeedLine(p, needCoins, needParts)}` : '';
+      showMessage(`❌ Здание не улучшено: ${typeof buildingErrorLabel === 'function' ? buildingErrorLabel(data?.error || data?.stopReason, data) : (data?.error || 'ошибка')}${details}`);
+      await loadMe(true);
+      return;
+    }
+    showMessage(`⬆️ ${data.name || data.building}: +${fmt(data.upgraded)} ур. Потрачено: ${fmt(data.totalCost)}💰 / ${fmt(data.totalParts)}🔧`);
+    await loadMe(true);
+  };
+
+  const oldRender = render;
+  render = function renderPatched(data) {
+    oldRender(data);
+    renderBuildingsResources(data);
+    if (document.querySelector('.farm-tab-panel.active')?.getAttribute('data-farm-panel') === 'buildings') {
+      renderBuildings(data);
+    }
   };
 })();
