@@ -4318,7 +4318,7 @@ function renderAdminEditableProfile(profile) {
     for (const input of inputs) {
       await saveEditableProfileField(input.dataset.profileEditField, input.value);
     }
-    setAdminStatus?.('Все видимые поля сохранены');
+    setAdminStatus?.('Все поля сохранены и применены');
     await refreshAdminPlayer?.();
   });
 
