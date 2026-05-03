@@ -2097,3 +2097,166 @@ button.farm-max-disabled {
     border-radius: 12px !important;
   }
 }
+
+/* PATCH screenshots feedback: cleaner buildings, combat, conflict buttons */
+.buildings-grid-clean {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+.building-card-v3 {
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+}
+.building-head-v3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.building-head-v3 h3 {
+  margin: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.building-level-pill {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(139, 226, 101, .16);
+  border: 1px solid rgba(139, 226, 101, .35);
+  font-weight: 800;
+  font-size: .82rem;
+}
+.building-summary-v3,
+.building-effect-v3,
+.building-pack-v3 {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.045);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.building-summary-v3 {
+  display: grid;
+  gap: 8px;
+}
+.building-summary-v3 > div,
+.raid-rows-clean > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.building-summary-v3 span,
+.building-main-v3 span,
+.raid-breakdown-grid span,
+.raid-rows-clean span {
+  opacity: .72;
+}
+.building-summary-v3 b,
+.raid-rows-clean b {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.building-main-v3 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.building-main-v3 > div {
+  min-width: 0;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.building-main-v3 b {
+  overflow-wrap: anywhere;
+}
+.building-pack-v3 {
+  display: grid;
+  gap: 4px;
+  color: #eefde8;
+}
+.building-pack-v3 .pack-muted { color: #ffdc7a; }
+.building-actions-v3 {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.building-actions-v3 button:only-child { grid-column: 1 / -1; }
+button.is-busy,
+.is-busy {
+  opacity: .72 !important;
+  cursor: wait !important;
+  filter: saturate(.7);
+}
+.combat-grid-v3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(230px, 1fr));
+  gap: 14px;
+}
+.combat-card-v3 {
+  min-width: 0;
+}
+.combat-big {
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+  margin: 10px 0;
+}
+.combat-big small {
+  font-size: .9rem;
+  opacity: .7;
+  margin-left: 4px;
+}
+.raid-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.raid-breakdown-grid > div {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.raid-breakdown-grid b {
+  font-size: 1.25rem;
+}
+.raid-details-more summary {
+  cursor: pointer;
+  font-weight: 800;
+  margin: 10px 0;
+}
+.raid-rows-clean {
+  display: grid;
+  gap: 6px;
+}
+.hero-greeting-title {
+  max-width: min(760px, 100%);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 960px) {
+  .combat-grid-v3 { grid-template-columns: 1fr; }
+  .building-main-v3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .raid-breakdown-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .buildings-grid-clean { grid-template-columns: 1fr; }
+  .building-main-v3 { grid-template-columns: 1fr; }
+  .building-actions-v3 { grid-template-columns: 1fr; }
+}
