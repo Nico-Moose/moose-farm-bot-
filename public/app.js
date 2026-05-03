@@ -1506,9 +1506,9 @@ function bindExtendedAdminPanel() {
     try {
       const login = loginOrError();
       if (!login) return;
-      const data = await adminPost('sync-from-wizebot', { login });
+      const data = await adminPost('import-legacy-farm', { login });
       renderAdminPlayer(data.profile);
-      setAdminStatus(data.message || `Игрок ${login} импортирован из WizeBot`);
+      setAdminStatus(data.message || `Старая !ферма ${login} перенесена на сайт/farm_v2`);
       await loadMe();
     } catch (e) { setAdminStatus(e.message, true); }
   });
@@ -2323,7 +2323,7 @@ function renderAdminPlayer(profile) {
   `;
   box.querySelector('[data-admin-refresh-player]')?.addEventListener('click', () => refreshAdminPlayer().catch((e) => setAdminStatus(e.message, true)));
   box.querySelector('[data-admin-sync-player]')?.addEventListener('click', async () => {
-    try { const data = await adminPost('sync-from-wizebot', { login }); renderAdminPlayer(data.profile); setAdminStatus(data.message); } catch (e) { setAdminStatus(e.message, true); }
+    try { const data = await adminPost('import-legacy-farm', { login }); renderAdminPlayer(data.profile); setAdminStatus(data.message); } catch (e) { setAdminStatus(e.message, true); }
   });
   box.querySelector('[data-admin-push-player]')?.addEventListener('click', async () => {
     try { const data = await adminPost('push-to-wizebot', { login }); renderAdminPlayer(data.profile); setAdminStatus(data.message); } catch (e) { setAdminStatus(e.message, true); }
@@ -2902,7 +2902,7 @@ function renderAdminPlayer(profile) {
   `;
   box.querySelector('[data-admin-refresh-player]')?.addEventListener('click', () => refreshAdminPlayer().catch((e) => setAdminStatus(e.message, true)));
   box.querySelector('[data-admin-sync-player]')?.addEventListener('click', async () => {
-    try { const data = await adminPost('sync-from-wizebot', { login }); renderAdminPlayer(data.profile); setAdminStatus(data.message); } catch (e) { setAdminStatus(e.message, true); }
+    try { const data = await adminPost('import-legacy-farm', { login }); renderAdminPlayer(data.profile); setAdminStatus(data.message); } catch (e) { setAdminStatus(e.message, true); }
   });
   box.querySelector('[data-admin-push-player]')?.addEventListener('click', async () => {
     try { const data = await adminPost('push-to-wizebot', { login }); renderAdminPlayer(data.profile); setAdminStatus(data.message); } catch (e) { setAdminStatus(e.message, true); }
@@ -4527,4 +4527,16 @@ document.addEventListener('DOMContentLoaded', () => {
   tune();
   setTimeout(tune, 500);
   setTimeout(tune, 1500);
+});
+
+
+/* ADMIN LEGACY FARM IMPORT BUTTON LABEL */
+document.addEventListener('DOMContentLoaded', () => {
+  const tuneLegacyImportButton = () => {
+    const btn = document.getElementById('admin-sync-from-wizebot');
+    if (btn) btn.textContent = 'Перенести старую !ферму → farm_v2';
+  };
+  tuneLegacyImportButton();
+  setTimeout(tuneLegacyImportButton, 500);
+  setTimeout(tuneLegacyImportButton, 1500);
 });

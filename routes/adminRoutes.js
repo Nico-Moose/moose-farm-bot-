@@ -299,6 +299,59 @@ module.exports = function (db) {
   });
 
 
+
+  async function importLegacyFarmToSite(login, source = 'admin_import_legacy_farm') {
+    login = String(login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+    if (!login) return { ok: false, error: 'Укажи ник игрока' };
+
+    let profile = getProfileByLogin(db, login);
+
+    // Создаём профиль на сайте, если игрок ещё не заходил через Twitch.
+    if (!profile) {
+      upsertTwitchUser({
+        id: `legacy:${login}`,
+        login,
+        display_name: login,
+        profile_image_url: ''
+      });
+      profile = getProfileByLogin(db, login);
+    }
+
+    if (!profile) return { ok: false, error: 'Не удалось создать профиль игрока на сайте' };
+
+    saveFarmBackup(profile, 'before_import_legacy_farm');
+
+    // syncWizebotFarmToProfile читает старые WizeBot vars:
+    // farm_, farm_virtual_balance_, farm_upgrade_balance_, farm_total_income_, farm_last_,
+    // farm_license_, farm_protection_level_, farm_raid_power_, farm_defense_building_.
+    const result = await syncWizebotFarmToProfile({ login, profile, allowAnyLogin: true });
+    if (!result.ok) return result;
+
+    const updatedProfile = updateProfile({ ...profile, ...result.profile, twitch_id: profile.twitch_id });
+
+    // Сразу кладём новую farm_v2 модель обратно в WizeBot, как делает команда !мигрферма.
+    let pushBack = null;
+    try {
+      pushBack = await syncProfileToWizebot(updatedProfile);
+    } catch (error) {
+      pushBack = { ok: false, error: error.message || String(error) };
+    }
+
+    const freshProfile = getProfileById(profile.twitch_id);
+    logAdminEvent(db, profile.twitch_id, source, {
+      login,
+      imported: result.imported || null,
+      pushBack
+    });
+
+    return {
+      ok: true,
+      profile: freshProfile,
+      imported: result.imported || null,
+      pushBack
+    };
+  }
+
   async function syncPlayerFromWizebot(login, source = 'admin_sync_from_wizebot') {
     login = String(login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
     if (!login) return { ok: false, error: 'Укажи ник игрока' };
@@ -362,17 +415,42 @@ module.exports = function (db) {
   });
 
 
+  router.post("/import-legacy-farm", async (req, res) => {
+    try {
+      const login = String(req.body?.login || "").trim().toLowerCase().replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
+      if (!login) return res.status(400).json({ ok: false, error: "Укажи ник игрока" });
+
+      const data = await importLegacyFarmToSite(login, 'admin_import_legacy_farm');
+      if (!data.ok) {
+        return res.status(400).json({
+          ok: false,
+          error: data.error || "Не удалось перенести старую ферму в farm_v2"
+        });
+      }
+
+      return res.json({
+        ok: true,
+        message: `Старая !ферма ${login} перенесена на сайт и в farm_v2`,
+        profile: data.profile,
+        imported: data.imported || null,
+        pushBack: data.pushBack || null
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
+  });
+
   router.post("/sync-from-wizebot", async (req, res) => {
     try {
       const login = String(req.body?.login || "").toLowerCase().replace(/^@/, "");
       if (!login) return res.status(400).json({ ok: false, error: "Укажи ник игрока" });
 
-      const data = await syncPlayerFromWizebot(login, 'admin_sync_from_wizebot');
+      const data = await importLegacyFarmToSite(login, 'admin_sync_from_wizebot');
       if (!data.ok) return res.status(400).json({ ok: false, error: data.error || "Не удалось импортировать игрока из WizeBot" });
 
       return res.json({
         ok: true,
-        message: `Игрок ${login} импортирован: старая !ферма → сайт/farm_v2`,
+        message: `Старая !ферма ${login} перенесена на сайт и в farm_v2`,
         profile: data.profile,
         imported: data.imported || null
       });
