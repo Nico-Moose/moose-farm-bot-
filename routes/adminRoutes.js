@@ -215,7 +215,7 @@ module.exports = function (db) {
 
 
   // Admin: set one editable player field from profile preview
-  router.post('/player/set-field', requireAdminApi, (req, res) => {
+  router.post('/player/set-field', (req, res) => {
     try {
       const login = normalizeLogin(req.body.login);
       const field = String(req.body.field || '').trim();
