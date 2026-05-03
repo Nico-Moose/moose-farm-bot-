@@ -511,7 +511,18 @@ router.post('/farm/raid', requireAuth, async (req, res) => {
   const saveRaidResult = getDb().transaction(() => {
     const updatedAttacker = updateProfile(result.attacker);
     updateProfile(result.target);
-    logFarmEvent(req.session.twitchUser.id, 'raid', result.log);
+    logFarmEvent(req.session.twitchUser.id, 'raid', {
+      ...(result.log || {}),
+      eventTitle: (result.log && result.log.killed_by_turret) ? 'Рейд отбит турелью' : 'Рейд выполнен',
+      attacker: result.log?.attacker || profile.login,
+      target: result.log?.target,
+      stolen: Number(result.log?.stolen || 0),
+      bonus_stolen: Number(result.log?.bonus_stolen || 0),
+      turret_refund: Number(result.log?.turret_refund || 0),
+      blocked: Number(result.log?.blocked || 0),
+      strength: Number(result.log?.strength || 0),
+      punish_mult: Number(result.log?.punish_mult || 1)
+    });
     return updatedAttacker;
   });
 
@@ -534,7 +545,11 @@ router.post('/farm/case/open', requireAuth, async (req, res) => {
 
   if (result.ok) {
     logFarmEvent(req.session.twitchUser.id, 'case_open', {
+      eventTitle: 'Кейс открыт',
       cost: result.cost,
+      prizeType: result.prize?.type,
+      prizeValue: result.prize?.value || result.prize?.finalValue || 0,
+      multiplier: result.prize?.multiplier || 1,
       prize: result.prize
     });
   }
@@ -556,9 +571,15 @@ router.post('/farm/gamus/claim', requireAuth, async (req, res) => {
 
   if (result.ok) {
     logFarmEvent(req.session.twitchUser.id, 'gamus_claim', {
+      eventTitle: 'GAMUS получен',
       money: result.money,
       parts: result.parts,
-      tierLevel: result.tierLevel
+      baseMoney: result.baseMoney || 0,
+      baseParts: result.baseParts || 0,
+      mineBonusMoney: result.mineBonusMoney || 0,
+      mineBonusParts: result.mineBonusParts || 0,
+      tierLevel: result.tierLevel,
+      mineLevel: result.mineLevel || result.effectiveMineLevel || 0
     });
   }
 
@@ -589,9 +610,11 @@ router.post('/farm/off-collect', requireAuth, async (req, res) => {
 
   if (result.ok) {
     logFarmEvent(req.session.twitchUser.id, 'off_collect', {
+      eventTitle: 'Оффсбор получен',
       income: result.income,
       partsIncome: result.partsIncome,
-      minutes: result.minutes
+      minutes: result.minutes,
+      rule: '50% фермы + 50% запчастей завода'
     });
   }
 

@@ -1603,3 +1603,193 @@ body {
     text-align: left;
   }
 }
+
+
+/* ==========================================================================
+   ADMIN VIEW + UI CONTROL PATCH styles
+   ========================================================================== */
+#scrollTopBtn {
+  position: fixed;
+  right: 18px;
+  top: 18px;
+  z-index: 9999;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: linear-gradient(135deg,#96e66c,#e6dc55);
+  color: #061408;
+  font-size: 22px;
+  font-weight: 900;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+#scrollTopBtn.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.admin-login-wrap {
+  position: relative;
+  display: grid;
+}
+.admin-login-wrap input {
+  padding-right: 44px !important;
+}
+#admin-clear-login {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-height: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+}
+.admin-secondary-action {
+  margin-top: 10px;
+  background: linear-gradient(135deg, rgba(143,226,109,.9), rgba(242,224,93,.9)) !important;
+  color: #071409 !important;
+}
+.admin-category-group {
+  grid-column: 1 / -1;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.035);
+  border: 1px solid rgba(255,255,255,.075);
+}
+.admin-category-group > h3 {
+  margin: 0 0 14px;
+  color: #f5fff2;
+}
+.admin-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(230px,1fr));
+  gap: 14px;
+}
+.admin-player-card-polished {
+  border-radius: 20px;
+  padding: 16px;
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.admin-player-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.admin-player-card-head b {
+  font-size: 20px;
+}
+.admin-player-card-head button {
+  width: auto;
+  padding: 8px 12px;
+}
+.admin-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 14px;
+}
+.admin-mini-grid span {
+  color: rgba(255,255,255,.68);
+}
+.admin-view-profile {
+  display: grid;
+  gap: 16px;
+}
+.admin-view-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(121,225,87,.14), rgba(255,224,73,.08));
+  border: 1px solid rgba(158,239,104,.2);
+}
+.admin-view-hero span {
+  color: rgba(255,255,255,.62);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: 12px;
+}
+.admin-view-hero h2 {
+  margin: 4px 0;
+  font-size: clamp(26px,4vw,40px);
+}
+.admin-view-hero > b {
+  font-size: 24px;
+  color: #dfffbe;
+}
+.admin-view-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
+  gap: 12px;
+}
+.admin-view-grid > div,
+.admin-view-building,
+.admin-view-section {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.07);
+}
+.admin-view-grid span {
+  display:block;
+  color: rgba(255,255,255,.64);
+  margin-bottom: 8px;
+}
+.admin-view-grid b {
+  font-size: 22px;
+}
+.admin-view-section h3 {
+  margin: 0 0 12px;
+}
+.admin-view-buildings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(190px,1fr));
+  gap: 10px;
+}
+.admin-view-building {
+  display: grid;
+  gap: 5px;
+}
+.admin-view-building span {
+  color: #98e36e;
+  font-weight: 800;
+}
+.admin-view-building small {
+  color: rgba(255,255,255,.72);
+  line-height: 1.25;
+}
+.admin-view-section.two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(230px,1fr));
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  #scrollTopBtn {
+    top: auto;
+    bottom: 18px;
+    right: 18px;
+  }
+  .admin-category-grid,
+  .admin-view-grid,
+  .admin-view-buildings {
+    grid-template-columns: 1fr;
+  }
+  .admin-view-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
