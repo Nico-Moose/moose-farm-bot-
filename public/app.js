@@ -4710,7 +4710,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cost = Number(afford10.cost || 0);
     const parts = Number(afford10.parts || 0);
     if (count <= 0) return `<span class="pack-muted">+10 сейчас недоступно</span>`;
-    return `<span>+10 доступно: <b>${formatNumber(count)} ур.</b></span><span>цена пачки: <b>${formatNumber(cost)}💰 / ${formatNumber(parts)}🔧</b></span>`;
+    return `<span>+10 доступно: <b>${formatNumber(count)} ур.</b></span><span><b>${formatNumber(cost)}💰 / ${formatNumber(parts)}🔧</b></span>`;
   }
 
   renderBuildings = function renderBuildings(data) {
@@ -4725,7 +4725,22 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    el.innerHTML = `<div class="buildings-grid-clean">${keys.map((key) => {
+    const buildingWalletHtml = `
+      <div class="buildings-top-stats">
+        <div class="buildings-top-stat">
+          <span>💰 На руках</span>
+          <b>${formatNumber(currentCoins(p))}💰</b>
+          <small>монеты на улучшения</small>
+        </div>
+        <div class="buildings-top-stat">
+          <span>🔧 Запчасти</span>
+          <b>${formatNumber(p.parts || 0)}🔧</b>
+          <small>ресурс для зданий</small>
+        </div>
+      </div>
+    `;
+
+    el.innerHTML = `${buildingWalletHtml}<div class="buildings-grid-clean">${keys.map((key) => {
       const conf = buildingsConfig[key] || {};
       const lvl = Number(owned[key] || 0);
       const isBuilt = lvl > 0;
@@ -4757,10 +4772,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <div><span>Статус</span><b>${status}</b></div>
           </div>
 
-          <div class="building-main-v3">
+          <div class="building-main-v3 building-main-v3-compact">
             <div><span>След. ур.</span><b>${nextLabel}</b></div>
             <div><span>Цена</span><b>${formatNumber(nextCost.coins)}💰</b><b>${formatNumber(nextCost.parts)}🔧</b></div>
-            <div><span>У тебя</span><b>${formatNumber(currentCoins(p))}💰</b><b>${formatNumber(p.parts || 0)}🔧</b></div>
             <div><span>Хватит</span><b>${levelLocked || maxed ? '—' : `${formatNumber(affordAll.count)} ур.`}</b></div>
           </div>
 
