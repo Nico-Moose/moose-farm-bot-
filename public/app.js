@@ -3399,3 +3399,520 @@ function renderBuildings(data) {
   document.querySelectorAll('[data-building-buy]').forEach((btn) => btn.addEventListener('click', async () => buyBuilding(btn.getAttribute('data-building-buy'))));
   document.querySelectorAll('[data-building-upgrade]').forEach((btn) => btn.addEventListener('click', async () => upgradeBuilding(btn.getAttribute('data-building-upgrade'), Number(btn.getAttribute('data-count') || 1))));
 }
+
+
+/* ==========================================================================
+   BIG POLISH PATCH: unified modals, case history, market/buildings/info polish,
+   admin backup preview UI helpers.
+   Appended as safe overrides so older code remains available.
+   ========================================================================== */
+
+function closeUnifiedModal() {
+  const modal = document.getElementById('unifiedModal');
+  if (modal) modal.remove();
+}
+
+function unifiedModal(title, subtitle, body, opts = {}) {
+  closeUnifiedModal();
+  const overlay = document.createElement('div');
+  overlay.id = 'unifiedModal';
+  overlay.className = `unified-modal ${opts.kind || 'info'} ${opts.wide ? 'wide' : ''}`;
+  overlay.innerHTML = `
+    <div class="unified-modal-card">
+      <button class="unified-modal-close" type="button">×</button>
+      <div class="unified-modal-head">
+        <h2>${title || 'Событие'}</h2>
+        ${subtitle ? `<p>${subtitle}</p>` : ''}
+      </div>
+      <div class="unified-modal-body">${body || ''}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.unified-modal-close')?.addEventListener('click', closeUnifiedModal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeUnifiedModal();
+  });
+  if (opts.autoCloseMs) setTimeout(closeUnifiedModal, opts.autoCloseMs);
+  return overlay;
+}
+
+function renderUnifiedReward(title, subtitle, rows = [], opts = {}) {
+  const body = `<div class="unified-reward-grid">${rows.map((r) => `
+    <div class="unified-reward-cell">
+      <span>${r.label || ''}</span>
+      <b>${r.value || '0'}</b>
+      ${r.hint ? `<small>${r.hint}</small>` : ''}
+    </div>`).join('')}</div>`;
+  return unifiedModal(title, subtitle, body, { kind: opts.kind || 'success', wide: opts.wide, autoCloseMs: opts.autoCloseMs || 9000 });
+}
+
+function renderActionReport(title, subtitle, items, opts = {}) {
+  const body = `
+    <div class="unified-report-list">
+      ${items.map((item) => `<div class="unified-report-row"><span>${item.label}</span><b>${item.value}</b></div>`).join('')}
+    </div>`;
+  return unifiedModal(title, subtitle, body, { kind: opts.kind || 'info', wide: true, autoCloseMs: opts.autoCloseMs || 10000 });
+}
+
+function normalizedEventTitle(event) {
+  const type = String(event?.type || '').toLowerCase();
+  const details = event?.details || event?.payload || {};
+  if (type.includes('market')) return '🏪 Рынок';
+  if (type.includes('case')) return '🎰 Кейс';
+  if (type.includes('raid')) return '🏴‍☠️ Рейд';
+  if (type.includes('building')) return '🏗 Здание';
+  if (type.includes('license')) return '📜 Лицензия';
+  if (type.includes('gamus')) return '🎁 GAMUS';
+  if (type.includes('off')) return '🌙 Оффсбор';
+  if (type.includes('sync')) return '🔄 Синхронизация';
+  return event?.title || '📌 Событие';
+}
+
+function formatEventDetails(event) {
+  const raw = event?.details || event?.payload || event?.message || '';
+  let obj = raw;
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw); } catch (_) { obj = raw; }
+  }
+  if (obj && typeof obj === 'object') {
+    const pairs = [];
+    const map = {
+      login: 'игрок', action: 'действие', amount: 'сумма', qty: 'кол-во',
+      totalCost: 'стоимость', level: 'уровень', building: 'здание',
+      target: 'цель', attacker: 'атакующий', stolen: 'украдено',
+      bonus_stolen: 'бонусные', ok: 'статус'
+    };
+    Object.keys(obj).slice(0, 8).forEach((k) => {
+      if (k === 'keys' || k === 'farm' || k === 'farm_v2' || k === 'payload') return;
+      const v = obj[k];
+      if (v && typeof v === 'object') return;
+      pairs.push(`<span>${map[k] || k}: <b>${String(v)}</b></span>`);
+    });
+    return pairs.length ? pairs.join(' · ') : 'техническое событие';
+  }
+  return String(obj || '').replace(/[{}"]/g, '').slice(0, 220);
+}
+
+async function loadCaseHistory(login) {
+  const p = state?.profile || {};
+  const history = (p.farm?.caseHistory || p.caseHistory || []).slice(0, 50);
+  const global = (state?.caseHistory || []);
+  const rows = (history.length ? history : global).slice(0, 50);
+  const body = `
+    <div class="case-history-table">
+      <div class="case-history-head"><b>#</b><b>Дата</b><b>Тип</b><b>Выигрыш</b><b>Множитель</b><b>Цена</b></div>
+      ${rows.length ? rows.map((h, i) => `
+        <div class="case-history-row">
+          <span>${h.posId || i + 1}</span>
+          <span>${h.date || h.timestamp ? new Date(h.date || h.timestamp).toLocaleString('ru-RU') : '—'}</span>
+          <span>${h.type === 'parts' ? '🔧 Запчасти' : '💎 Бонусные'}</span>
+          <b>${stageFormat(h.finalValue || h.value || 0)}</b>
+          <span>x${Number(h.multiplier || h.baseMultiplier || 1).toFixed(2)}</span>
+          <span>${stageFormat(h.cost || 0)}💰</span>
+        </div>`).join('') : '<div class="case-history-empty">История кейсов пока пустая</div>'}
+    </div>`;
+  unifiedModal('🎰 История кейсов', `Игрок: ${login || p.login || p.twitch_login || '—'}`, body, { wide: true });
+}
+
+function bindGlobalPolishButtons() {
+  document.getElementById('showCaseHistoryBtn')?.addEventListener('click', () => loadCaseHistory());
+}
+
+async function openCase() {
+  const data = await postJson('/api/farm/case/open');
+  if (!data.ok) {
+    const labels = {
+      farm_level_too_low: `кейс доступен с ${data.requiredLevel || 30} уровня`,
+      cooldown: `кейс будет доступен через ${formatTime(data.remainingMs || 0)}`,
+      not_enough_money: `не хватает монет: сейчас ${stageFormat(data.available || 0)} / нужно ${stageFormat(data.needed || 0)}`
+    };
+    showMessage(`❌ Кейс не открыт: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+  showCaseOverlay(data.prize);
+  renderUnifiedReward('🎰 Кейс открыт', 'Финальный приз уже с множителем', [
+    { label: data.prize?.type === 'parts' ? '🔧 Запчасти' : '💎 Бонусные', value: `+${stageFormat(data.prize?.value || data.prize?.finalValue || 0)}` },
+    { label: '✖️ Множитель', value: `x${Number(data.prize?.multiplier || 1).toFixed(2)}` },
+    { label: '💰 Цена', value: `${stageFormat(data.cost || 0)}💰` },
+    { label: '🎯 Индекс', value: String(data.prize?.targetIndex ?? data.prize?.index ?? '—') }
+  ], { wide: true });
+  await loadMe();
+}
+
+function marketHistoryHtml() {
+  return stageMarketHistory.length ? stageMarketHistory.map((h)=>`
+    <div class="market-history-row">
+      <span>${new Date(h.ts).toLocaleTimeString('ru-RU')}</span>
+      <b>${h.action === 'buy' ? '🔵 Куплено' : '🟢 Продано'}</b>
+      <span>${stageFormat(h.qty)}🔧</span>
+      <span>${stageFormat(h.cost)}💎</span>
+    </div>`).join('') : '<p>Пока нет сделок в этой сессии.</p>';
+}
+
+function renderMarket(data) {
+  const box = document.getElementById('marketBox');
+  if (!box) return;
+
+  const market = data.market || {};
+  const stock = Number(market.stock || 0);
+  const sellPrice = Number(market.sellPrice || 10);
+  const buyPrice = Number(market.buyPrice || 20);
+  const profile = data.profile || {};
+  const upgradeBalance = Number(profile.upgrade_balance || 0);
+  const parts = Number(profile.parts || 0);
+  const maxBuy = Math.max(0, Math.min(stock, Math.floor(upgradeBalance / Math.max(1, buyPrice))));
+  const maxSell = Math.max(0, parts);
+  const startQty = Math.max(1, Number(lastMarketQty || 1000));
+
+  box.innerHTML = `
+    <div class="market-hero strict-market-hero">
+      <div class="market-stat"><span>📦 Общий склад</span><b>${stageFormat(stock)}🔧</b><small>один склад для всех игроков</small></div>
+      <div class="market-stat"><span>🔵 Купить</span><b>${stageFormat(buyPrice)}💎 / 1🔧</b><small>максимум: ${stageFormat(maxBuy)}🔧</small></div>
+      <div class="market-stat"><span>🟢 Продать</span><b>${stageFormat(sellPrice)}💎 / 1🔧</b><small>максимум: ${stageFormat(maxSell)}🔧</small></div>
+    </div>
+    <div class="market-wallet"><span>💎 Баланс: <b>${stageFormat(upgradeBalance)}</b></span><span>🔧 Запчасти: <b>${stageFormat(parts)}</b></span></div>
+    <div class="market-preset-row market-preset-row-fixed">
+      <button data-market-preset="1000">1к</button>
+      <button data-market-preset="10000">10к</button>
+      <button data-market-preset="100000">100к</button>
+      <button data-market-preset="1000000">1кк</button>
+      <button data-market-preset="buyMax">макс купить</button>
+      <button data-market-preset="sellMax">макс продать</button>
+    </div>
+    <div class="market-actions polished-market-actions">
+      <input id="marketQty" type="text" inputmode="text" value="${formatHumanInputValue(startQty)}" placeholder="1к / 100к / 1кк / 100кк" />
+      <button id="marketBuyBtn" ${maxBuy < 1 ? 'disabled' : ''}>🔵 Купить</button>
+      <button id="marketSellBtn" ${maxSell < 1 ? 'disabled' : ''}>🟢 Продать</button>
+    </div>
+    <div id="marketCalc" class="market-calc"></div>
+    <div class="market-history polished-market-history"><div class="section-inline-title">История сделок</div>${marketHistoryHtml()}</div>
+  `;
+
+  const qtyInput = document.getElementById('marketQty');
+  const buyBtn = document.getElementById('marketBuyBtn');
+  const sellBtn = document.getElementById('marketSellBtn');
+  const recalc = () => {
+    const q = Math.max(1, parseHumanQty(qtyInput?.value || '1'));
+    lastMarketQty = q;
+    localStorage.setItem('mooseFarmLastMarketQty', String(q));
+    const buyCost = q * buyPrice;
+    const sellGain = q * sellPrice;
+    const canBuy = q > 0 && q <= maxBuy;
+    const canSell = q > 0 && q <= maxSell;
+    if (buyBtn) buyBtn.disabled = !canBuy;
+    if (sellBtn) sellBtn.disabled = !canSell;
+    const calc = document.getElementById('marketCalc');
+    if (calc) calc.innerHTML = `
+      <div><b>Калькулятор</b>: купить ${stageFormat(q)}🔧 = ${stageFormat(buyCost)}💎 · продать ${stageFormat(q)}🔧 = ${stageFormat(sellGain)}💎</div>
+      ${canBuy ? '<span class="okline">✅ Покупка доступна ровно на это количество</span>' : `<span class="warning">⚠️ Купить нельзя. Укажи не больше ${stageFormat(maxBuy)}🔧</span>`}
+      ${canSell ? '<span class="okline">✅ Продажа доступна</span>' : `<span class="warning">⚠️ Продать нельзя. Укажи не больше ${stageFormat(maxSell)}🔧</span>`}`;
+  };
+  qtyInput?.addEventListener('input', recalc);
+  qtyInput?.addEventListener('blur', () => { qtyInput.value = formatHumanInputValue(parseHumanQty(qtyInput.value)); recalc(); });
+  recalc();
+  document.querySelectorAll('[data-market-preset]').forEach(btn => btn.addEventListener('click', () => {
+    const v = btn.dataset.marketPreset;
+    const value = v === 'buyMax' ? Math.max(1, maxBuy) : v === 'sellMax' ? Math.max(1, maxSell) : Number(v);
+    qtyInput.value = formatHumanInputValue(value);
+    recalc();
+  }));
+  buyBtn?.addEventListener('click', () => {
+    const q = Math.max(1, parseHumanQty(qtyInput?.value || '1'));
+    if (q > maxBuy) return showMessage(`❌ Рынок: максимум покупки сейчас ${stageFormat(maxBuy)}🔧`);
+    marketTrade('buy');
+  });
+  sellBtn?.addEventListener('click', () => {
+    const q = Math.max(1, parseHumanQty(qtyInput?.value || '1'));
+    if (q > maxSell) return showMessage(`❌ Рынок: максимум продажи сейчас ${stageFormat(maxSell)}🔧`);
+    marketTrade('sell');
+  });
+}
+
+function buildingCardSummary(key, conf, lvl) {
+  return buildingLongBenefit ? buildingLongBenefit(key, conf, lvl) : (conf.description || 'улучшает ферму');
+}
+
+function renderInfo(data){
+  const infoBox=document.getElementById('infoBox'); const topsBox=document.getElementById('topsBox'); if(!infoBox) return;
+  const info=data.farmInfo||{}; const raidInfo=data.raidInfo||{}; const hourly=info.hourly||{}; const balances=info.balances||{}; const buildings=info.buildings||[]; const raidLogs=(raidInfo.logs||[]).slice(0,10);
+  const playerCards = [
+    ['💰 Обычная голда', balances.twitch || 0, 'WizeBot / !money'],
+    ['🌾 Ферма', balances.farm || 0, 'накопления фермы'],
+    ['💎 Бонусные', balances.upgrade || 0, 'ап-баланс'],
+    ['🔧 Запчасти', balances.parts || 0, 'детали'],
+    ['📈 Доход/ч', hourly.total || 0, `пассив ${stageFormat(hourly.passive||0)} · урожай ${stageFormat((hourly.plants||0)+(hourly.animals||0))}`],
+    ['🏴 Рейды 14д', raidInfo.twoWeeks?.count || 0, `${stageFormat(raidInfo.twoWeeks?.stolen||0)}💰 · ${stageFormat(raidInfo.twoWeeks?.bonus||0)}💎`],
+  ];
+  const buildingCells = buildings.length ? buildings.map((b)=>`<div class="info-building-cell"><b>${b.config?.name || b.key}</b><span>ур. ${stageFormat(b.level || 0)}</span><small>${buildingCardSummary(b.key, b.config || {}, b.level || 0)}</small></div>`).join('') : '<div class="info-building-cell"><b>Построек нет</b><span>—</span><small>Построй здания во вкладке зданий.</small></div>';
+  infoBox.innerHTML=`
+    <div class="analytics-grid">${playerCards.map(([label,value,hint])=>`<div class="analytics-card"><span>${label}</span><b>${stageFormat(value)}</b><small>${hint}</small></div>`).join('')}</div>
+    <div class="info-buildings-panel"><h3>🏗 Постройки</h3><div class="info-building-grid">${buildingCells}</div></div>
+    <div class="raid-log-list beautiful-raid-log"><div class="section-inline-title">Последние рейды</div>${raidLogs.length?raidLogs.map((r,i)=>`<div class="raid-log-row"><b>${i+1}.</b> ${new Date(r.timestamp||0).toLocaleString('ru-RU')} — ${r.attacker} → ${r.target}: <b>${stageFormat(r.stolen)}💰</b>, <b>${stageFormat(r.bonus_stolen||0)}💎</b>${r.killed_by_turret?' · 🔫 турель':''}</div>`).join(''):'<div class="raid-log-row">Рейдов пока нет</div>'}</div>
+    <button id="refreshTopBtn">🏆 Обновить топы</button>`;
+  document.getElementById('refreshTopBtn')?.addEventListener('click', loadTops);
+  if(topsBox && !topsBox.dataset.loaded) loadTops();
+}
+
+async function loadTops() {
+  const topsBox = document.getElementById('topsBox');
+  if (!topsBox) return;
+  try {
+    const res = await fetch('/api/farm/top?days=14');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'top_failed');
+    topsBox.dataset.loaded = '1';
+    const raids = (data.raidTop || []).slice(0, 10);
+    const players = (data.playerTop || []).slice(0, 10);
+    const by = (fn) => players.slice().sort((a,b)=>fn(b)-fn(a)).slice(0,5);
+    const list = (arr, val, sub) => `<ol>${arr.length ? arr.map((p)=>`<li><span>${p.nick}</span><strong>${val(p)}</strong><em>${sub(p)}</em></li>`).join('') : '<li>нет данных</li>'}</ol>`;
+    topsBox.innerHTML = `
+      <h3>🏆 Топы и аналитика</h3>
+      <div class="tops-grid pretty-tops expanded-tops">
+        <div class="top-card"><b>💰 Самые богатые</b>${list(by(p=>ordinaryCoins(p)), p=>`${stageFormat(ordinaryCoins(p))}💰`, p=>`ур. ${p.level} · 🔧${stageFormat(p.parts)}`)}</div>
+        <div class="top-card"><b>🌾 Ферма</b>${list(by(p=>farmCoins(p)), p=>`${stageFormat(farmCoins(p))}🌾`, p=>`💎${stageFormat(bonusCoins(p))}`)}</div>
+        <div class="top-card"><b>💎 Ап-баланс</b>${list(by(p=>bonusCoins(p)), p=>`${stageFormat(bonusCoins(p))}💎`, p=>`💰${stageFormat(ordinaryCoins(p))}`)}</div>
+        <div class="top-card"><b>🔧 Запчасти</b>${list(by(p=>Number(p.parts||0)), p=>`${stageFormat(p.parts)}🔧`, p=>`ур. ${p.level}`)}</div>
+        <div class="top-card"><b>🏴 Топ рейдов за ${data.days}д</b><ol>${raids.length ? raids.map((r) => `<li><span>${r.nick}</span><strong>${stageFormat(r.money)}💰 / ${stageFormat(r.bonus)}💎</strong><em>${r.attacks}⚔ · ${r.defends}🛡</em></li>`).join('') : '<li>нет рейдов</li>'}</ol></div>
+        <div class="top-card"><b>⚡ Активные</b>${list(by(p=>Number(p.last_collect_at||0)), p=>p.nick, p=>p.last_collect_at ? new Date(Number(p.last_collect_at)).toLocaleString('ru-RU') : 'нет сбора')}</div>
+      </div>`;
+  } catch (error) {
+    topsBox.textContent = 'Не удалось загрузить топы';
+  }
+}
+
+// Soft admin backup preview UI: injects into existing admin modal when available.
+function installBackupPreviewPanel() {
+  const adminPanel = document.getElementById('admin-panel') || document.querySelector('.admin-panel') || document.querySelector('[data-admin-panel]');
+  if (!adminPanel || document.getElementById('backupPreviewPanel')) return;
+  const panel = document.createElement('div');
+  panel.id = 'backupPreviewPanel';
+  panel.className = 'backup-preview-panel';
+  panel.innerHTML = `
+    <h3>🧯 Backup / Restore</h3>
+    <p>Preview перед восстановлением. Можно выбрать блок: всё, балансы, прогресс, ферма, здания, рейды, кейсы.</p>
+    <div class="backup-controls">
+      <button id="backupLoadBtn">Показать backup’и игрока</button>
+      <select id="backupBlockSelect">
+        <option value="all">Всё</option>
+        <option value="balances">Балансы</option>
+        <option value="progression">Прогресс</option>
+        <option value="farm">Ферма</option>
+        <option value="buildings">Здания</option>
+        <option value="raids">Рейды</option>
+        <option value="cases">Кейсы</option>
+      </select>
+    </div>
+    <div id="backupListBox" class="backup-list-box"></div>`;
+  adminPanel.appendChild(panel);
+  document.getElementById('backupLoadBtn')?.addEventListener('click', async () => {
+    const login = (document.getElementById('admin-login')?.value || '').trim().toLowerCase();
+    if (!login) return setAdminStatus?.('Укажи игрока', true);
+    const data = await adminGet(`backups?login=${encodeURIComponent(login)}`);
+    const list = data.backups || [];
+    const box = document.getElementById('backupListBox');
+    box.innerHTML = list.length ? list.map((b, i)=>`
+      <div class="backup-item">
+        <b>#${i+1} · ${new Date(b.createdAt || Date.now()).toLocaleString('ru-RU')}</b>
+        <small>${b.reason || 'backup'} · уровень ${b.level ?? '—'} · 🌾${stageFormat(b.farm_balance||0)} · 💎${stageFormat(b.upgrade_balance||0)} · 🔧${stageFormat(b.parts||0)}</small>
+        <button data-backup-restore="${i}">Preview / restore</button>
+      </div>`).join('') : '<p>Backup’ов нет.</p>';
+    box.querySelectorAll('[data-backup-restore]').forEach(btn=>btn.addEventListener('click', async()=>{
+      const index = Number(btn.dataset.backupRestore||0);
+      const block = document.getElementById('backupBlockSelect')?.value || 'all';
+      const backup = list[index] || {};
+      unifiedModal('🧯 Preview восстановления', `Игрок ${login} · блок ${block}`, `<pre class="backup-preview-json">${JSON.stringify(backup, null, 2).slice(0, 6000)}</pre><button id="confirmBackupRestore">Восстановить этот backup</button>`, {wide:true});
+      document.getElementById('confirmBackupRestore')?.addEventListener('click', async()=>{
+        await adminPost('restore-backup-index', { login, index, block });
+        closeUnifiedModal();
+        setAdminStatus?.('Backup восстановлен');
+        await refreshAdminPlayer?.();
+      });
+    }));
+  });
+}
+
+setInterval(installBackupPreviewPanel, 1500);
+document.addEventListener('DOMContentLoaded', () => setTimeout(installBackupPreviewPanel, 1000));
+
+function renderEventsList(events) {
+  return (events || []).map((e) => `
+    <div class="pretty-event-row">
+      <b>${normalizedEventTitle(e)}</b>
+      <small>${e.created_at || e.timestamp ? new Date(e.created_at || e.timestamp).toLocaleString('ru-RU') : ''}</small>
+      <p>${formatEventDetails(e)}</p>
+    </div>`).join('');
+}
+
+
+/* ==========================================================================
+   NEXT POLISH PATCH: final unified raid/offcollect reports, journal cleanup,
+   richer tops and backup blocks.
+   ========================================================================== */
+
+function raidBreakdownRows(log = {}) {
+  const moneyFromMain = Number(log.money_from_main || log.main_spent || log.from_main || 0);
+  const moneyFromFarm = Number(log.money_from_farm || log.farm_spent || log.from_farm || 0);
+  const debt = Number(log.debt_after || log.farm_debt || 0);
+  const bonus = Number(log.bonus_stolen || 0) + Number(log.turret_bonus || 0);
+  const rows = [
+    { label: '🎯 Цель', value: String(log.target || '—') },
+    { label: '⚔️ Сила атаки', value: `${stageFormat(log.strength || 0)}%` },
+    { label: '📈 Базовый доход цели', value: `${stageFormat(log.base_income || 0)}💰` },
+    { label: '🛡 Щит заблокировал', value: `${stageFormat(log.blocked || 0)}💰` },
+    { label: '💸 Итог монет', value: `${stageFormat(log.stolen || 0)}💰` },
+    { label: '💎 Бонусные', value: `${stageFormat(bonus)}💎` },
+    { label: '🚨 AFK-множитель', value: `x${Number(log.punish_mult || 1).toFixed(2)}` }
+  ];
+  if (moneyFromMain) rows.push({ label: '💰 Снято с !money', value: `${stageFormat(moneyFromMain)}💰` });
+  if (moneyFromFarm) rows.push({ label: '🌾 Снято с фермы', value: `${stageFormat(moneyFromFarm)}🌾` });
+  if (debt < 0) rows.push({ label: '📉 Долг после рейда', value: `${stageFormat(debt)}🌾` });
+  if (log.turret_refund) rows.push({ label: '🔫 Турель списала', value: `${stageFormat(log.turret_refund)}💰` });
+  if (log.turret_chance || log.turretChance) rows.push({ label: '🎯 Шанс турели', value: `${stageFormat(log.turret_chance || log.turretChance)}%` });
+  if (log.jammer_level || log.jammerLevel) rows.push({ label: '📡 Глушилка', value: `-${stageFormat((log.jammer_level || log.jammerLevel) * 5)}%` });
+  return rows;
+}
+
+async function doRaid() {
+  const data = await postJson('/api/farm/raid');
+  if (!data.ok) {
+    const labels = {
+      farm_level_too_low: `рейды доступны с ${data.requiredLevel || 30} уровня фермы`,
+      cooldown: `рейд доступен через ${formatTime(data.remainingMs || 0)}`,
+      no_targets: 'нет подходящих целей для рейда'
+    };
+    showMessage(`❌ Рейд не выполнен: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+
+  const log = data.log || {};
+  const turretBlocked = !!(log.raid_blocked_by_turret || log.killed_by_turret || log.turret_triggered);
+  const title = turretBlocked ? `🔫 Рейд отбит турелью` : `🏴‍☠️ Рейд успешен`;
+  const subtitle = `${state?.profile?.display_name || state?.profile?.login || 'Игрок'} → ${log.target || 'цель'}`;
+  renderActionReport(title, subtitle, raidBreakdownRows(log), { kind: turretBlocked ? 'danger' : 'success', autoCloseMs: 14000 });
+  showMessage(turretBlocked ? `🔫 Турель ${log.target} отбила рейд. Списано ${stageFormat(log.turret_refund || 0)}💰` : `🏴‍☠️ Рейд на ${log.target}: +${stageFormat(log.stolen || 0)}💰`);
+  await loadMe();
+  if (document.querySelector('[data-farm-panel="tops"]')?.classList.contains('active')) await loadTops();
+}
+
+async function offCollect() {
+  if (state?.streamOnline || state?.profile?.stream_online) {
+    showMessage('⛔ Во время стрима оффсбор недоступен.');
+    return;
+  }
+  const data = await postJson('/api/farm/off-collect');
+  if (!data.ok) {
+    showMessage(data.error === 'cooldown' ? `⏳ Оффсбор через ${formatTime(data.remainingMs || 0)}` : `❌ Оффсбор: ${data.error}`);
+    await loadMe();
+    return;
+  }
+  renderUnifiedReward('🌙 Оффсбор получен', '50% от фермы + 50% запчастей завода', [
+    { label: '🌾 Ферма', value: `+${stageFormat(data.income || 0)}`, hint: 'зачислено в farm_balance' },
+    { label: '🔧 Завод', value: `+${stageFormat(data.partsIncome || 0)}`, hint: 'зачислено в parts' },
+    { label: '⏱ Период', value: `${stageFormat(data.minutes || 0)} мин` },
+    { label: '📌 Правило', value: 'без бонусных и зданий', hint: 'только ферма и завод / 2' }
+  ], { kind: 'success', wide: true });
+  await loadMe();
+}
+
+function cleanPayloadText(payload) {
+  let obj = payload;
+  if (typeof payload === 'string') {
+    try { obj = JSON.parse(payload); } catch (_) { obj = payload; }
+  }
+  if (!obj || typeof obj !== 'object') return String(obj || '').replace(/[{}"]/g, '').slice(0, 260);
+
+  const ignore = new Set(['keys','farm_json','farm_v2','farm','payload','configs','configs_json','turret_json']);
+  const labels = {
+    login: 'игрок', ok: 'статус', action: 'действие', qty: 'кол-во',
+    amount: 'сумма', totalCost: 'стоимость', totalParts: 'запчасти',
+    building: 'здание', level: 'уровень', oldValue: 'было', newValue: 'стало',
+    target: 'цель', attacker: 'атакующий', stolen: 'украдено',
+    bonus_stolen: 'бонусные', cost: 'цена', parts: 'детали',
+    farm_balance: 'ферма', upgrade_balance: 'бонусные', twitch_balance: 'голда'
+  };
+  const parts = [];
+  Object.keys(obj).forEach((k) => {
+    if (ignore.has(k)) return;
+    const v = obj[k];
+    if (v && typeof v === 'object') return;
+    parts.push(`${labels[k] || k}: <b>${String(v)}</b>`);
+  });
+  return parts.slice(0, 10).join(' · ') || 'событие записано';
+}
+
+function prettyEventName(type) {
+  type = String(type || '').toLowerCase();
+  if (type.includes('market')) return '🏪 Рынок';
+  if (type.includes('case')) return '🎰 Кейс';
+  if (type.includes('raid')) return '🏴‍☠️ Рейд';
+  if (type.includes('turret')) return '🔫 Турель';
+  if (type.includes('building')) return '🏗 Здание';
+  if (type.includes('license')) return '📜 Лицензия';
+  if (type.includes('gamus')) return '🎁 GAMUS';
+  if (type.includes('off')) return '🌙 Оффсбор';
+  if (type.includes('restore')) return '🧯 Restore';
+  if (type.includes('backup')) return '💾 Backup';
+  if (type.includes('admin')) return '👑 Админ';
+  if (type.includes('sync')) return '🔄 Синхронизация';
+  return '📌 Событие';
+}
+
+function renderEventsList(events) {
+  return (events || []).map((e) => {
+    const payload = e.payload || e.details || {};
+    const date = e.created_at || e.timestamp || Date.now();
+    const login = e.login || payload.login || '';
+    return `
+      <div class="pretty-event-row event-row-clean">
+        <div class="event-title-line"><b>${prettyEventName(e.type)}</b>${login ? `<span>@${login}</span>` : ''}</div>
+        <small>${new Date(date).toLocaleString('ru-RU')}</small>
+        <p>${cleanPayloadText(payload)}</p>
+      </div>`;
+  }).join('');
+}
+
+function renderTopMiniList(title, arr, valueFn, hintFn) {
+  return `<div class="top-card top-card-polished"><b>${title}</b><ol>${arr.length ? arr.map((p, i) => `
+    <li><span><em>#${i+1}</em> ${p.nick || p.login || '—'}</span><strong>${valueFn(p)}</strong><small>${hintFn ? hintFn(p) : ''}</small></li>`).join('') : '<li>нет данных</li>'}</ol></div>`;
+}
+
+async function loadTops() {
+  const topsBox = document.getElementById('topsBox');
+  if (!topsBox) return;
+  try {
+    const res = await fetch('/api/farm/top?days=14');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'top_failed');
+    topsBox.dataset.loaded = '1';
+    const players = (data.playerTop || []).slice();
+    const raids = (data.raidTop || []).slice(0, 10);
+    const by = (fn) => players.slice().sort((a,b)=>Number(fn(b)||0)-Number(fn(a)||0)).slice(0,10);
+
+    topsBox.innerHTML = `
+      <h3>🏆 Топы и аналитика</h3>
+      <div class="analytics-hero-grid">
+        ${renderTopMiniList('💰 Богатейшие', by(ordinaryCoins), p=>`${stageFormat(ordinaryCoins(p))}💰`, p=>`ур. ${p.level} · 🌾${stageFormat(farmCoins(p))}`)}
+        ${renderTopMiniList('🌾 Ферма', by(farmCoins), p=>`${stageFormat(farmCoins(p))}🌾`, p=>`💎${stageFormat(bonusCoins(p))}`)}
+        ${renderTopMiniList('💎 Бонусные', by(bonusCoins), p=>`${stageFormat(bonusCoins(p))}💎`, p=>`🔧${stageFormat(p.parts || 0)}`)}
+        ${renderTopMiniList('🔧 Запчасти', by(p=>p.parts), p=>`${stageFormat(p.parts||0)}🔧`, p=>`ур. ${p.level}`)}
+        ${renderTopMiniList(`🏴 Рейдеры ${data.days}д`, raids, r=>`${stageFormat(r.money)}💰 / ${stageFormat(r.bonus)}💎`, r=>`${r.attacks}⚔ · ${r.defends}🛡`)}
+        ${renderTopMiniList('⚡ Активные', by(p=>p.last_collect_at), p=>p.nick || p.login, p=>p.last_collect_at ? new Date(Number(p.last_collect_at)).toLocaleString('ru-RU') : 'нет сбора')}
+      </div>`;
+  } catch (error) {
+    topsBox.textContent = 'Не удалось загрузить топы';
+  }
+}
+
+function improveAdminEditorVisuals() {
+  const modal = document.querySelector('.admin-modal, #adminModal, .admin-panel-modal');
+  if (!modal || modal.dataset.polishedAdmin === '1') return;
+  modal.dataset.polishedAdmin = '1';
+  modal.classList.add('admin-modal-polished');
+  const tabs = modal.querySelectorAll('button');
+  tabs.forEach((btn) => {
+    if (!btn.title) btn.title = 'Админ-действие. Перед опасными изменениями создаётся backup.';
+  });
+}
+setInterval(improveAdminEditorVisuals, 1500);
+document.addEventListener('DOMContentLoaded', () => setTimeout(improveAdminEditorVisuals, 1000));

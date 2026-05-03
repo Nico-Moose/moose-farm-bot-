@@ -1,0 +1,18 @@
+# Silent sync mode
+
+Что изменено:
+- MOOSE_SYNC больше не публикуется в чат из `!урожай`; вместо этого команда делает тихий HTTP-вызов `/bridge/wizebot-sync-url`.
+- Чат-бот больше не пишет публичные сообщения об успешном/ошибочном MOOSE_SYNC, если `DEBUG_SYNC_CHAT=false`.
+- Кнопка `Sync WizeBot` на сайте скрыта по умолчанию.
+
+Ограничение:
+- Сайт -> WizeBot по-прежнему использует технический вызов `!сайтфермапуш` через Twitch-бота для обновления `JS.wizebot.get_var(...)`-состояния старых команд. Ответ команды можно держать тихим, но сам способ зависит от текущей схемы WizeBot.
+
+
+## Safety guard
+Silent WizeBot -> site sync now rejects empty farm payloads with `invalid_or_empty_farm_payload` instead of overwriting the site profile with zero level/parts/farm balance.
+
+
+## Chat trigger
+
+`WIZEBOT_CHAT_TRIGGER_ENABLED=false` keeps site -> WizeBot sync silent and prevents sending `!сайтфермапуш <login>` into Twitch chat.

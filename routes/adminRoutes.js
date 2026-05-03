@@ -906,6 +906,24 @@ function restoreFarmBackup(profile) {
       const restoredFarm = deepCloneSafe(backup.farm || {}, {});
       restoredFarm.adminBackups = backups;
       db.prepare(`UPDATE farm_profiles SET farm_json=?, updated_at=? WHERE twitch_id=?`).run(JSON.stringify(restoredFarm), Date.now(), profile.twitch_id);
+    } else if (block === 'buildings' || block === 'raids' || block === 'cases') {
+      const currentFarm = deepCloneSafe(profile.farm || {}, {});
+      const backupFarm = deepCloneSafe(backup.farm || {}, {});
+      if (block === 'buildings') currentFarm.buildings = deepCloneSafe(backupFarm.buildings || {}, {});
+      if (block === 'raids') {
+        currentFarm.raidLogs = Array.isArray(backupFarm.raidLogs) ? backupFarm.raidLogs : [];
+        currentFarm.lastRaidAt = backupFarm.lastRaidAt || 0;
+        currentFarm.raidCooldownUntil = backupFarm.raidCooldownUntil || 0;
+        currentFarm.shieldUntil = backupFarm.shieldUntil || 0;
+      }
+      if (block === 'cases') {
+        currentFarm.caseHistory = Array.isArray(backupFarm.caseHistory) ? backupFarm.caseHistory : [];
+        currentFarm.caseStats = deepCloneSafe(backupFarm.caseStats || {}, {});
+        currentFarm.lastCaseAt = backupFarm.lastCaseAt || 0;
+        currentFarm.caseCooldownUntil = backupFarm.caseCooldownUntil || 0;
+      }
+      currentFarm.adminBackups = backups;
+      db.prepare(`UPDATE farm_profiles SET farm_json=?, updated_at=? WHERE twitch_id=?`).run(JSON.stringify(currentFarm), Date.now(), profile.twitch_id);
     } else {
       const restoredFarm = deepCloneSafe(backup.farm || {}, {});
       restoredFarm.adminBackups = backups;
