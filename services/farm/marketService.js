@@ -111,7 +111,21 @@ function buyParts(profile, qty) {
   }
 
   const requested = qty;
-  const finalQty = Math.min(qty, maxCanBuy);
+  if (requested > maxCanBuy) {
+    return {
+      ok: false,
+      error: maxByMoney < requested ? 'not_enough_upgrade_balance' : 'not_enough_market_stock',
+      requested,
+      maxCanBuy,
+      needed: requested * BUY_PRICE,
+      available: num(profile.upgrade_balance, 0),
+      stock: market.partsStock,
+      profile,
+      market: getMarketState()
+    };
+  }
+
+  const finalQty = requested;
   const total = finalQty * BUY_PRICE;
 
   profile.upgrade_balance = num(profile.upgrade_balance, 0) - total;
@@ -122,7 +136,7 @@ function buyParts(profile, qty) {
   market.partsStock -= finalQty;
   saveMarketState(market);
 
-  return { ok: true, action: 'buy', requested, qty: finalQty, totalCost: total, totalParts: finalQty, price: BUY_PRICE, limited: finalQty < requested, profile, market: getMarketState() };
+  return { ok: true, action: 'buy', requested, qty: finalQty, totalCost: total, totalParts: finalQty, price: BUY_PRICE, limited: false, profile, market: getMarketState() };
 }
 
 module.exports = { SELL_PRICE, BUY_PRICE, DEFAULT_STOCK, MAX_QTY_INPUT, getMarketState, buyParts, sellParts, setMarketStock };

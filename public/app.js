@@ -2925,3 +2925,254 @@ function renderAdminPlayer(profile) {
   });
   renderAdminBackups(login);
 }
+
+
+/* === HOTFIX: strict market + clean combat + readable buildings/info === */
+function marketCanBuyQty(q, stock, buyPrice, upgradeBalance) {
+  q = Number(q || 0);
+  const maxByBalance = Math.floor(Number(upgradeBalance || 0) / Math.max(1, Number(buyPrice || 1)));
+  return {
+    ok: q > 0 && q <= Number(stock || 0) && q <= maxByBalance,
+    maxCanBuy: Math.max(0, Math.min(Number(stock || 0), maxByBalance)),
+    maxByBalance
+  };
+}
+
+function renderMarket(data) {
+  const box = document.getElementById('marketBox');
+  if (!box) return;
+
+  const market = data.market || {};
+  const stock = Number(market.stock || 0);
+  const sellPrice = Number(market.sellPrice || 10);
+  const buyPrice = Number(market.buyPrice || 20);
+  const profile = data.profile || {};
+  const upgradeBalance = Number(profile.upgrade_balance || 0);
+  const parts = Number(profile.parts || 0);
+  const maxBuy = Math.max(0, Math.min(stock, Math.floor(upgradeBalance / Math.max(1, buyPrice))));
+  const maxSell = Math.max(0, parts);
+  const startQty = Math.max(1, Number(lastMarketQty || 1000));
+
+  box.innerHTML = `
+    <div class="market-hero clean-market-hero strict-market-hero">
+      <div class="market-stat"><span>📦 Общий склад</span><b>${stageFormat(stock)}🔧</b><small>один склад для всех игроков</small></div>
+      <div class="market-stat"><span>🔵 Купить</span><b>${stageFormat(buyPrice)}💎 / 1🔧</b><small>можешь купить: ${stageFormat(maxBuy)}🔧</small></div>
+      <div class="market-stat"><span>🟢 Продать</span><b>${stageFormat(sellPrice)}💎 / 1🔧</b><small>можешь продать: ${stageFormat(maxSell)}🔧</small></div>
+    </div>
+    <div class="market-wallet polished-wallet"><span>💎 Баланс: <b>${stageFormat(upgradeBalance)}</b></span><span>🔧 Запчасти: <b>${stageFormat(parts)}</b></span></div>
+    <div class="market-preset-row market-preset-row-fixed">
+      <button data-market-preset="1000">1к</button>
+      <button data-market-preset="10000">10к</button>
+      <button data-market-preset="100000">100к</button>
+      <button data-market-preset="1000000">1кк</button>
+      <button data-market-preset="buyMax">макс купить</button>
+      <button data-market-preset="sellMax">макс продать</button>
+    </div>
+    <div class="market-actions pretty-actions polished-market-actions clean-market-actions">
+      <input id="marketQty" type="text" inputmode="text" value="${formatHumanInputValue(startQty)}" placeholder="1к / 100к / 1кк / 100кк" />
+      <button id="marketBuyBtn" ${maxBuy < 1 ? 'disabled' : ''}>🔵 Купить</button>
+      <button id="marketSellBtn" ${maxSell < 1 ? 'disabled' : ''}>🟢 Продать</button>
+    </div>
+    <div id="marketCalc" class="market-calc"></div>
+    <div class="market-history"><b>История сделок</b>${stageMarketHistory.length ? stageMarketHistory.map(h=>`<div><span>${new Date(h.ts).toLocaleTimeString('ru-RU')}</span> ${h.action==='buy'?'🔵 куплено':'🟢 продано'} <b>${stageFormat(h.qty)}🔧</b> за <b>${stageFormat(h.cost)}💎</b></div>`).join('') : '<p>Пока нет сделок в этой сессии.</p>'}</div>
+  `;
+
+  const qtyInput = document.getElementById('marketQty');
+  const buyBtn = document.getElementById('marketBuyBtn');
+  const sellBtn = document.getElementById('marketSellBtn');
+
+  const recalc = () => {
+    const q = Math.max(1, parseHumanQty(qtyInput?.value || '1'));
+    lastMarketQty = q;
+    localStorage.setItem('mooseFarmLastMarketQty', String(q));
+    const buyCost = q * buyPrice;
+    const sellGain = q * sellPrice;
+    const buyCheck = marketCanBuyQty(q, stock, buyPrice, upgradeBalance);
+    const canSellExact = q > 0 && q <= parts;
+    const warnings = [];
+
+    if (!buyCheck.ok) warnings.push(`купить ${stageFormat(q)}🔧 нельзя: максимум доступно ${stageFormat(buyCheck.maxCanBuy)}🔧`);
+    if (!canSellExact) warnings.push(`продать ${stageFormat(q)}🔧 нельзя: максимум доступно ${stageFormat(parts)}🔧`);
+
+    if (buyBtn) buyBtn.disabled = !buyCheck.ok;
+    if (sellBtn) sellBtn.disabled = !canSellExact;
+
+    const calc = document.getElementById('marketCalc');
+    if (calc) {
+      calc.innerHTML =
+        `Калькулятор: купить <b>${stageFormat(q)}🔧</b> = <b>${stageFormat(buyCost)}💎</b> · продать <b>${stageFormat(q)}🔧</b> = <b>${stageFormat(sellGain)}💎</b><br>` +
+        `<span class="${buyCheck.ok ? 'okline' : 'warning'}">${buyCheck.ok ? '✅ Покупка доступна ровно на это количество.' : `⚠️ Покупка не выполнится. Укажи не больше ${stageFormat(buyCheck.maxCanBuy)}🔧.`}</span>` +
+        `${!canSellExact ? `<br><span class="warning">⚠️ Продажа не выполнится. Укажи не больше ${stageFormat(parts)}🔧.</span>` : ''}`;
+    }
+  };
+  qtyInput?.addEventListener('input', recalc);
+  qtyInput?.addEventListener('blur', () => { qtyInput.value = formatHumanInputValue(parseHumanQty(qtyInput.value)); recalc(); });
+  recalc();
+
+  document.querySelectorAll('[data-market-preset]').forEach(btn => btn.addEventListener('click', () => {
+    const v = btn.dataset.marketPreset;
+    const value = v === 'buyMax' ? Math.max(1, maxBuy) : v === 'sellMax' ? Math.max(1, maxSell) : Number(v);
+    qtyInput.value = formatHumanInputValue(value);
+    recalc();
+  }));
+  buyBtn?.addEventListener('click', () => {
+    const q = Math.max(1, parseHumanQty(qtyInput?.value || '1'));
+    const check = marketCanBuyQty(q, stock, buyPrice, upgradeBalance);
+    if (!check.ok) {
+      showMessage(`❌ Рынок: купить ${stageFormat(q)}🔧 нельзя. Максимум сейчас ${stageFormat(check.maxCanBuy)}🔧. Укажи верное количество.`);
+      return;
+    }
+    marketTrade('buy');
+  });
+  sellBtn?.addEventListener('click', () => {
+    const q = Math.max(1, parseHumanQty(qtyInput?.value || '1'));
+    if (q > parts) {
+      showMessage(`❌ Рынок: продать ${stageFormat(q)}🔧 нельзя. У тебя только ${stageFormat(parts)}🔧.`);
+      return;
+    }
+    marketTrade('sell');
+  });
+}
+
+async function marketTrade(action) {
+  const qtyInput = document.getElementById('marketQty');
+  const qty = parseHumanQty(qtyInput?.value || '0');
+  if (qty > 0) {
+    lastMarketQty = qty;
+    localStorage.setItem('mooseFarmLastMarketQty', String(qty));
+  }
+  const data = await postJson(`/api/farm/market/${action}`, { qty });
+  if (!data.ok) {
+    const labels = {
+      invalid_quantity: 'укажи количество больше 0. Можно писать 1к, 100к или 1кк',
+      quantity_too_large: `слишком большое число, максимум ${stageFormat(data.maxQty || 0)}🔧`,
+      not_enough_parts: `не хватает запчастей: можно продать максимум ${stageFormat(data.available || 0)}🔧`,
+      not_enough_upgrade_balance: `не хватает 💎: можно купить максимум ${stageFormat(data.maxCanBuy || 0)}🔧. Нужно ${stageFormat(data.needed || 0)}💎, есть ${stageFormat(data.available || 0)}💎`,
+      market_stock_empty: 'общий склад пуст',
+      not_enough_market_stock: `на общем складе недостаточно 🔧: можно купить максимум ${stageFormat(data.maxCanBuy || data.stock || 0)}🔧`
+    };
+    showMessage(`❌ Рынок: ${labels[data.error] || data.error}`);
+    await loadMe();
+    return;
+  }
+
+  pushMarketHistory({ action, qty: data.qty || qty, cost: data.totalCost || 0 });
+  showPrettyModal({
+    title: action === 'buy' ? '🏪 Покупка завершена' : '🏪 Продажа завершена',
+    body: `<div class="result-mini-grid"><div><span>${action === 'buy' ? '🔧 Куплено' : '🔧 Продано'}</span><b>${stageFormat(data.qty)}🔧</b></div><div><span>${action === 'buy' ? '💎 Потрачено' : '💎 Получено'}</span><b>${stageFormat(data.totalCost)}💎</b></div><div><span>📦 Общий склад</span><b>${stageFormat(data.market?.stock ?? 0)}🔧</b></div></div>`,
+    autoCloseMs: 7000,
+    kind: 'success'
+  });
+  showActionToast(action === 'buy' ? '🏪 Покупка на рынке' : '🏪 Продажа на рынке', [
+    action === 'buy' ? `Куплено: <b>${stageFormat(data.qty)}🔧</b>` : `Продано: <b>${stageFormat(data.qty)}🔧</b>`,
+    action === 'buy' ? `Потрачено: <b>${stageFormat(data.totalCost)}💎</b>` : `Получено: <b>${stageFormat(data.totalCost)}💎</b>`
+  ], { kind: 'market' });
+  await loadMe();
+}
+
+function buildingLongBenefit(key, conf, lvl) {
+  key = String(key || '').toLowerCase();
+  const level = Number(lvl || 0);
+  if (key === 'завод') return `производит запчасти: ${stageFormat((Number(conf.baseProduction||0) + Math.max(0, level - 1) * Number(conf.perLevel||0)))}🔧/ч`;
+  if (key === 'фабрика') return `усиливает производство запчастей на ${stageFormat((Number(conf.baseProduction||0) + Math.max(0, level - 1) * Number(conf.perLevel||0)))}%`;
+  if (key === 'шахта') return `умножает запчасти, кейсы и GAMUS: +${stageFormat(level)}%`;
+  if (key === 'кузница') return `даёт оружие для рейдов: +${stageFormat((Number(conf.baseProduction||0) + Math.max(0, level - 1) * Number(conf.perLevel||0)))}⚔/сбор`;
+  if (key === 'укрепления') return `даёт щиты защиты: +${stageFormat((Number(conf.baseProduction||0) + Math.max(0, level - 1) * Number(conf.perLevel||0)))}🛡/сбор`;
+  if (key === 'глушилка') return `снижает шанс турели цели: -${stageFormat(level * 5)}%`;
+  if (key === 'центр') return `снижает кулдаун рейда: -${stageFormat(Math.min(level * 5, 45))} мин`;
+  return conf.description || 'улучшает ферму';
+}
+
+function renderInfo(data){
+  const infoBox=document.getElementById('infoBox'); const topsBox=document.getElementById('topsBox'); if(!infoBox) return;
+  const info=data.farmInfo||{}; const raidInfo=data.raidInfo||{}; const hourly=info.hourly||{}; const balances=info.balances||{}; const buildings=info.buildings||[]; const raidLogs=(raidInfo.logs||[]).slice(0,10);
+  const buildingCells = buildings.length
+    ? buildings.map((b)=>`<div class="info-building-cell"><b>${b.config?.name || b.key}</b><span>ур. ${stageFormat(b.level || 0)}</span><small>${buildingLongBenefit(b.key, b.config || {}, b.level || 0)}</small></div>`).join('')
+    : '<div class="info-building-cell"><b>Построек нет</b><span>—</span><small>Построй здания во вкладке зданий.</small></div>';
+  infoBox.innerHTML=`<div class="info-grid rich-info-grid final-info-grid"><div class="info-metric"><span>💰 Голда</span><b>${stageFormat(balances.twitch||0)}</b></div><div class="info-metric"><span>🌾 Ферма</span><b>${stageFormat(balances.farm||0)}</b></div><div class="info-metric"><span>💎 Бонусные</span><b>${stageFormat(balances.upgrade||0)}</b></div><div class="info-metric"><span>🔧 Запчасти</span><b>${stageFormat(balances.parts||0)}</b></div><div class="info-metric"><span>📈 Доход/ч</span><b>${stageFormat(hourly.total||0)}</b><small>пассив ${stageFormat(hourly.passive||0)} · растения/животные ${stageFormat((hourly.plants||0)+(hourly.animals||0))} · здания ${stageFormat(hourly.buildingCoins||0)}</small></div><div class="info-metric"><span>🛠 Детали/ч</span><b>${stageFormat(hourly.parts||0)}</b></div><div class="info-metric"><span>🏴 Рейды 14д</span><b>${stageFormat(raidInfo.twoWeeks?.count||0)}</b><small>${stageFormat(raidInfo.twoWeeks?.stolen||0)}💰 · ${stageFormat(raidInfo.twoWeeks?.bonus||0)}💎</small></div></div><div class="info-buildings-panel"><h3>🏗 Постройки</h3><div class="info-building-grid">${buildingCells}</div></div><div class="raid-log-list beautiful-raid-log"><div class="section-inline-title">Последние рейды</div>${raidLogs.length?raidLogs.map((r,i)=>`<div class="raid-log-row"><b>${i+1}.</b> ${new Date(r.timestamp||0).toLocaleString('ru-RU')} — ${r.attacker} → ${r.target}: <b>${stageFormat(r.stolen)}💰</b>, <b>${stageFormat(r.bonus_stolen||0)}💎</b>${r.killed_by_turret?' · 🔫 турель':''}</div>`).join(''):'<div class="raid-log-row">Рейдов пока нет</div>'}</div><button id="refreshTopBtn">🏆 Обновить топы</button>`;
+  document.getElementById('refreshTopBtn')?.addEventListener('click', loadTops); if(topsBox && !topsBox.dataset.loaded) loadTops();
+}
+
+function renderCombat(data) {
+  const box = document.getElementById('combatBox');
+  if (!box) return;
+  const p = data.profile || {};
+  const raidPower = data.raidUpgrades?.raidPower || {};
+  const protection = data.raidUpgrades?.protection || {};
+  const turret = data.turret || {};
+  box.innerHTML = `
+    <div class="combat-card">
+      <h3>⚔️ Рейд-сила</h3>
+      <p>Уровень: <b>${stageFormat(raidPower.level || 0)}/${stageFormat(raidPower.maxLevel || 200)}</b></p>
+      <p>Цена следующего: <b>${raidPower.nextCost ? stageFormat(raidPower.nextCost) + '💎' : 'максимум'}</b></p>
+      <p class="resource-line">Ап-баланс: <b>${stageFormat(p.upgrade_balance || 0)}💎</b></p>
+      <div class="building-actions"><button data-raid-power="1" ${!raidPower.unlocked ? 'disabled' : ''}>⬆️ +1</button><button data-raid-power="10" ${!raidPower.unlocked ? 'disabled' : ''}>⬆️ +10</button></div>
+      ${!raidPower.unlocked ? '<p class="shortage">Доступно с 120 уровня фермы</p>' : ''}
+    </div>
+    <div class="combat-card">
+      <h3>🛡 Защита</h3>
+      <p>Уровень: <b>${stageFormat(protection.level || 0)}/${stageFormat(protection.maxLevel || 120)}</b> (${Number(protection.percent || 0).toFixed(1)}%)</p>
+      <p>Цена следующего: <b>${protection.nextCost ? stageFormat(protection.nextCost) + '💎' : 'максимум'}</b></p>
+      <p class="resource-line">Ап-баланс: <b>${stageFormat(p.upgrade_balance || 0)}💎</b></p>
+      <div class="building-actions"><button data-protection="1" ${!protection.unlocked ? 'disabled' : ''}>⬆️ +1</button><button data-protection="10" ${!protection.unlocked ? 'disabled' : ''}>⬆️ +10</button></div>
+      ${!protection.unlocked ? '<p class="shortage">Доступно с 120 уровня фермы</p>' : ''}
+    </div>
+    <div class="combat-card">
+      <h3>🔫 Турель</h3>
+      <p>Уровень: <b>${stageFormat(turret.level || 0)}/${stageFormat(turret.maxLevel || 20)}</b> | шанс: <b>${stageFormat(turret.chance || 0)}%</b></p>
+      <p>Следующий: <b>${turret.nextUpgrade ? stageFormat(turret.nextUpgrade.chance || 0) + '% за ' + stageFormat(turret.nextUpgrade.cost || 0) + '💰 / ' + stageFormat(turret.nextUpgrade.parts || 0) + '🔧' : 'максимум'}</b></p>
+      <p class="resource-line">У тебя: <b>${stageFormat(currentCoins(p))}💰</b> / <b>${stageFormat(p.parts || 0)}🔧</b></p>
+      <button id="turretUpgradeBtn" ${turret.nextUpgrade ? '' : 'disabled'}>🔫 Улучшить турель</button>
+    </div>
+  `;
+  document.querySelectorAll('[data-raid-power]').forEach((btn) => btn.addEventListener('click', () => upgradeRaidPower(Number(btn.dataset.raidPower || 1))));
+  document.querySelectorAll('[data-protection]').forEach((btn) => btn.addEventListener('click', () => upgradeProtection(Number(btn.dataset.protection || 1))));
+  document.getElementById('turretUpgradeBtn')?.addEventListener('click', upgradeTurret);
+}
+
+function renderBuildings(data) {
+  const el = document.getElementById('buildings');
+  if (!el) return;
+  const p = data.profile || {};
+  const buildingsConfig = p.configs?.buildings || {};
+  const owned = (p.farm && p.farm.buildings) || {};
+  const keys = Object.keys(buildingsConfig);
+  if (!keys.length) { el.innerHTML = '<p>Нет данных зданий. Сделай !синкферма.</p>'; return; }
+  el.innerHTML = keys.map((key) => {
+    const conf = buildingsConfig[key] || {};
+    const lvl = Number(owned[key] || 0);
+    const isBuilt = lvl > 0;
+    const maxLevel = Number(conf.maxLevel || 0) || 0;
+    const farmLevel = Number(p.level || 0);
+    const requiredLevel = Number(conf.levelRequired || 0);
+    const levelLocked = farmLevel < requiredLevel;
+    const nextLevel = lvl + 1;
+    const nextCost = calcBuildingCost(conf, nextLevel);
+    const maxed = isBuilt && maxLevel && lvl >= maxLevel;
+    const affordAll = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0));
+    const afford10 = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0), 10);
+    const reason = levelLocked ? `Нужен ${requiredLevel} уровень фермы, сейчас ${farmLevel}.` : maxed ? 'Здание уже на максимуме.' : affordAll.stop || 'Можно улучшать.';
+    const nextBenefit = maxed ? 'максимум уже достигнут' : buildingNextBenefit(key, conf, lvl, nextLevel);
+    const haveText = `${stageFormat(currentCoins(p))}💰 / ${stageFormat(p.parts || 0)}🔧`;
+    return `
+      <div class="building-card stage-building-card clean-building-card readable-building-card ${levelLocked ? 'locked-building' : 'ready-building'}">
+        <div class="building-title-row">
+          <h3>${conf.name || key}</h3>
+          <span class="building-badge">${isBuilt ? `ур. ${lvl}${maxLevel ? '/' + maxLevel : ''}` : 'не построено'}</span>
+        </div>
+        <div class="building-info-line"><span>Требование</span><b>${requiredLevel ? `${requiredLevel} ур. фермы` : 'нет'}</b></div>
+        <div class="building-info-line"><span>Статус</span><b>${reason}</b></div>
+        <div class="building-info-line"><span>Следующий уровень</span><b>${maxed ? 'MAX' : nextLevel + ' ур.'}</b></div>
+        <div class="building-cost-readable">
+          <div><span>Цена</span><b>${stageFormat(nextCost.coins)}💰</b><b>${stageFormat(nextCost.parts)}🔧</b></div>
+          <div><span>У тебя</span><b>${haveText}</b></div>
+          <div><span>Хватит</span><b>${levelLocked || maxed ? '—' : `${stageFormat(affordAll.count)} ур.`}</b></div>
+        </div>
+        <div class="stage-benefit">✨ Следующий уровень: <b>${nextBenefit}</b></div>
+        <div class="${afford10.count > 0 ? 'stage-mini-note' : 'stage-mini-note warning'}">Для +10 реально доступно: <b>${stageFormat(afford10.count)} ур.</b>; цена доступной пачки: <b>${stageFormat(afford10.totalCoins)}💰 / ${stageFormat(afford10.totalParts)}🔧</b>${afford10.stop ? `; стопор: ${afford10.stop}` : ''}</div>
+        ${!isBuilt ? `<button data-building-buy="${key}" ${levelLocked ? 'disabled' : ''} title="${levelLocked ? reason : 'Купить здание'}">🏗 Купить</button>` : `<div class="building-actions"><button data-building-upgrade="${key}" data-count="1" ${maxed || levelLocked ? 'disabled' : ''} title="${reason}">⬆️ Ап +1</button><button data-building-upgrade="${key}" data-count="10" ${maxed || levelLocked || afford10.count < 1 ? 'disabled' : ''} title="${afford10.stop || 'Апнуть до 10 уровней'}">🚀 Ап +10</button></div>`}
+      </div>`;
+  }).join('');
+  document.querySelectorAll('[data-building-buy]').forEach((btn) => btn.addEventListener('click', async () => buyBuilding(btn.getAttribute('data-building-buy'))));
+  document.querySelectorAll('[data-building-upgrade]').forEach((btn) => btn.addEventListener('click', async () => upgradeBuilding(btn.getAttribute('data-building-upgrade'), Number(btn.getAttribute('data-count') || 1))));
+}
