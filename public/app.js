@@ -5269,3 +5269,91 @@ document.addEventListener('DOMContentLoaded', () => {
     bindLiveUpgradeButton('upgrade10Btn', 10);
   };
 })();
+
+
+/* ==========================================================================
+   FINAL HOTFIX: instant farm level refresh without F5
+   ========================================================================== */
+(function(){
+  function mergeLiveState(data) {
+    const prev = state || {};
+    const next = data || {};
+    return {
+      ...prev,
+      ...next,
+      user: next.user || prev.user || null,
+      streamStatus: next.streamStatus || prev.streamStatus || {},
+      streamOnline: Object.prototype.hasOwnProperty.call(next, 'streamOnline') ? next.streamOnline : prev.streamOnline,
+      harvestManagedByWizebot: Object.prototype.hasOwnProperty.call(next, 'harvestManagedByWizebot') ? next.harvestManagedByWizebot : prev.harvestManagedByWizebot,
+    };
+  }
+
+  function applyLiveActionState(data) {
+    if (!data || !data.profile) return false;
+    const merged = mergeLiveState(data);
+    state = merged;
+    try {
+      render(merged);
+      return true;
+    } catch (e) {
+      console.warn('[LIVE APPLY]', e);
+      return false;
+    }
+  }
+
+  async function runFarmUpgradeLive(count) {
+    const data = await postJson('/api/farm/upgrade', { count });
+
+    if (data?.error === 'stale_profile' || data?.error === 'action_in_progress' || data?.httpStatus === 409) {
+      applyLiveActionState(data);
+      showMessage(`⏳ ${data.message || 'Профиль обновился. Подтягиваем свежие данные...'}`);
+      await loadMe(true);
+      return;
+    }
+
+    if (!data?.ok) {
+      applyLiveActionState(data);
+      showMessage(farmUpgradeErrorMessage(data));
+      await loadMe(true);
+      return;
+    }
+
+    applyLiveActionState(data);
+    showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost || 0)}💰${data.totalParts ? ` / ${formatNumber(data.totalParts)}🔧` : ''}`);
+    setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
+  }
+
+  async function bindFinalFarmUpgradeButton(id, count) {
+    const btn = document.getElementById(id);
+    if (!btn || btn.dataset.finalFarmLiveBind === '1') return;
+
+    const clone = btn.cloneNode(true);
+    clone.dataset.finalFarmLiveBind = '1';
+    btn.parentNode.replaceChild(clone, btn);
+
+    clone.addEventListener('click', async () => {
+      if (clone.disabled) return;
+
+      const oldHtml = clone.innerHTML;
+      clone.disabled = true;
+      clone.classList.add('is-busy');
+      clone.innerHTML = '⏳ Выполняется...';
+
+      try {
+        await runFarmUpgradeLive(count);
+      } finally {
+        clone.disabled = false;
+        clone.classList.remove('is-busy');
+        clone.innerHTML = oldHtml;
+      }
+    });
+  }
+
+  const prevRender = render;
+  render = function patchedRenderFinalLive(data) {
+    const merged = mergeLiveState(data);
+    prevRender(merged);
+    bindFinalFarmUpgradeButton('upgrade1Btn', 1);
+    bindFinalFarmUpgradeButton('upgrade10Btn', 10);
+  };
+})();
