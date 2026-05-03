@@ -851,5 +851,71 @@ function restoreFarmBackup(profile) {
     ]});
   });
 
+
+  // === STAGE 7-12: backup list / preview / targeted restore ===
+  router.get('/backups', (req, res) => {
+    const login = String(req.query.login || '').toLowerCase().replace(/^@/, '');
+    if (!login) return res.status(400).json({ ok: false, error: 'Нужен login' });
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+    const backups = Array.isArray(profile.farm?.adminBackups) ? profile.farm.adminBackups : [];
+    res.json({
+      ok: true,
+      login,
+      backups: backups.map((b, index) => ({
+        index,
+        createdAt: b.createdAt || 0,
+        reason: b.reason || 'backup',
+        login: b.login || login,
+        level: Number(b.level || 0),
+        farm_balance: Number(b.farm_balance || 0),
+        upgrade_balance: Number(b.upgrade_balance || 0),
+        parts: Number(b.parts || 0),
+        license_level: Number(b.license_level || 0),
+        protection_level: Number(b.protection_level || 0),
+        raid_power: Number(b.raid_power || 0),
+        buildings: (b.farm && b.farm.buildings) || {},
+        caseHistoryCount: Array.isArray(b.farm?.caseHistory) ? b.farm.caseHistory.length : 0,
+        raidLogsCount: Array.isArray(b.farm?.raidLogs) ? b.farm.raidLogs.length : 0
+      }))
+    });
+  });
+
+  router.post('/restore-backup-index', (req, res) => {
+    const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
+    const index = Math.max(0, parseInt(req.body.index || '0', 10) || 0);
+    const block = String(req.body.block || 'all');
+    if (!login) return res.status(400).json({ ok: false, error: 'Нужен login' });
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+    const backups = Array.isArray(profile.farm?.adminBackups) ? profile.farm.adminBackups : [];
+    const backup = backups[index];
+    if (!backup) return res.status(404).json({ ok: false, error: 'Бэкап не найден' });
+
+    saveFarmBackup(profile, 'before_restore_backup_index_' + index + '_' + block);
+
+    if (block === 'balances') {
+      db.prepare(`UPDATE farm_profiles SET farm_balance=?, upgrade_balance=?, parts=?, updated_at=? WHERE twitch_id=?`).run(
+        Number(backup.farm_balance || 0), Number(backup.upgrade_balance || 0), Number(backup.parts || 0), Date.now(), profile.twitch_id
+      );
+    } else if (block === 'progression') {
+      db.prepare(`UPDATE farm_profiles SET level=?, license_level=?, protection_level=?, raid_power=?, turret_json=?, updated_at=? WHERE twitch_id=?`).run(
+        Number(backup.level || 0), Number(backup.license_level || 0), Number(backup.protection_level || 0), Number(backup.raid_power || 0), JSON.stringify(deepCloneSafe(backup.turret || {}, {})), Date.now(), profile.twitch_id
+      );
+    } else if (block === 'farm') {
+      const restoredFarm = deepCloneSafe(backup.farm || {}, {});
+      restoredFarm.adminBackups = backups;
+      db.prepare(`UPDATE farm_profiles SET farm_json=?, updated_at=? WHERE twitch_id=?`).run(JSON.stringify(restoredFarm), Date.now(), profile.twitch_id);
+    } else {
+      const restoredFarm = deepCloneSafe(backup.farm || {}, {});
+      restoredFarm.adminBackups = backups;
+      db.prepare(`UPDATE farm_profiles SET level=?, farm_balance=?, upgrade_balance=?, total_income=?, parts=?, last_collect_at=?, farm_json=?, configs_json=?, license_level=?, protection_level=?, raid_power=?, turret_json=?, updated_at=? WHERE twitch_id=?`).run(
+        Number(backup.level || 0), Number(backup.farm_balance || 0), Number(backup.upgrade_balance || 0), Number(backup.total_income || 0), Number(backup.parts || 0), backup.last_collect_at || null, JSON.stringify(restoredFarm), JSON.stringify(deepCloneSafe(backup.configs || {}, {})), Number(backup.license_level || 0), Number(backup.protection_level || 0), Number(backup.raid_power || 0), JSON.stringify(deepCloneSafe(backup.turret || {}, {})), Date.now(), profile.twitch_id
+      );
+    }
+    logAdminEvent(db, profile.twitch_id, 'admin_restore_backup_index', { login, index, block, backupAt: backup.createdAt, reason: backup.reason });
+    res.json({ ok: true, message: `Восстановлен backup #${index + 1} (${block}) для ${login}`, profile: getProfileByLogin(db, login) });
+  });
+
   return router;
 };

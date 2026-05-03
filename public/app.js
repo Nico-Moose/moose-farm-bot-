@@ -2567,3 +2567,153 @@ async function loadTops() {
     topsBox.textContent = 'Не удалось загрузить топы';
   }
 }
+
+
+
+/* === STAGE 7-12 FINAL UX PACK === */
+function stageFormat(n){ return formatNumber(Number(n||0)); }
+function getBuildingConf(key){ return state?.profile?.configs?.buildings?.[key] || {}; }
+function calcBuildingCost(conf, level){
+  return {
+    coins: Number(conf.baseCost || 0) + Math.max(0, level - 1) * Number(conf.costIncreasePerLevel || 0),
+    parts: Number(conf.partsBase || 0) + Math.max(0, level - 1) * Number(conf.partsPerLevel || 0)
+  };
+}
+function buildingNextBenefit(key, conf, fromLevel, toLevel){
+  const diff = Math.max(1, Number(toLevel||fromLevel+1)-Number(fromLevel||0));
+  if (key === 'завод') return `даст производство 🔧: +${stageFormat((Number(conf.baseProduction||0)+Number(conf.perLevel||0)*Math.max(0,toLevel-1)))} / сбор`;
+  if (key === 'фабрика') return `усилит завод примерно на +${stageFormat(Number(conf.baseProduction||0)+Number(conf.perLevel||0)*Math.max(0,toLevel-1))}%`;
+  if (key === 'шахта') return `усилит бонусы шахтой: +${stageFormat(toLevel)}%`;
+  if (key === 'укрепления') return `щит/укрепления: +${stageFormat(Number(conf.baseProduction||0)+Number(conf.perLevel||0)*Math.max(0,toLevel-1))}`;
+  if (key === 'кузница') return `оружие для рейдов: +${stageFormat(Number(conf.baseProduction||0)+Number(conf.perLevel||0)*Math.max(0,toLevel-1))}`;
+  if (key === 'центр') return `сократит кд рейда на ${stageFormat(Math.min(toLevel*5,45))} мин`;
+  if (key === 'глушилка') return `снизит шанс турели цели на ${stageFormat(toLevel*5)}%`;
+  if (Number(conf.coinsPerHour||0) || Number(conf.coinsPerLevel||0)) return `доход: +${stageFormat((Number(conf.coinsPerHour||0)+Number(conf.coinsPerLevel||0))*diff)}💰/ч`;
+  return 'откроет/усилит механику здания';
+}
+function calcAffordableLevelsDetailed(conf, lvl, coins, parts, maxCount=999){
+  let count=0,totalCoins=0,totalParts=0,stop='';
+  let c=Number(coins||0), p=Number(parts||0);
+  const maxLevel=Number(conf.maxLevel||0)||100000;
+  for(let step=1; step<=maxCount; step++){
+    const next=lvl+step;
+    if(next>maxLevel){ stop='достигнут максимум здания'; break; }
+    const cost=calcBuildingCost(conf,next);
+    if(c<cost.coins){ stop=`не хватает ${stageFormat(cost.coins-c)}💰 на ${next} ур.`; break; }
+    if(p<cost.parts){ stop=`не хватает ${stageFormat(cost.parts-p)}🔧 на ${next} ур.`; break; }
+    c-=cost.coins; p-=cost.parts; totalCoins+=cost.coins; totalParts+=cost.parts; count++;
+  }
+  return {count,totalCoins,totalParts,stop,remainingCoins:c,remainingParts:p};
+}
+function renderBuildings(data) {
+  const el = document.getElementById('buildings');
+  if (!el) return;
+  const p = data.profile || {};
+  const buildingsConfig = p.configs?.buildings || {};
+  const owned = (p.farm && p.farm.buildings) || {};
+  const keys = Object.keys(buildingsConfig);
+  if (!keys.length) { el.innerHTML = '<p>Нет данных зданий. Сделай !синкферма.</p>'; return; }
+  el.innerHTML = `<div class="stage-section-title"><h2>🏗 Здания</h2><p>Понятные требования, стоимость, стопоры и выгода следующего уровня.</p></div>` + keys.map((key) => {
+    const conf = buildingsConfig[key] || {};
+    const lvl = Number(owned[key] || 0);
+    const isBuilt = lvl > 0;
+    const maxLevel = Number(conf.maxLevel || 0) || 0;
+    const farmLevel = Number(p.level || 0);
+    const requiredLevel = Number(conf.levelRequired || 0);
+    const levelLocked = farmLevel < requiredLevel;
+    const nextLevel = lvl + 1;
+    const nextCost = calcBuildingCost(conf, nextLevel);
+    const st = resourceStatus(p, nextCost.coins, nextCost.parts);
+    const maxed = isBuilt && maxLevel && lvl >= maxLevel;
+    const affordAll = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0));
+    const afford10 = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0), 10);
+    const reason = levelLocked ? `Нужен уровень фермы ${requiredLevel}, сейчас ${farmLevel}` : maxed ? 'Здание уже на максимуме' : affordAll.stop || 'ресурсов хватает';
+    return `
+      <div class="building-card stage-building-card ${levelLocked ? 'locked-building' : st.coinsOk && st.partsOk ? 'ready-building' : 'shortage-building'}">
+        <div class="building-title-row"><h3>${conf.name || key}</h3><span class="building-badge">${isBuilt ? `ур. ${lvl}${maxLevel ? '/' + maxLevel : ''}` : 'не построено'}</span></div>
+        <div class="stage-building-meta"><span>Требование: ${requiredLevel ? `${requiredLevel} ур. фермы` : 'нет'}</span><span>Статус: ${reason}</span></div>
+        <div class="stage-cost-grid"><div><span>Следующий уровень</span><b>${maxed ? 'MAX' : nextLevel + ' ур.'}</b></div><div><span>Цена</span><b>${stageFormat(nextCost.coins)}💰 / ${stageFormat(nextCost.parts)}🔧</b></div><div><span>У тебя</span><b>${stageFormat(currentCoins(p))}💰 / ${stageFormat(p.parts || 0)}🔧</b></div><div><span>Хватит</span><b>${levelLocked || maxed ? '—' : `${stageFormat(affordAll.count)} ур.`}</b></div></div>
+        <div class="stage-benefit">✨ Следующий уровень даст: <b>${maxed ? 'максимум уже достигнут' : buildingNextBenefit(key, conf, lvl, nextLevel)}</b></div>
+        ${!levelLocked && !maxed ? `<div class="stage-mini-note">Для +10 реально доступно: <b>${stageFormat(afford10.count)} ур.</b>, цена доступной пачки: <b>${stageFormat(afford10.totalCoins)}💰 / ${stageFormat(afford10.totalParts)}🔧</b>${afford10.stop ? ` · стопор: ${afford10.stop}` : ''}</div>` : `<div class="stage-mini-note warning">${reason}</div>`}
+        ${!isBuilt ? `<button data-building-buy="${key}" ${levelLocked ? 'disabled' : ''} title="${levelLocked ? reason : 'Купить здание'}">🏗 Купить</button>` : `<div class="building-actions"><button data-building-upgrade="${key}" data-count="1" ${maxed || levelLocked ? 'disabled' : ''} title="${reason}">⬆️ Ап +1</button><button data-building-upgrade="${key}" data-count="10" ${maxed || levelLocked || afford10.count < 1 ? 'disabled' : ''} title="${afford10.stop || 'Апнуть до 10 уровней'}">🚀 Ап +10</button></div>`}
+      </div>`;
+  }).join('');
+  document.querySelectorAll('[data-building-buy]').forEach((btn) => btn.addEventListener('click', async () => buyBuilding(btn.getAttribute('data-building-buy'))));
+  document.querySelectorAll('[data-building-upgrade]').forEach((btn) => btn.addEventListener('click', async () => upgradeBuilding(btn.getAttribute('data-building-upgrade'), Number(btn.getAttribute('data-count') || 1))));
+}
+
+let stageMarketHistory = [];
+try { stageMarketHistory = JSON.parse(localStorage.getItem('stageMarketHistory') || '[]'); } catch (_) { stageMarketHistory = []; }
+function pushMarketHistory(item){ stageMarketHistory.unshift({...item, ts:Date.now()}); stageMarketHistory=stageMarketHistory.slice(0,20); localStorage.setItem('stageMarketHistory',JSON.stringify(stageMarketHistory)); }
+function renderMarket(data) {
+  const box = document.getElementById('marketBox'); if (!box) return;
+  const market = data.market || {}; const stock = Number(market.stock || 0); const sellPrice = Number(market.sellPrice || 10); const buyPrice = Number(market.buyPrice || 20);
+  const profile = data.profile || {}; const upgradeBalance = Number(profile.upgrade_balance || 0); const parts = Number(profile.parts || 0);
+  const qty = Math.max(1, Number(lastMarketQty || 1));
+  const buyMaxByBalance = Math.floor(upgradeBalance / Math.max(1,buyPrice)); const buyMax = Math.max(0, Math.min(stock, buyMaxByBalance)); const sellMax = Math.max(0, parts);
+  box.innerHTML = `
+    <div class="market-hero polished-market-hero stage-market-hero"><div class="market-stat"><span>📦 Общий склад</span><b>${stageFormat(stock)}🔧</b><small>один склад для всех</small></div><div class="market-stat"><span>🔵 Купить</span><b>${stageFormat(buyPrice)}💎 / 1🔧</b><small>макс: ${stageFormat(buyMax)}🔧</small></div><div class="market-stat"><span>🟢 Продать</span><b>${stageFormat(sellPrice)}💎 / 1🔧</b><small>можно: ${stageFormat(sellMax)}🔧</small></div></div>
+    <div class="market-wallet polished-wallet"><span>💎 Баланс: <b>${stageFormat(upgradeBalance)}</b></span><span>🔧 Запчасти: <b>${stageFormat(parts)}</b></span></div>
+    <div class="market-preset-row"><button data-market-preset="1">1</button><button data-market-preset="10">10</button><button data-market-preset="100">100</button><button data-market-preset="1000">1к</button><button data-market-preset="buyMax">макс купить</button><button data-market-preset="sellMax">макс продать</button></div>
+    <div class="market-actions pretty-actions polished-market-actions"><input id="marketQty" type="number" min="1" step="1" value="${qty}" /><button id="marketBuyBtn" ${buyMax < 1 ? 'disabled' : ''}>🔵 Купить</button><button id="marketSellBtn" ${sellMax < 1 ? 'disabled' : ''}>🟢 Продать</button></div>
+    <div id="marketCalc" class="market-calc"></div>
+    <div class="market-history"><b>История сделок</b>${stageMarketHistory.length ? stageMarketHistory.map(h=>`<div><span>${new Date(h.ts).toLocaleTimeString('ru-RU')}</span> ${h.action==='buy'?'🔵 куплено':'🟢 продано'} <b>${stageFormat(h.qty)}🔧</b> за <b>${stageFormat(h.cost)}💎</b></div>`).join('') : '<p>Пока нет сделок в этой сессии.</p>'}</div>`;
+  const qtyInput=document.getElementById('marketQty');
+  const recalc=()=>{ const q=Math.max(1,Number(qtyInput?.value||1)); lastMarketQty=q; localStorage.setItem('mooseFarmLastMarketQty',String(q)); const buyCost=q*buyPrice; const sellGain=q*sellPrice; const warnings=[]; if(q>stock) warnings.push('покупка упрётся в общий склад'); if(buyCost>upgradeBalance) warnings.push('покупка упрётся в баланс 💎'); if(q>parts) warnings.push('продажа упрётся в твои 🔧'); const calc=document.getElementById('marketCalc'); if(calc) calc.innerHTML=`Калькулятор: купить ${stageFormat(q)}🔧 = <b>${stageFormat(buyCost)}💎</b> · продать ${stageFormat(q)}🔧 = <b>${stageFormat(sellGain)}💎</b>${warnings.length?`<br><span class="warning">⚠️ ${warnings.join(' · ')}</span>`:''}`; };
+  qtyInput?.addEventListener('input', recalc); recalc();
+  document.querySelectorAll('[data-market-preset]').forEach(btn=>btn.addEventListener('click',()=>{ const v=btn.dataset.marketPreset; qtyInput.value = v==='buyMax'?Math.max(1,buyMax):v==='sellMax'?Math.max(1,sellMax):v; recalc(); }));
+  document.getElementById('marketBuyBtn')?.addEventListener('click', () => marketTrade('buy'));
+  document.getElementById('marketSellBtn')?.addEventListener('click', () => marketTrade('sell'));
+}
+
+async function marketTrade(action) {
+  const qtyInput = document.getElementById('marketQty'); const qty = Number(qtyInput?.value || 0);
+  if (qty > 0) { lastMarketQty = qty; localStorage.setItem('mooseFarmLastMarketQty', String(qty)); }
+  const data = await postJson(`/api/farm/market/${action}`, { qty });
+  if (!data.ok) { const labels={invalid_quantity:'укажи количество больше 0',quantity_too_large:`слишком большое число, максимум ${stageFormat(data.maxQty||0)}🔧`,not_enough_parts:`не хватает запчастей: ${stageFormat(data.available||0)}/${stageFormat(data.needed||0)}🔧`,not_enough_upgrade_balance:`не хватает 💎: ${stageFormat(data.available||0)} / ${stageFormat(data.needed||0)}`,market_stock_empty:'общий склад пуст',not_enough_market_stock:'на общем складе недостаточно 🔧'}; showMessage(`❌ Рынок: ${labels[data.error] || data.error}`); await loadMe(); return; }
+  pushMarketHistory({action, qty:data.qty||qty, cost:data.totalCost||0});
+  showPrettyModal({ title: action==='buy'?'🏪 Покупка завершена':'🏪 Продажа завершена', body:`<div class="result-mini-grid"><div><span>${action==='buy'?'🔧 Куплено':'🔧 Продано'}</span><b>${stageFormat(data.qty)}🔧</b></div><div><span>${action==='buy'?'💎 Потрачено':'💎 Получено'}</span><b>${stageFormat(data.totalCost)}💎</b></div><div><span>📦 Общий склад</span><b>${stageFormat(data.market?.stock ?? 0)}🔧</b></div></div>`, autoCloseMs:7000, kind:'success' });
+  showActionToast(action==='buy'?'🏪 Покупка на рынке':'🏪 Продажа на рынке',[action==='buy'?`Куплено: <b>${stageFormat(data.qty)}🔧</b>`:`Продано: <b>${stageFormat(data.qty)}🔧</b>`, action==='buy'?`Потрачено: <b>${stageFormat(data.totalCost)}💎</b>`:`Получено: <b>${stageFormat(data.totalCost)}💎</b>`],{kind:'market'});
+  await loadMe();
+}
+
+function renderUnifiedReward(title, subtitle, items, opts={}){
+  const body=`<div class="unified-reward-grid">${items.map(i=>`<div><span>${i.label}</span><b>${i.value}</b><small>${i.note||''}</small></div>`).join('')}</div>`;
+  showPrettyModal({title, subtitle, body, autoCloseMs: opts.autoCloseMs||9000, wide:!!opts.wide, kind:opts.kind||'success'});
+}
+
+function showCaseHistoryModal(history = []) {
+  const rows = history.length ? history.slice(0, 40).map((item, index)=>`<tr><td>#${index+1}</td><td>${new Date(item.date||item.timestamp||0).toLocaleString('ru-RU')}</td><td>${item.type==='parts'?'🔧 Запчасти':'💎 Бонусные'}</td><td><b>${prizeLabel(item)}</b></td><td>${stageFormat(item.cost||0)}💰</td><td>x${Number(item.multiplier||item.finalMultiplier||1).toFixed(2)}</td></tr>`).join('') : '<tr><td colspan="6">История кейсов пустая</td></tr>';
+  showPrettyModal({title:'🎰 История кейсов', subtitle:'Последние открытия с типом, ценой и множителем', body:`<div class="case-table-wrap"><table class="case-history-table"><thead><tr><th>#</th><th>Дата</th><th>Тип</th><th>Приз</th><th>Цена</th><th>Множитель</th></tr></thead><tbody>${rows}</tbody></table></div>`, wide:true});
+}
+
+async function openCase() {
+  const data = await postJson('/api/farm/case/open');
+  if (!data.ok) { const labels={farm_level_too_low:`кейс доступен с ${data.requiredLevel||30} уровня`,cooldown:`кейс будет доступен через ${formatTime(data.remainingMs||0)}`,not_enough_money:`не хватает монет: сейчас ${stageFormat(data.available||0)} / нужно ${stageFormat(data.needed||0)}`}; showMessage(`❌ Кейс не открыт: ${labels[data.error] || data.error}`); await loadMe(); return; }
+  showCaseOverlay(data.prize);
+  renderUnifiedReward('🎰 Кейс открыт','Единый отчёт по награде',[{label:'🎁 Выигрыш',value:prizeLabel(data.prize),note:'уже с множителем'},{label:'💰 Цена',value:`${stageFormat(data.cost||0)}💰`},{label:'🧮 Множитель',value:`x${Number(data.prize?.multiplier||1).toFixed(2)}`},{label:'📦 Тип',value:data.prize?.type==='parts'?'Запчасти':'Бонусные'}],{wide:true});
+  await loadMe();
+}
+async function claimGamus(){ const data=await postJson('/api/farm/gamus/claim'); if(!data.ok){ showMessage(data.error==='cooldown'?`⏳ GAMUS через ${formatTime(data.remainingMs||0)} (06:00 МСК)`:`❌ GAMUS: ${data.error}`); await loadMe(); return; } renderUnifiedReward('🎁 GAMUS получен','Единый отчёт по спонсору',[{label:'💎 Монеты',value:`+${stageFormat(data.money||0)}`},{label:'🔧 Запчасти',value:`+${stageFormat(data.parts||0)}`},{label:'⛏ Шахта дала',value:`+${stageFormat(data.mineBonusMoney||0)}💎 / +${stageFormat(data.mineBonusParts||0)}🔧`},{label:'📈 Тир',value:stageFormat(data.tierLevel||0)}]); await loadMe(); }
+async function offCollect(){ if(state?.streamOnline || state?.profile?.stream_online){showMessage('⛔ Во время стрима оффсбор недоступен.'); return;} const data=await postJson('/api/farm/off-collect'); if(!data.ok){showMessage(data.error==='cooldown'?`⏳ Оффсбор через ${formatTime(data.remainingMs||0)}`:`❌ Оффсбор: ${data.error}`); await loadMe(); return;} renderUnifiedReward('🌙 Оффсбор получен','50% от сбора фермы + запчасти завода / 2',[{label:'🌾 Ферма',value:`+${stageFormat(data.income||0)}`},{label:'🔧 Завод',value:`+${stageFormat(data.partsIncome||0)}`},{label:'⏱ Период',value:`${stageFormat(data.minutes||0)} мин`},{label:'🧮 Формула',value:'ферма / 2 + завод / 2'}]); await loadMe(); }
+
+function renderInfo(data){
+  const infoBox=document.getElementById('infoBox'); const topsBox=document.getElementById('topsBox'); if(!infoBox) return;
+  const info=data.farmInfo||{}; const raidInfo=data.raidInfo||{}; const hourly=info.hourly||{}; const balances=info.balances||{}; const buildings=info.buildings||[]; const raidLogs=(raidInfo.logs||[]).slice(0,10);
+  infoBox.innerHTML=`<div class="info-grid rich-info-grid final-info-grid"><div class="info-metric"><span>💰 Голда</span><b>${stageFormat(balances.twitch||0)}</b></div><div class="info-metric"><span>🌾 Ферма</span><b>${stageFormat(balances.farm||0)}</b></div><div class="info-metric"><span>💎 Бонусные</span><b>${stageFormat(balances.upgrade||0)}</b></div><div class="info-metric"><span>🔧 Запчасти</span><b>${stageFormat(balances.parts||0)}</b></div><div class="info-metric"><span>📈 Доход/ч</span><b>${stageFormat(hourly.total||0)}</b><small>пассив ${stageFormat(hourly.passive||0)} · растения/животные ${stageFormat((hourly.plants||0)+(hourly.animals||0))} · здания ${stageFormat(hourly.buildingCoins||0)}</small></div><div class="info-metric"><span>🛠 Детали/ч</span><b>${stageFormat(hourly.parts||0)}</b></div><div class="info-metric wide"><span>🏗 Постройки</span><b>${buildings.length}</b><small>${buildings.length?buildings.map(b=>`${b.config?.name||b.key}: ${b.level} (${buildingBenefitLabel({key:b.key,name:b.config?.name,level:b.level,...b})})`).join(' · '):'нет построек'}</small></div><div class="info-metric"><span>🏴 Рейды 14д</span><b>${stageFormat(raidInfo.twoWeeks?.count||0)}</b><small>${stageFormat(raidInfo.twoWeeks?.stolen||0)}💰 · ${stageFormat(raidInfo.twoWeeks?.bonus||0)}💎</small></div></div><div class="raid-log-list beautiful-raid-log"><div class="section-inline-title">Последние рейды</div>${raidLogs.length?raidLogs.map((r,i)=>`<div class="raid-log-row"><b>${i+1}.</b> ${new Date(r.timestamp||0).toLocaleString('ru-RU')} — ${r.attacker} → ${r.target}: <b>${stageFormat(r.stolen)}💰</b>, <b>${stageFormat(r.bonus_stolen||0)}💎</b>${r.killed_by_turret?' · 🔫 турель':''}</div>`).join(''):'<div class="raid-log-row">Рейдов пока нет</div>'}</div><button id="refreshTopBtn">🏆 Обновить топы</button>`;
+  document.getElementById('refreshTopBtn')?.addEventListener('click', loadTops); if(topsBox && !topsBox.dataset.loaded) loadTops();
+}
+function topList(title, list, valueFn, extraFn){ return `<div class="top-card"><b>${title}</b><ol>${list.length?list.map((p,i)=>`<li><span>${i+1}. ${p.nick}</span><strong>${valueFn(p)}</strong>${extraFn?`<em>${extraFn(p)}</em>`:''}</li>`).join(''):'<li>нет данных</li>'}</ol></div>`; }
+async function loadTops(){ const topsBox=document.getElementById('topsBox'); if(!topsBox) return; try{ const res=await fetch('/api/farm/top?days=14'); const data=await res.json(); if(!data.ok) throw new Error(data.error||'top_failed'); topsBox.dataset.loaded='1'; const players=(data.playerTop||[]); const raids=(data.raidTop||[]); const by=(fn)=>players.slice().sort((a,b)=>fn(b)-fn(a)).slice(0,10); const rich=players.slice(0,10); topsBox.innerHTML=`<h3>🏆 Топы и аналитика</h3><div class="tops-grid pretty-tops final-tops">${topList('💰 Топ по голде',by(p=>ordinaryCoins(p)),p=>stageFormat(ordinaryCoins(p))+'💰',p=>'ур. '+p.level)}${topList('🌾 Топ по ферме',by(p=>farmCoins(p)),p=>stageFormat(farmCoins(p))+'🌾')}${topList('💎 Топ по бонусным',by(p=>bonusCoins(p)),p=>stageFormat(bonusCoins(p))+'💎')}${topList('🔧 Топ по запчастям',by(p=>Number(p.parts||0)),p=>stageFormat(p.parts)+'🔧')}${topList('🏴 Топ рейдеров 14д',raids.slice(0,10),r=>stageFormat(r.money)+'💰 / '+stageFormat(r.bonus)+'💎',r=>`${r.attacks}⚔ · ${r.defends}🛡`)}${topList('🎰 Топ по кейсам',by(p=>Number(p.caseOpened||p.caseStats?.opened||0)),p=>stageFormat(p.caseOpened||p.caseStats?.opened||0)+' кейсов')}${topList('🔫 Урон турелей',raids.slice().sort((a,b)=>(b.blocked||0)-(a.blocked||0)).slice(0,10),r=>stageFormat(r.blocked||0)+'💰',r=>'блок/штраф')}${topList('📈 Прибыль 14д',raids.slice().sort((a,b)=>(b.money+b.bonus)-(a.money+a.bonus)).slice(0,10),r=>stageFormat((r.money||0)+(r.bonus||0)),'') }<div class="top-card top-player-wide"><b>🌟 Сильнейшие игроки</b><ol>${rich.length?rich.map((p)=>`<li class="top-player-row"><span>${p.nick}</span><strong>💰${stageFormat(ordinaryCoins(p))} / 🌾${stageFormat(farmCoins(p))} / 💎${stageFormat(bonusCoins(p))}</strong><em>ур. ${p.level} · 🔧${stageFormat(p.parts)}</em><div class="top-building-cells">${(p.buildings||[]).length?(p.buildings||[]).map(b=>`<div class="top-building-cell"><b>${b.name||b.key}</b><span>ур. ${stageFormat(b.level)}</span><small>${buildingBenefitLabel(b)}</small></div>`).join(''):'<div class="top-building-cell empty"><b>Зданий нет</b><small>пока нет бонусов</small></div>'}</div></li>`).join(''):'<li>нет игроков</li>'}</ol></div></div>`; }catch(e){ topsBox.textContent='Не удалось загрузить топы'; } }
+
+async function renderAdminBackups(login){
+  const box=document.getElementById('admin-backup-list'); if(!box || !login) return;
+  try{ const data=await adminGet('backups?login='+encodeURIComponent(login)); const backups=data.backups||[]; box.innerHTML=`<div class="backup-panel"><h3>🧯 Backup / restore</h3><p>Можно восстановить весь профиль или отдельный блок.</p>${backups.length?backups.map(b=>`<div class="backup-row"><div><b>${new Date(b.createdAt||0).toLocaleString('ru-RU')}</b><small>${b.reason} · ур. ${b.level} · 🌾${stageFormat(b.farm_balance)} · 💎${stageFormat(b.upgrade_balance)} · 🔧${stageFormat(b.parts)}</small><small>Здания: ${Object.keys(b.buildings||{}).length} · кейсы: ${b.caseHistoryCount} · рейды: ${b.raidLogsCount}</small></div><div class="backup-actions"><button data-restore-index="${b.index}" data-restore-block="all">Всё</button><button data-restore-index="${b.index}" data-restore-block="balances">Балансы</button><button data-restore-index="${b.index}" data-restore-block="progression">Прогресс</button><button data-restore-index="${b.index}" data-restore-block="farm">Ферма</button></div></div>`).join(''):'<p>Бэкапов пока нет.</p>'}</div>`; box.querySelectorAll('[data-restore-index]').forEach(btn=>btn.addEventListener('click',async()=>{const index=Number(btn.dataset.restoreIndex); const block=btn.dataset.restoreBlock; const ok=await confirmFarmModal({title:'Восстановить backup?',body:`Будет восстановлен блок: <b>${block}</b><br>Backup #${index+1}. Перед восстановлением создаётся новый backup.`}); if(!ok)return; const res=await adminPost('restore-backup-index',{login,index,block}); setAdminStatus(res.message); renderAdminPlayer(res.profile); })); }catch(e){ box.innerHTML='<p class="error">Не удалось загрузить backup: '+e.message+'</p>'; }
+}
+const prevRenderAdminPlayer = renderAdminPlayer;
+function renderAdminPlayer(profile){
+  prevRenderAdminPlayer(profile);
+  const box=document.getElementById('admin-player-info'); if(!box || !profile) return;
+  let backupBox=document.getElementById('admin-backup-list'); if(!backupBox){ backupBox=document.createElement('div'); backupBox.id='admin-backup-list'; box.appendChild(backupBox); }
+  renderAdminBackups((profile.twitch_login||profile.login||'').toLowerCase());
+}
