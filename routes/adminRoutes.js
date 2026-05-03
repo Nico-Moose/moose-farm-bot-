@@ -323,8 +323,17 @@ module.exports = function (db) {
     if (!result.ok) return result;
 
     const updatedProfile = updateProfile({ ...profile, ...result.profile, twitch_id: profile.twitch_id });
-    logAdminEvent(db, profile.twitch_id, source, { login, imported: result.imported || null });
-    return { ok: true, profile: updatedProfile, imported: result.imported || null };
+
+    // Сразу пушим назад в WizeBot уже собранную новую модель, чтобы !ферма2 / farm_v2 видели те же данные.
+    let pushBack = null;
+    try {
+      pushBack = await syncProfileToWizebot(updatedProfile);
+    } catch (error) {
+      pushBack = { ok: false, error: error.message || String(error) };
+    }
+
+    logAdminEvent(db, profile.twitch_id, source, { login, imported: result.imported || null, pushBack });
+    return { ok: true, profile: getProfileById(profile.twitch_id), imported: result.imported || null, pushBack };
   }
 
   async function pushPlayerToWizebot(login, source = 'admin_push_to_wizebot') {
@@ -363,7 +372,7 @@ module.exports = function (db) {
 
       return res.json({
         ok: true,
-        message: `Игрок ${login} импортирован из WizeBot`,
+        message: `Игрок ${login} импортирован: старая !ферма → сайт/farm_v2`,
         profile: data.profile,
         imported: data.imported || null
       });

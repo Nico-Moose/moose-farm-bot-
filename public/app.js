@@ -4516,3 +4516,15 @@ document.addEventListener('DOMContentLoaded', () => {
   installLongNicknameTitle();
   setInterval(installLongNicknameTitle, 1500);
 });
+
+
+/* LEGACY WIZEBOT IMPORT LABEL PATCH */
+document.addEventListener('DOMContentLoaded', () => {
+  const tune = () => {
+    const btn = document.getElementById('admin-sync-from-wizebot');
+    if (btn) btn.textContent = 'Импортировать старую !ферму в farm_v2';
+  };
+  tune();
+  setTimeout(tune, 500);
+  setTimeout(tune, 1500);
+});
