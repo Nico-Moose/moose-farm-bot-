@@ -3,6 +3,7 @@ const { requireAdmin } = require("../middleware/requireAdmin");
 const { syncWizebotFarmToProfile } = require("../services/wizebotSyncService");
 const { syncProfileToWizebot } = require("../services/wizebotApiService");
 const { getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
+const { getStreamStatus, setSetting } = require("../services/streamStatusService");
 
 function parseAmount(value) {
   if (typeof value === "number") return Math.trunc(value);
@@ -208,6 +209,20 @@ module.exports = function (db) {
 
   router.use(requireAdmin);
   router.use(adminActionGuard);
+
+  router.get("/stream-status", async (req, res) => {
+    const streamStatus = await getStreamStatus();
+    res.json({ ok: true, streamStatus, streamOnline: !!streamStatus.online });
+  });
+
+  router.post("/stream-status", async (req, res) => {
+    const mode = String(req.body?.mode || "auto").toLowerCase();
+    const value = ["online", "true", "1"].includes(mode) ? "online" : (["offline", "false", "0"].includes(mode) ? "offline" : "auto");
+    setSetting("stream_online_manual", value);
+    const streamStatus = await getStreamStatus();
+    logAdminEvent(db, req.session?.twitchUser?.id || "admin", "admin_stream_status", { mode: value, online: streamStatus.online });
+    res.json({ ok: true, streamStatus, streamOnline: !!streamStatus.online, message: `Статус стрима: ${value}` });
+  });
 
 
   async function syncPlayerFromWizebot(login, source = 'admin_sync_from_wizebot') {

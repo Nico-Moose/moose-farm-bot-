@@ -85,6 +85,7 @@ const router = express.Router();
 
 const { config } = require('../config');
 const { syncProfileToWizebotIfNeeded, isWebMasterProfile } = require('../services/wizebotApiService');
+const { getStreamStatus, getStreamStatusSnapshot } = require('../services/streamStatusService');
 
 function requireAuth(req, res, next) {
   if (!req.session.twitchUser) {
@@ -173,20 +174,30 @@ function profilePayload(profile) {
     gamus: getGamusStatus(profile),
     farmInfo: getFarmInfo(profile),
     raidInfo: getRaidInfo(profile),
+    streamStatus: getStreamStatusSnapshot(),
+    streamOnline: !!getStreamStatusSnapshot().online,
     harvestManagedByWizebot: !!config.harvestManagedByWizebot
   };
 }
 
 router.use('/farm', requireAuth, farmActionGuard);
 
-router.get('/me', requireAuth, (req, res) => {
+router.get('/me', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
+  const streamStatus = await getStreamStatus();
 
   res.json({
     ok: true,
     user: req.session.twitchUser,
-    ...profilePayload(profile)
+    ...profilePayload(profile),
+    streamStatus,
+    streamOnline: !!streamStatus.online
   });
+});
+
+router.get('/stream/status', requireAuth, async (req, res) => {
+  const streamStatus = await getStreamStatus();
+  res.json({ ok: true, streamStatus, streamOnline: !!streamStatus.online });
 });
 
 router.post('/farm/collect', requireAuth, async (req, res) => {
@@ -563,6 +574,16 @@ router.post('/farm/gamus/claim', requireAuth, async (req, res) => {
 
 router.post('/farm/off-collect', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
+  const streamStatus = await getStreamStatus();
+  if (streamStatus.online) {
+    return res.json({
+      ok: false,
+      error: 'stream_online',
+      message: 'Оффсбор недоступен во время онлайн-стрима.',
+      streamStatus,
+      ...profilePayload(profile)
+    });
+  }
   const result = offCollect(profile);
   let updatedProfile = updateProfile(result.profile);
 

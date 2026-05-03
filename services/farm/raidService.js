@@ -101,6 +101,36 @@ function getBonusRaid(target, attackerEfficiency) {
   return Math.floor(total * (percent / 100));
 }
 
+
+function spendMainThenFarm(profile, amount) {
+  ensureFarmShape(profile);
+  amount = Math.max(0, Math.floor(num(amount, 0)));
+
+  let main = num(profile.twitch_balance, 0);
+  let farm = num(profile.farm_balance, 0);
+  const beforeMain = main;
+  const beforeFarm = farm;
+
+  const fromMain = Math.min(main, amount);
+  main -= fromMain;
+  const rest = amount - fromMain;
+  farm -= rest; // может уйти в минус
+
+  profile.twitch_balance = main;
+  profile.farm_balance = farm;
+
+  return {
+    amount,
+    from_main: fromMain,
+    from_farm: rest,
+    before_main: beforeMain,
+    before_farm: beforeFarm,
+    after_main: main,
+    after_farm: farm,
+    farm_debt_after: farm < 0 ? Math.abs(farm) : 0
+  };
+}
+
 function applyTurretPenalty(attacker, target, income, targetTurret, turretChance) {
   const turretTriggered = targetTurret.level > 0 && Math.random() * 100 <= turretChance;
   if (!turretTriggered) {
@@ -117,13 +147,14 @@ function applyTurretPenalty(attacker, target, income, targetTurret, turretChance
   const shieldReduce = Math.min(loss, attackerShield);
   loss -= shieldReduce;
   attacker.farm.resources.shield = attackerShield - shieldReduce;
-  attacker.farm_balance = num(attacker.farm_balance, 0) - loss;
+  const spend = spendMainThenFarm(attacker, loss);
 
   return {
     turretTriggered: true,
     turretPenalty: loss,
     killedByTurret: loss >= income && income > 0,
-    shieldReduce
+    shieldReduce,
+    spend
   };
 }
 
@@ -179,8 +210,15 @@ function performRaid(attacker, candidates) {
   const bonusStolen = getBonusRaid(target, efficiency);
   const actualBonusStolen = raidBlockedByTurret ? 0 : bonusStolen;
 
-  target.farm_balance = num(target.farm_balance, 0) - stolen;
-  attacker.farm_balance = num(attacker.farm_balance, 0) + stolen;
+  const targetSpend = raidBlockedByTurret
+    ? { amount: 0, from_main: 0, from_farm: 0, before_main: num(target.twitch_balance, 0), before_farm: num(target.farm_balance, 0), after_main: num(target.twitch_balance, 0), after_farm: num(target.farm_balance, 0), farm_debt_after: num(target.farm_balance, 0) < 0 ? Math.abs(num(target.farm_balance, 0)) : 0 }
+    : spendMainThenFarm(target, stolen);
+
+  if (!raidBlockedByTurret) {
+    attacker.farm_balance = num(attacker.farm_balance, 0) + stolen;
+  } else if (turret.turretPenalty > 0) {
+    target.farm_balance = num(target.farm_balance, 0) + turret.turretPenalty;
+  }
 
   target.upgrade_balance = num(target.upgrade_balance, 0) - actualBonusStolen;
   attacker.upgrade_balance = num(attacker.upgrade_balance, 0) + actualBonusStolen;
@@ -197,6 +235,13 @@ function performRaid(attacker, candidates) {
     blocked: blockedByProtection + shieldUsed,
     turret_refund: turret.turretPenalty,
     attacker_loss: turret.turretPenalty,
+    attacker_spend_main: turret.spend ? turret.spend.from_main : 0,
+    attacker_spend_farm: turret.spend ? turret.spend.from_farm : 0,
+    attacker_farm_after: num(attacker.farm_balance, 0),
+    target_spend_main: targetSpend.from_main || 0,
+    target_spend_farm: targetSpend.from_farm || 0,
+    target_farm_after: num(target.farm_balance, 0),
+    target_farm_debt_after: num(target.farm_balance, 0) < 0 ? Math.abs(num(target.farm_balance, 0)) : 0,
     bonus_stolen: actualBonusStolen,
     turret_bonus: 0,
     turret_chance: turretChance,
