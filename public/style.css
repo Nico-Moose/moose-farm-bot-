@@ -1101,3 +1101,60 @@ body {
 .stat-tile.gold b {
   color: #ffe66d;
 }
+
+
+/* === FINAL UI / UX PATCH === */
+.stats-2row-grid { grid-template-columns: repeat(5, minmax(0,1fr)); }
+.stats-2row-grid .stat-tile small { display:block; font-size:12px; color:rgba(255,255,255,.72); margin-top:6px; }
+.compact-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.compact-action { min-height: 74px !important; font-size: 18px !important; padding: 12px 16px !important; }
+.compact-action small { display:block; opacity:.78; font-size:13px; margin-top:4px; }
+.danger-lite { background: linear-gradient(135deg, #7ec05d, #9bdd68); }
+.compact-license-card { margin-top: 18px; }
+.ghost-action { background: rgba(255,255,255,.12); color: #fff; }
+.extra-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.polished-extra-card small { color: rgba(255,255,255,.72); display:block; margin-top:8px; }
+.rich-info-grid .wide { grid-column: span 2; }
+.beautiful-raid-log { margin-top: 18px; display:flex; flex-direction:column; gap:8px; }
+.raid-log-row { padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.06); }
+.section-inline-title { font-weight: 700; margin-bottom: 6px; font-size: 22px; }
+.polished-building-card .okline, .polished-building-card .shortage { min-height: 42px; }
+.action-toast-root { position: fixed; right: 18px; bottom: 18px; display:flex; flex-direction:column; gap:10px; z-index:2000; max-width:360px; }
+.pretty-modal-root { position: fixed; inset: 0; display:none; z-index:4000; }
+.pretty-modal-root.active { display:block; }
+.pretty-modal-backdrop { position:absolute; inset:0; background: rgba(0,0,0,.64); display:flex; align-items:center; justify-content:center; padding: 18px; }
+.pretty-modal-card { width:min(560px, calc(100vw - 24px)); background: linear-gradient(135deg, rgba(9,34,16,.98), rgba(23,58,24,.98)); border:1px solid rgba(146, 212, 102, .28); border-radius: 24px; box-shadow: 0 28px 90px rgba(0,0,0,.38); padding: 22px; position:relative; }
+.pretty-modal-card.wide { width:min(840px, calc(100vw - 24px)); }
+.pretty-modal-close { position:absolute; top:12px; right:12px; width:40px; height:40px; border-radius: 999px; background: rgba(255,255,255,.08); color:#fff; border:0; font-size:22px; cursor:pointer; }
+.pretty-modal-head h3 { margin:0 0 6px; font-size: 28px; }
+.pretty-modal-head p { margin:0 0 16px; color: rgba(255,255,255,.75); }
+.pretty-modal-body { color:#f4fff1; }
+.pretty-modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+.modal-btn { border:0; border-radius: 14px; padding: 12px 16px; font-weight:700; cursor:pointer; background:#95e06c; color:#102010; }
+.modal-btn.secondary { background: rgba(255,255,255,.12); color: #fff; }
+.result-highlight { padding: 18px; border-radius: 18px; background: linear-gradient(135deg, rgba(149,224,108,.18), rgba(255,255,255,.06)); border:1px solid rgba(149,224,108,.2); text-align:center; margin-bottom: 16px; }
+.result-highlight b { display:block; font-size: 28px; margin-top: 8px; }
+.result-mini-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.result-mini-grid > div { padding: 14px; border-radius: 16px; background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.06); }
+.result-mini-grid span { display:block; color: rgba(255,255,255,.68); margin-bottom: 6px; }
+.result-mini-grid b { font-size: 22px; }
+.history-detail-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; max-height: 70vh; overflow:auto; }
+.history-detail-card { padding: 14px; border-radius: 16px; background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.06); }
+.pretty-admin-player { background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius: 20px; padding: 18px; }
+.admin-player-top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 14px; }
+.admin-profile-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.admin-mini-card { background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); border-radius: 16px; padding: 12px; display:flex; flex-direction:column; gap:8px; }
+.admin-mini-card span { color: rgba(255,255,255,.72); }
+.admin-mini-card b { font-size: 24px; }
+.admin-inline-edit { display:flex; gap:8px; }
+.admin-inline-edit input { flex:1; min-width:0; }
+.admin-inline-edit button, .admin-player-actions-row button { padding:10px 12px; border-radius: 12px; border:0; background:#95e06c; color:#102010; font-weight:700; cursor:pointer; }
+.admin-player-actions-row { display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px; }
+.polished-market-actions input { max-width: 180px; font-size: 28px; font-weight: 800; text-align:center; }
+.muted-card { opacity: .92; }
+@media (max-width: 1100px) {
+  .stats-2row-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+@media (max-width: 760px) {
+  .stats-2row-grid, .compact-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
