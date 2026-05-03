@@ -83,6 +83,16 @@ const {
 
 const router = express.Router();
 
+// Важно для живого UI: API-ответы не должны кешироваться браузером/прокси,
+// иначе после успешных апгрейдов пользователь видит старые данные до F5.
+router.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+  next();
+});
+
 const { config } = require('../config');
 const { syncProfileToWizebotIfNeeded, isWebMasterProfile } = require('../services/wizebotApiService');
 const { enqueueProfileSync, getQueueStats } = require('../services/wizebotSyncQueueService');

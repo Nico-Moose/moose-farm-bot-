@@ -5153,3 +5153,119 @@ document.addEventListener('DOMContentLoaded', () => {
     rebindFarmUpgradeButton('upgrade10Btn', 10);
   }, 0);
 })();
+
+
+/* ==========================================================================
+   HOTFIX: live no-cache refresh for online UI + instant profile repaint
+   ========================================================================== */
+(function(){
+  function bust(url) {
+    const sep = String(url).includes('?') ? '&' : '?';
+    return `${url}${sep}_=${Date.now()}`;
+  }
+
+  async function fetchJsonNoStore(url, options = {}) {
+    const res = await fetch(bust(url), {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        ...(options.headers || {})
+      },
+      ...options
+    });
+    return res;
+  }
+
+  const oldLoadMeNoStore = loadMe;
+  loadMe = async function loadMe(force) {
+    try {
+      const res = await fetchJsonNoStore('/api/me');
+      if (res.status === 401) {
+        location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      render(data);
+      loadHistory().catch((err) => console.warn('[HISTORY]', err));
+      return data;
+    } catch (error) {
+      document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
+      console.error(error);
+    }
+  };
+
+  if (typeof loadHistory === 'function') {
+    const oldLoadHistoryNoStore = loadHistory;
+    loadHistory = async function loadHistory() {
+      try {
+        return await oldLoadHistoryNoStore(bust('/api/history'));
+      } catch (_) {
+        // fallback: если старая функция не принимает url, повторим стандартный вызов
+        return await oldLoadHistoryNoStore();
+      }
+    };
+  }
+
+  function renderFromActionIfPossible(data) {
+    if (!(data && data.profile && data.farmInfo && data.market && data.raidUpgrades && data.turret)) return false;
+    state = data;
+    render(data);
+    return true;
+  }
+
+  async function refreshSoon(delay) {
+    setTimeout(() => { loadMe(true).catch(() => {}); }, delay || 250);
+  }
+
+  async function doFarmUpgradeInstant(count, btn) {
+    const data = await postJson('/api/farm/upgrade', { count });
+
+    if (data?.error === 'stale_profile' || data?.error === 'action_in_progress' || data?.httpStatus === 409) {
+      renderFromActionIfPossible(data);
+      showMessage(`⏳ ${data.message || 'Профиль уже обновился. Подтягиваем свежие данные...'}`);
+      await loadMe(true);
+      return;
+    }
+
+    if (!data?.ok) {
+      renderFromActionIfPossible(data);
+      showMessage(farmUpgradeErrorMessage(data));
+      await loadMe(true);
+      return;
+    }
+
+    renderFromActionIfPossible(data);
+    showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost || 0)}💰${data.totalParts ? ` / ${formatNumber(data.totalParts)}🔧` : ''}`);
+    refreshSoon(300);
+  }
+
+  function bindLiveUpgradeButton(id, count) {
+    const btn = document.getElementById(id);
+    if (!btn || btn.dataset.liveBind === '1') return;
+    const clone = btn.cloneNode(true);
+    clone.dataset.liveBind = '1';
+    btn.parentNode.replaceChild(clone, btn);
+    clone.addEventListener('click', async () => {
+      const oldText = clone.innerHTML;
+      if (clone.disabled) return;
+      clone.disabled = true;
+      clone.classList.add('is-busy');
+      clone.innerHTML = '⏳ Выполняется...';
+      try {
+        await doFarmUpgradeInstant(count, clone);
+      } finally {
+        clone.disabled = false;
+        clone.classList.remove('is-busy');
+        clone.innerHTML = oldText;
+      }
+    });
+  }
+
+  const oldRenderLiveRefresh = render;
+  render = function patchedRenderLiveRefresh(data) {
+    oldRenderLiveRefresh(data);
+    bindLiveUpgradeButton('upgrade1Btn', 1);
+    bindLiveUpgradeButton('upgrade10Btn', 10);
+  };
+})();
