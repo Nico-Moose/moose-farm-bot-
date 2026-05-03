@@ -2261,31 +2261,23 @@ button.is-busy,
   .building-actions-v3 { grid-template-columns: 1fr; }
 }
 
-/* === PATCH 2026-05-04: restore classic buildings layout + main-like resources === */
-.buildings-quick-status {
-  position: static;
-  top: auto;
-  margin: 0 0 20px;
-}
-.buildings-quick-status-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+/* FINAL HOTFIX: restored buildings tab */
+.quick-status--buildings-top {
+  margin: 18px 0 20px;
 }
 .buildings-grid-restored {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 18px;
-  align-items: start;
 }
-.building-cost-readable-compact {
+.building-cost-readable--two-cols {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.buildings-classic-title {
-  display: block !important;
-  margin-bottom: 16px;
-}
-@media (max-width: 900px) {
-  .buildings-quick-status-grid,
-  .building-cost-readable-compact {
+@media (max-width: 720px) {
+  .building-cost-readable--two-cols {
+    grid-template-columns: 1fr;
+  }
+  .buildings-grid-restored {
     grid-template-columns: 1fr;
   }
 }
