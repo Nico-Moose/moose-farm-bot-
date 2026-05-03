@@ -2261,23 +2261,108 @@ button.is-busy,
   .building-actions-v3 { grid-template-columns: 1fr; }
 }
 
-/* FINAL HOTFIX: restored buildings tab */
-.quick-status--buildings-top {
-  margin: 18px 0 20px;
+
+/* FINAL SAFE BUILDINGS RESTORE PATCH */
+.buildings-top-status-panel {
+  position: static;
+  top: auto;
+  margin: 0 0 18px;
 }
-.buildings-grid-restored {
+
+.buildings-grid-restore {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 18px;
+  gap: 14px;
 }
-.building-cost-readable--two-cols {
+
+.building-card-vrestore {
+  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 20px;
+  padding: 16px;
+}
+
+.building-card-vrestore.ready {
+  border-color: rgba(149,224,108,0.35);
+}
+
+.building-card-vrestore.locked,
+.building-card-vrestore.blocked {
+  opacity: 0.96;
+}
+
+.building-head-vrestore,
+.building-summary-vrestore,
+.building-main-vrestore {
+  display: grid;
+  gap: 10px;
+}
+
+.building-head-vrestore {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.building-head-vrestore h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.building-summary-vrestore {
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+}
+
+.building-summary-vrestore div,
+.building-main-vrestore div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.building-summary-vrestore span,
+.building-main-vrestore span {
+  opacity: 0.8;
+}
+
+.building-main-vrestore {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.building-main-vrestore > div {
+  min-height: 92px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+}
+
+.building-effect-vrestore,
+.building-pack-vrestore {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+}
+
+.building-actions-vrestore {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
-@media (max-width: 720px) {
-  .building-cost-readable--two-cols {
-    grid-template-columns: 1fr;
-  }
-  .buildings-grid-restored {
+
+.building-actions-vrestore button:only-child {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 680px) {
+  .building-summary-vrestore,
+  .building-main-vrestore,
+  .building-actions-vrestore {
     grid-template-columns: 1fr;
   }
 }

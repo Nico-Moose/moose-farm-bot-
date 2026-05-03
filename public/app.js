@@ -5359,157 +5359,217 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 
 
-/* ==========================================================================
-   FINAL HOTFIX: restore buildings tab, restore top resource panel,
-   keep original card order, remove "У тебя" and "цена пачки",
-   and force live refresh for building buy/upgrade without F5.
+/* ========================================================================== 
+   FINAL SAFE BUILDINGS RESTORE PATCH
+   - restores main profile render by preventing buildings render crash
+   - restores buildings list with stable order
+   - adds top resource panel like on main tab
+   - removes "У тебя" and "цена пачки"
+   - instant building live refresh without F5
    ========================================================================== */
 (function(){
-  const BUILDING_ORDER = ['завод','фабрика','центр','кузница','шахта','укрепления','глушилка'];
+  const BUILDING_ORDER = ['завод', 'фабрика', 'центр', 'кузница', 'шахта', 'укрепления', 'глушилка'];
 
-  function orderedBuildingKeys(buildingsConfig) {
-    const keys = Object.keys(buildingsConfig || {});
-    return keys.sort((a, b) => {
-      const ia = BUILDING_ORDER.indexOf(String(a || '').toLowerCase());
-      const ib = BUILDING_ORDER.indexOf(String(b || '').toLowerCase());
-      const wa = ia === -1 ? 999 : ia;
-      const wb = ib === -1 ? 999 : ib;
-      if (wa !== wb) return wa - wb;
-      return String(a).localeCompare(String(b), 'ru');
+  function safeEscape(value) {
+    return String(value ?? '').replace(/[&<>\"]/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[ch]));
+  }
+
+  function stableBuildingKeys(config) {
+    return Object.keys(config || {}).sort((a, b) => {
+      const ai = BUILDING_ORDER.indexOf(String(a || '').toLowerCase());
+      const bi = BUILDING_ORDER.indexOf(String(b || '').toLowerCase());
+      const av = ai === -1 ? 999 : ai;
+      const bv = bi === -1 ? 999 : bi;
+      return av - bv || String(a).localeCompare(String(b), 'ru');
     });
   }
 
-  function buildingTopPanel(profile, nextUpgrade) {
-    const p = profile || {};
-    const twitchCoins = ordinaryCoins(p);
-    const farmBal = farmCoins(p);
-    const bonusBal = bonusCoins(p);
-    const parts = Number(p.parts || 0);
-
-    let upgradeText = '✅ Ферма уже на максимальном уровне.';
-    if (nextUpgrade) {
-      const st = resourceStatus(p, nextUpgrade.cost, nextUpgrade.parts);
-      upgradeText = st.coinsOk && st.partsOk
-        ? `⬆️ Следующий ап: ${formatNumber(nextUpgrade.cost)}💰 / ${formatNumber(nextUpgrade.parts || 0)}🔧. Ресурсов хватает для следующего уровня.`
-        : `⬆️ Следующий ап: ${formatNumber(nextUpgrade.cost)}💰 / ${formatNumber(nextUpgrade.parts || 0)}🔧. Не хватает: ${!st.coinsOk ? formatNumber(st.missingCoins) + '💰' : ''}${(!st.coinsOk && !st.partsOk) ? ' / ' : ''}${!st.partsOk ? formatNumber(st.missingParts) + '🔧' : ''}`;
-    }
-
-    return `
-      <section class="quick-status quick-status--buildings-top">
-        <div><b>Текущие ресурсы</b></div>
-        <div class="quick-status-grid">
-          <span>💰 Голда: <b>${formatNumber(twitchCoins)}</b></span>
-          <span>🌾 Ферма: <b>${formatNumber(farmBal)}</b></span>
-          <span>💎 Бонусные: <b>${formatNumber(bonusBal)}</b></span>
-          <span>🔧 Запчасти: <b>${formatNumber(parts)}</b></span>
-        </div>
-        <div class="quick-status-upgrade">${upgradeText}</div>
-      </section>
-    `;
+  function safeBuildingCost(conf, level) {
+    level = Math.max(1, Number(level || 1));
+    return {
+      coins: Number(conf?.baseCost || 0) + Math.max(0, level - 1) * Number(conf?.costIncreasePerLevel || 0),
+      parts: Number(conf?.partsBase || 0) + Math.max(0, level - 1) * Number(conf?.partsPerLevel || 0)
+    };
   }
 
-  function buildingPackNoteNoPrice(afford10, fallbackText) {
-    const count = Number(afford10?.count || 0);
-    if (count > 0) {
-      return `<div class="stage-mini-note pack10-note"><div><span>Для +10ур доступно</span><b>${formatNumber(count)} ур.</b></div></div>`;
+  function affordableLevels(conf, currentLevel, coins, parts, cap) {
+    let count = 0;
+    let leftCoins = Number(coins || 0);
+    let leftParts = Number(parts || 0);
+    const maxLevel = Number(conf?.maxLevel || 0) || 100000;
+    const maxSteps = Math.max(1, Number(cap || 999));
+
+    for (let step = 1; step <= maxSteps; step++) {
+      const nextLevel = Number(currentLevel || 0) + step;
+      if (nextLevel > maxLevel) break;
+      const cost = safeBuildingCost(conf, nextLevel);
+      if (leftCoins < cost.coins || leftParts < cost.parts) break;
+      leftCoins -= cost.coins;
+      leftParts -= cost.parts;
+      count += 1;
     }
-    if (afford10?.stop) {
-      return `<div class="stage-mini-note warning">${escapeHtml(String(afford10.stop))}</div>`;
-    }
-    return `<div class="stage-mini-note warning">${escapeHtml(String(fallbackText || 'Сейчас улучшение недоступно.'))}</div>`;
+
+    return count;
   }
 
-  renderBuildings = function renderBuildings(data) {
-    const el = document.getElementById('buildings');
-    if (!el) return;
+  function buildingEffectText(key, conf, nextLevel) {
+    const name = String(key || '').toLowerCase();
+    const lvl = Math.max(1, Number(nextLevel || 1));
+    if (name === 'завод') return `производство запчастей: +${formatNumber(Number(conf?.perLevel || 25))}🔧/ч`;
+    if (name === 'фабрика') return 'усиливает производство завода';
+    if (name === 'центр') return `снижает кд рейда примерно на ${Math.min(lvl * 5, 45)} мин.`;
+    if (name === 'кузница') return 'усиливает оружие и рейды';
+    if (name === 'шахта') return `усиливает бонусные ресурсы примерно на ${lvl}%`;
+    if (name === 'укрепления') return 'усиливает щит и защиту';
+    if (name === 'глушилка') return `снижает шанс турели цели примерно на ${lvl * 5}%`;
+    return 'усиливает здание';
+  }
 
-    const p = data?.profile || {};
-    const buildingsConfig = p.configs?.buildings || {};
-    const owned = p.farm?.buildings || {};
-    const keys = orderedBuildingKeys(buildingsConfig);
-
-    if (!keys.length) {
-      el.innerHTML = '<p>Нет данных зданий. Сделай !синкферма.</p>';
-      return;
-    }
-
-    const cards = keys.map((key) => {
-      const conf = buildingsConfig[key] || {};
-      const lvl = Number(owned[key] || 0);
-      const isBuilt = lvl > 0;
-      const maxLevel = Number(conf.maxLevel || 0) || 0;
-      const farmLevel = Number(p.level || 0);
-      const requiredLevel = Number(conf.levelRequired || 0);
-      const levelLocked = farmLevel < requiredLevel;
-      const nextLevel = lvl + 1;
-      const nextCost = calcBuildingCost(conf, nextLevel);
-      const maxed = isBuilt && maxLevel && lvl >= maxLevel;
-      const affordAll = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0));
-      const afford10 = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0), 10);
-      const reason = levelLocked
-        ? `Нужен ${requiredLevel} уровень фермы, сейчас ${farmLevel}.`
-        : maxed
-          ? 'Здание уже на максимуме.'
-          : (affordAll.stop || 'Можно улучшать.');
-      const nextBenefit = maxed ? 'максимум уже достигнут' : buildingNextBenefit(key, conf, lvl, nextLevel);
-
-      return `
-        <div class="building-card stage-building-card clean-building-card readable-building-card ${levelLocked ? 'locked-building' : 'ready-building'}">
-          <div class="building-title-row">
-            <h3>${escapeHtml(conf.name || key)}</h3>
-            <span class="building-badge">${isBuilt ? `ур. ${formatNumber(lvl)}${maxLevel ? '/' + formatNumber(maxLevel) : ''}` : 'не построено'}</span>
-          </div>
-          <div class="building-info-line"><span>Требование</span><b>${requiredLevel ? `${formatNumber(requiredLevel)} ур. фермы` : 'нет'}</b></div>
-          <div class="building-info-line"><span>Статус</span><b>${escapeHtml(reason)}</b></div>
-          <div class="building-info-line"><span>Следующий уровень</span><b>${maxed ? 'MAX' : `${formatNumber(nextLevel)} ур.`}</b></div>
-          <div class="building-cost-readable building-cost-readable--two-cols">
-            <div><span>Цена</span><b>${formatNumber(nextCost.coins)}💰</b><b>${formatNumber(nextCost.parts)}🔧</b></div>
-            <div><span>Хватит</span><b>${levelLocked || maxed ? '—' : `${formatNumber(affordAll.count)} ур.`}</b></div>
-          </div>
-          <div class="stage-benefit">✨ Следующий уровень: <b>${escapeHtml(nextBenefit)}</b></div>
-          ${!levelLocked && !maxed ? buildingPackNoteNoPrice(afford10, reason) : `<div class="stage-mini-note warning">${escapeHtml(reason)}</div>`}
-          ${!isBuilt
-            ? `<button data-building-buy="${escapeHtml(key)}" ${levelLocked ? 'disabled' : ''} title="${escapeHtml(levelLocked ? reason : 'Купить здание')}">🏗 Купить</button>`
-            : `<div class="building-actions"><button data-building-upgrade="${escapeHtml(key)}" data-count="1" ${maxed || levelLocked ? 'disabled' : ''} title="${escapeHtml(reason)}">⬆️ Ап +1</button><button data-building-upgrade="${escapeHtml(key)}" data-count="10" ${maxed || levelLocked || afford10.count < 1 ? 'disabled' : ''} title="${escapeHtml(afford10.stop || 'Апнуть до 10 уровней')}">🚀 Ап +10</button></div>`}
-        </div>`;
-    }).join('');
-
-    el.innerHTML = `
-      <div class="stage-section-title"><h2>🏗 Здания</h2><p>Все здания как раньше. Сверху показаны текущие ресурсы, ниже — обычные карточки зданий.</p></div>
-      ${buildingTopPanel(p, data?.nextUpgrade)}
-      <div class="buildings-grid-restored">${cards}</div>
-    `;
-
-    document.querySelectorAll('[data-building-buy]').forEach((btn) => {
-      btn.addEventListener('click', async () => buyBuilding(btn.getAttribute('data-building-buy')));
-    });
-    document.querySelectorAll('[data-building-upgrade]').forEach((btn) => {
-      btn.addEventListener('click', async () => upgradeBuilding(btn.getAttribute('data-building-upgrade'), Number(btn.getAttribute('data-count') || 1)));
-    });
-  };
-
-  function hasRenderablePayload(data) {
+  function canApplyFarmPayload(data) {
     return !!(data && data.profile && data.farmInfo && data.market && data.raidUpgrades && data.turret);
   }
 
-  function applyRenderablePayload(data) {
-    if (!hasRenderablePayload(data)) return false;
-    state = data;
-    render(data);
+  function mergeLivePayload(data) {
+    const prev = state || {};
+    const next = data || {};
+    return {
+      ...prev,
+      ...next,
+      user: next.user || prev.user || null,
+      streamStatus: next.streamStatus || prev.streamStatus || {},
+      streamOnline: Object.prototype.hasOwnProperty.call(next, 'streamOnline') ? next.streamOnline : prev.streamOnline,
+      harvestManagedByWizebot: Object.prototype.hasOwnProperty.call(next, 'harvestManagedByWizebot') ? next.harvestManagedByWizebot : prev.harvestManagedByWizebot,
+    };
+  }
+
+  function applyFarmPayload(data) {
+    if (!canApplyFarmPayload(data)) return false;
+    const merged = mergeLivePayload(data);
+    state = merged;
+    render(merged);
     return true;
   }
 
-  buyBuilding = async function buyBuilding(key) {
+  renderBuildings = function renderBuildingsSafe(data) {
+    const el = document.getElementById('buildings');
+    if (!el) return;
+
+    try {
+      const p = data?.profile || {};
+      const configs = p?.configs?.buildings || {};
+      const owned = p?.farm?.buildings || {};
+      const keys = stableBuildingKeys(configs);
+      const totalCoins = currentCoins(p);
+      const totalParts = Number(p?.parts || 0);
+      const next = data?.nextUpgrade || null;
+
+      if (!keys.length) {
+        el.innerHTML = '<p>Нет данных зданий. Сделай !синкферма.</p>';
+        return;
+      }
+
+      const topPanel = `
+        <div class="buildings-top-status quick-status buildings-top-status-panel">
+          <div><b>Текущие ресурсы</b></div>
+          <div class="quick-status-grid">
+            <span>💰 Голда: <b>${formatNumber(ordinaryCoins(p))}</b></span>
+            <span>🌾 Ферма: <b>${formatNumber(farmCoins(p))}</b></span>
+            <span>💎 Бонусные: <b>${formatNumber(bonusCoins(p))}</b></span>
+            <span>🔧 Запчасти: <b>${formatNumber(totalParts)}</b></span>
+          </div>
+          <div class="quick-status-upgrade">${next ? `⬆️ Следующий ап: ${formatNumber(next.cost || 0)}💰${next.parts ? ` / ${formatNumber(next.parts)}🔧` : ''}. ${resourceStatus(p, next.cost || 0, next.parts || 0).coinsOk && resourceStatus(p, next.cost || 0, next.parts || 0).partsOk ? 'Ресурсов хватает для следующего уровня.' : 'Для следующего уровня ресурсов пока не хватает.'}` : '✅ Ферма уже на максимальном уровне'}</div>
+        </div>`;
+
+      const cards = keys.map((key) => {
+        const conf = configs[key] || {};
+        const currentLevel = Number(owned[key] || 0);
+        const isBuilt = currentLevel > 0;
+        const maxLevel = Number(conf.maxLevel || 0) || 0;
+        const farmLevel = Number(p.level || 0);
+        const requiredLevel = Number(conf.levelRequired || 0);
+        const isLocked = requiredLevel > 0 && farmLevel < requiredLevel;
+        const isMaxed = !!(isBuilt && maxLevel && currentLevel >= maxLevel);
+        const nextLevel = currentLevel + 1;
+        const nextCost = safeBuildingCost(conf, nextLevel);
+        const canTake = !isLocked && !isMaxed ? affordableLevels(conf, currentLevel, totalCoins, totalParts, 999) : 0;
+        const canTake10 = !isLocked && !isMaxed ? affordableLevels(conf, currentLevel, totalCoins, totalParts, 10) : 0;
+        const missingCoins = Math.max(0, nextCost.coins - totalCoins);
+        const missingParts = Math.max(0, nextCost.parts - totalParts);
+        const isReady = !isLocked && !isMaxed && missingCoins <= 0 && missingParts <= 0;
+
+        let statusText = 'можно улучшать';
+        if (isLocked) statusText = `нужен ${requiredLevel} ур. фермы`;
+        else if (isMaxed) statusText = 'максимальный уровень';
+        else if (!isReady) {
+          const bits = [];
+          if (missingCoins > 0) bits.push(`${formatNumber(missingCoins)}💰`);
+          if (missingParts > 0) bits.push(`${formatNumber(missingParts)}🔧`);
+          statusText = bits.length ? `не хватает ${bits.join(' / ')}` : 'недостаточно ресурсов';
+        }
+
+        const stateClass = isMaxed ? 'maxed' : isLocked ? 'locked' : isReady ? 'ready' : 'blocked';
+
+        return `
+          <div class="building-card building-card-vrestore ${stateClass}">
+            <div class="building-head-vrestore">
+              <h3>${safeEscape(conf.name || key)}</h3>
+              <span class="building-level-pill">${isBuilt ? `ур. ${formatNumber(currentLevel)}${maxLevel ? `/${formatNumber(maxLevel)}` : ''}` : 'не построено'}</span>
+            </div>
+
+            <div class="building-summary-vrestore">
+              <div><span>Требование</span><b>${requiredLevel ? `${formatNumber(requiredLevel)} ур. фермы` : 'нет'}</b></div>
+              <div><span>Статус</span><b>${statusText}</b></div>
+            </div>
+
+            <div class="building-main-vrestore">
+              <div><span>След. ур.</span><b>${isMaxed ? 'MAX' : `${formatNumber(nextLevel)} ур.`}</b></div>
+              <div><span>Цена</span><b>${formatNumber(nextCost.coins)}💰</b><b>${formatNumber(nextCost.parts)}🔧</b></div>
+              <div><span>Хватит</span><b>${isLocked || isMaxed ? '—' : `${formatNumber(canTake)} ур.`}</b></div>
+            </div>
+
+            <div class="building-effect-vrestore">✨ ${buildingEffectText(key, conf, nextLevel)}</div>
+            ${!isLocked && !isMaxed ? `<div class="building-pack-vrestore">+10 доступно: <b>${formatNumber(canTake10)} ур.</b></div>` : ''}
+
+            <div class="building-actions building-actions-vrestore">
+              ${!isBuilt
+                ? `<button type="button" data-building-buy="${safeEscape(key)}" ${isLocked ? 'disabled' : ''}>🏗 Купить</button>`
+                : `<button type="button" data-building-upgrade="${safeEscape(key)}" data-count="1" ${isLocked || isMaxed ? 'disabled' : ''}>⬆️ Ап +1</button>
+                   <button type="button" data-building-upgrade="${safeEscape(key)}" data-count="10" ${isLocked || isMaxed || canTake10 < 1 ? 'disabled' : ''}>🚀 Ап +10</button>`}
+            </div>
+          </div>`;
+      }).join('');
+
+      el.innerHTML = `${topPanel}<div class="buildings-grid-clean buildings-grid-restore">${cards}</div>`;
+
+      el.querySelectorAll('[data-building-buy]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await buyBuilding(btn.getAttribute('data-building-buy'));
+        });
+      });
+
+      el.querySelectorAll('[data-building-upgrade]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await upgradeBuilding(btn.getAttribute('data-building-upgrade'), Number(btn.getAttribute('data-count') || 1));
+        });
+      });
+    } catch (error) {
+      console.error('[BUILDINGS RENDER]', error);
+      el.innerHTML = '<p>Не удалось отрисовать здания. Обнови страницу или проверь данные профиля.</p>';
+    }
+  };
+
+  buyBuilding = async function buyBuildingLive(key) {
     const data = await postJson('/api/farm/building/buy', { key });
 
     if (data?.error === 'stale_profile' || data?.error === 'action_in_progress' || data?.httpStatus === 409) {
-      applyRenderablePayload(data);
-      showMessage(`⏳ ${data.message || 'Профиль уже изменился. Подтягиваем свежие данные...'}`);
+      applyFarmPayload(data);
+      showMessage(`⏳ ${data.message || 'Профиль обновился. Подтягиваем свежие данные...'}`);
       await loadMe(true);
       return;
     }
 
     if (!data?.ok) {
+      applyFarmPayload(data);
       const p = data.profile || state?.profile || {};
       const b = (data.buildings || []).find((item) => item.key === key);
       const needCoins = Number(data.totalCost || b?.buyCost?.coins || 0);
@@ -5520,22 +5580,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    applyRenderablePayload(data);
-    showMessage(`✅ Куплено: ${data.name || data.building || key}. Потрачено: ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
-    await loadMe(true);
+    applyFarmPayload(data);
+    showMessage(`✅ Куплено: ${data.name || data.building}. Потрачено: ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
+    setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
   };
 
-  upgradeBuilding = async function upgradeBuilding(key, count) {
+  upgradeBuilding = async function upgradeBuildingLive(key, count) {
     const data = await postJson('/api/farm/building/upgrade', { key, count });
 
     if (data?.error === 'stale_profile' || data?.error === 'action_in_progress' || data?.httpStatus === 409) {
-      applyRenderablePayload(data);
-      showMessage(`⏳ ${data.message || 'Профиль уже изменился. Подтягиваем свежие данные...'}`);
+      applyFarmPayload(data);
+      showMessage(`⏳ ${data.message || 'Профиль обновился. Подтягиваем свежие данные...'}`);
       await loadMe(true);
       return;
     }
 
     if (!data?.ok) {
+      applyFarmPayload(data);
       const p = data.profile || state?.profile || {};
       const b = (data.buildings || []).find((item) => item.key === key);
       const needCoins = Number(b?.upgradeCost?.coins || data.nextCost || 0);
@@ -5546,8 +5607,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    applyRenderablePayload(data);
-    showMessage(`⬆️ ${data.name || data.building || key}: +${formatNumber(data.upgraded || 0)} ур. Потрачено: ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
-    await loadMe(true);
+    applyFarmPayload(data);
+    showMessage(`⬆️ ${data.name || data.building}: +${data.upgraded || 0} ур. Потрачено: ${formatNumber(data.totalCost || 0)}💰 / ${formatNumber(data.totalParts || 0)}🔧`);
+    setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
   };
 })();
