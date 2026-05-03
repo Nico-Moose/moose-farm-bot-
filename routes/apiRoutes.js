@@ -85,6 +85,7 @@ const router = express.Router();
 
 const { config } = require('../config');
 const { syncProfileToWizebotIfNeeded, isWebMasterProfile } = require('../services/wizebotApiService');
+const { enqueueProfileSync, getQueueStats } = require('../services/wizebotSyncQueueService');
 const { getStreamStatus, getStreamStatusSnapshot } = require('../services/streamStatusService');
 
 function requireAuth(req, res, next) {
