@@ -89,34 +89,98 @@
     return parts.join(' · ') || 'Действие выполнено.';
   }
 
-  window.renderAdminEvents = function renderAdminEventsJournalOnly(events) {
-    const box = document.getElementById('admin-events-box');
-    if (!box) return;
-    const rows = Array.isArray(events) ? events : [];
-    if (!rows.length) {
-      box.innerHTML = '<p class="admin-journal-empty">За последние 7 дней событий не найдено.</p>';
-      return;
-    }
-    box.innerHTML = '<div class="events-list admin-journal-list">' + rows.map((event) => {
-      const date = new Date(Number(event.created_at || Date.now())).toLocaleString('ru-RU');
-      const login = event.login || event.display_name || event.payload?.login || '';
-      return `<div class="pretty-event-row event-row-clean admin-journal-row">
-        <div class="event-title-line"><b>${escAdminJournal(adminJournalEventName(event.type))}</b>${login ? `<span>@${escAdminJournal(login)}</span>` : ''}</div>
-        <small>${escAdminJournal(date)}</small>
-        <p>${adminJournalText(event)}</p>
-      </div>`;
-    }).join('') + '</div>';
+  const state = {
+    items: [],
+    offset: 0,
+    total: 0,
+    hasMore: false,
+    days: 7,
+    limit: 100,
+    loading: false,
   };
 
-  window.loadAdminEvents = async function loadAdminEventsSevenDays() {
+  async function adminJournalGet(path) {
+    const res = await fetch('/api/admin/journal/' + path, { credentials: 'same-origin' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.ok === false) throw new Error(data?.error || 'Не удалось загрузить админ-журнал');
+    return data;
+  }
+
+  function setLoadMoreVisible(visible) {
+    const btn = document.getElementById('admin-load-more-events');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !visible);
+    btn.disabled = false;
+    btn.textContent = 'Показать ещё';
+  }
+
+  function appendAdminEvents(events, appendMode) {
+    const box = document.getElementById('admin-events-box');
+    const summary = document.getElementById('admin-events-summary');
+    if (!box) return;
+    const list = Array.isArray(events) ? events : [];
+    const login = document.getElementById('admin-events-login')?.value?.trim() || '';
+    const type = document.getElementById('admin-events-type')?.value || '';
+    if (summary) {
+      const target = login ? '@' + login.replace(/^@/, '') : 'все игроки';
+      const label = type && typeof eventTypeLabel === 'function' ? eventTypeLabel(type) : 'все типы';
+      summary.innerHTML = `<b>Показано:</b> ${state.items.length} из ${state.total} · <b>Игрок:</b> ${escAdminJournal(target)} · <b>Тип:</b> ${escAdminJournal(label)} · <b>Период:</b> ${state.days} дней`;
+    }
+    if (!state.items.length) {
+      box.innerHTML = '<div class="admin-events-empty">За последние 7 дней событий не найдено.</div>';
+      setLoadMoreVisible(false);
+      return;
+    }
+    const html = list.map((event) => {
+      const date = new Date(Number(event.created_at || Date.now())).toLocaleString('ru-RU');
+      const loginText = event.login || event.display_name || event.twitch_id || 'unknown';
+      const title = typeof eventTypeLabel === 'function' ? eventTypeLabel(event.type) : adminJournalEventName(event.type);
+      const tone = String(event.type || '').startsWith('admin_') ? 'admin' : (event.type === 'raid' ? 'raid' : (event.type === 'off_collect' ? 'off' : ((event.type === 'market_buy_parts' || event.type === 'market_sell_parts') ? 'market' : 'default')));
+      const icon = event.type === 'raid' ? '🏴' : (event.type === 'off_collect' ? '🌙' : ((event.type === 'market_buy_parts' || event.type === 'market_sell_parts') ? '🏪' : (String(event.type || '').startsWith('admin_') ? '👑' : '📝')));
+      return `<div class="admin-event-card admin-event-${tone}">
+        <div class="admin-event-head">
+          <div><b>${icon} ${escAdminJournal(title)}</b><small>${escAdminJournal(date)}</small></div>
+          <span>@${escAdminJournal(loginText)}</span>
+        </div>
+        <div class="admin-event-body">${escAdminJournal(adminJournalText(event))}</div>
+      </div>`;
+    }).join('');
+    if (appendMode) box.insertAdjacentHTML('beforeend', html);
+    else box.innerHTML = html;
+    setLoadMoreVisible(state.hasMore);
+  }
+
+  window.renderAdminEvents = function renderAdminEventsJournalOnly(events) {
+    state.items = Array.isArray(events) ? events.slice() : [];
+    appendAdminEvents(state.items, false);
+  };
+
+  async function loadAdminEventsPage({ append = false } = {}) {
+    if (state.loading) return;
+    state.loading = true;
     const login = document.getElementById('admin-events-login')?.value?.trim()?.toLowerCase().replace(/^@/, '') || '';
     const type = document.getElementById('admin-events-type')?.value || '';
-    const params = new URLSearchParams({ limit: '150', days: '7' });
+    const params = new URLSearchParams({ limit: String(state.limit), days: String(state.days), offset: String(append ? state.offset : 0) });
     if (login) params.set('login', login);
     if (type) params.set('type', type);
-    const data = await adminGet('events?' + params.toString());
-    window.renderAdminEvents(data.events || []);
+    const data = await adminJournalGet('events?' + params.toString());
+    state.total = Number(data.total || 0);
+    state.hasMore = !!data.hasMore;
+    state.offset = Number(data.nextOffset || (append ? state.offset : 0));
+    const pageItems = Array.isArray(data.events) ? data.events : [];
+    state.items = append ? state.items.concat(pageItems) : pageItems;
+    appendAdminEvents(pageItems, append);
+    state.loading = false;
+  }
+
+  window.loadAdminEvents = async function loadAdminEventsSevenDays() {
+    await loadAdminEventsPage({ append: false });
   };
+
+  async function loadAdminPlayers(prefix = '') {
+    const data = await adminJournalGet('players?prefix=' + encodeURIComponent(prefix) + '&limit=12');
+    return data.players || [];
+  }
 
   function setAdminJournalOnlyMode() {
     const activeTab = document.querySelector('[data-admin-tab].active')?.getAttribute('data-admin-tab');
@@ -133,121 +197,6 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const loginInput = document.getElementById('admin-events-login');
-    if (loginInput) loginInput.placeholder = 'ник игрока или пусто = все игроки за 7 дней';
-    const loadBtn = document.getElementById('admin-load-events');
-    if (loadBtn) loadBtn.textContent = 'Показать журнал за 7 дней';
-    document.querySelectorAll('[data-admin-tab]').forEach((btn) => btn.addEventListener('click', () => setTimeout(setAdminJournalOnlyMode, 0)));
-    document.getElementById('admin-events-type')?.addEventListener('change', () => window.loadAdminEvents?.().catch((e) => setAdminStatus?.(e.message, true)));
-    document.getElementById('admin-events-login')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        window.loadAdminEvents?.().catch((err) => setAdminStatus?.(err.message, true));
-      }
-    });
-    setTimeout(setAdminJournalOnlyMode, 250);
-  });
-})();
-
-/* ADMIN JOURNAL POLISH + PLAYER AUTOCOMPLETE SAFE PATCH 2026-05-04 */
-(function () {
-  const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const fullNum = (v) => {
-    const n = Number(v || 0);
-    if (!Number.isFinite(n)) return '0';
-    return Math.trunc(n).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
-  };
-  const eventIcon = (type) => {
-    if (type === 'raid') return '🏴';
-    if (type === 'off_collect') return '🌙';
-    if (type === 'market_buy_parts' || type === 'market_sell_parts') return '🏪';
-    if (type === 'case_open') return '🎁';
-    if (type === 'upgrade' || type === 'building_upgrade') return '⬆️';
-    if (type === 'building_buy') return '🏗️';
-    if (String(type || '').startsWith('admin_')) return '👑';
-    return '📝';
-  };
-  const eventTone = (type) => {
-    if (type === 'raid') return 'raid';
-    if (type === 'off_collect') return 'off';
-    if (type === 'market_buy_parts' || type === 'market_sell_parts') return 'market';
-    if (String(type || '').startsWith('admin_')) return 'admin';
-    return 'default';
-  };
-  const prettyPayload = (payload, type) => {
-    payload = payload || {};
-    const line = [];
-    if (type === 'market_buy_parts') {
-      if (payload.qty !== undefined) line.push('куплено: ' + fullNum(payload.qty) + ' 🔧');
-      if (payload.totalCost !== undefined) line.push('потрачено: ' + fullNum(payload.totalCost) + ' 💎');
-      return line.join(' · ');
-    }
-    if (type === 'market_sell_parts') {
-      if (payload.qty !== undefined) line.push('продано: ' + fullNum(payload.qty) + ' 🔧');
-      if (payload.totalCost !== undefined) line.push('получено: ' + fullNum(payload.totalCost) + ' 💎');
-      return line.join(' · ');
-    }
-    if (type === 'off_collect') {
-      if (payload.money !== undefined) line.push('получено монет: +' + fullNum(payload.money) + ' 💰');
-      if (payload.parts !== undefined || payload.partsIncome !== undefined) line.push('запчасти: +' + fullNum(payload.parts ?? payload.partsIncome) + ' 🔧');
-      if (payload.income !== undefined) line.push('доход: ' + fullNum(payload.income));
-      return line.join(' · ');
-    }
-    if (type === 'raid') {
-      const money = Number(payload.stolen ?? payload.money ?? 0);
-      const bonus = Number(payload.bonus_stolen ?? payload.bonus ?? 0);
-      if (payload.target) line.push('цель: @' + payload.target);
-      if (money) line.push((money > 0 ? '+' : '') + fullNum(money) + ' 💰');
-      if (bonus) line.push((bonus > 0 ? '+' : '') + fullNum(bonus) + ' 💎');
-      if (payload.blocked) line.push('блок: ' + fullNum(payload.blocked) + ' 🛡️');
-      if (payload.turret_refund) line.push('турель: -' + fullNum(payload.turret_refund) + ' 💰');
-      return line.join(' · ') || 'рейд без изменения ресурсов';
-    }
-    try { return typeof describePayload === 'function' ? describePayload(payload, type) : JSON.stringify(payload).slice(0, 180); }
-    catch (_) { return JSON.stringify(payload).slice(0, 180); }
-  };
-
-  window.renderAdminEvents = function renderAdminEventsPolished(events) {
-    const box = document.getElementById('admin-events-box');
-    const summary = document.getElementById('admin-events-summary');
-    if (!box) return;
-    const list = Array.isArray(events) ? events : [];
-    const login = document.getElementById('admin-events-login')?.value?.trim() || '';
-    const type = document.getElementById('admin-events-type')?.value || '';
-    if (summary) {
-      const target = login ? '@' + login.replace(/^@/, '') : 'все игроки';
-      const label = type && typeof eventTypeLabel === 'function' ? eventTypeLabel(type) : 'все типы';
-      summary.innerHTML = `<b>Показано:</b> ${list.length} · <b>Игрок:</b> ${esc(target)} · <b>Тип:</b> ${esc(label)} · <b>Период:</b> 7 дней`;
-    }
-    if (!list.length) {
-      box.innerHTML = '<div class="admin-events-empty">За последние 7 дней событий не найдено.</div>';
-      return;
-    }
-    box.innerHTML = list.map((event) => {
-      const date = new Date(Number(event.created_at || Date.now())).toLocaleString('ru-RU');
-      const loginText = event.login || event.display_name || event.twitch_id || 'unknown';
-      const title = typeof eventTypeLabel === 'function' ? eventTypeLabel(event.type) : event.type;
-      return `<div class="admin-event-card admin-event-${eventTone(event.type)}">
-        <div class="admin-event-head">
-          <div><b>${eventIcon(event.type)} ${esc(title)}</b><small>${esc(date)}</small></div>
-          <span>@${esc(loginText)}</span>
-        </div>
-        <div class="admin-event-body">${esc(prettyPayload(event.payload, event.type))}</div>
-      </div>`;
-    }).join('');
-  };
-
-  window.loadAdminEvents = async function loadAdminEventsPolished() {
-    const login = document.getElementById('admin-events-login')?.value?.trim()?.toLowerCase().replace(/^@/, '') || '';
-    const type = document.getElementById('admin-events-type')?.value || '';
-    const params = new URLSearchParams({ limit: '300', days: '7' });
-    if (login) params.set('login', login);
-    if (type) params.set('type', type);
-    const data = await adminGet('events?' + params.toString());
-    window.renderAdminEvents(data.events || []);
-  };
-
   function setupAdminJournalAutocomplete() {
     const input = document.getElementById('admin-events-login');
     const box = document.getElementById('admin-events-suggestions');
@@ -256,7 +205,7 @@
     let timer = null;
     const update = async () => {
       const prefix = input.value.trim().toLowerCase().replace(/^@/, '');
-      const players = await fetchAdminPlayers(prefix);
+      const players = await loadAdminPlayers(prefix);
       if (!players.length) {
         box.innerHTML = '';
         box.classList.add('hidden');
@@ -265,7 +214,7 @@
       box.innerHTML = players.map((p) => {
         const login = String(p.login || '').toLowerCase();
         const display = p.display_name || p.login || login;
-        return `<button type="button" data-admin-journal-suggest="${esc(login)}"><b>${esc(login)}</b><small>${esc(display)} · ур. ${fullNum(p.level || 0)}</small></button>`;
+        return `<button type="button" data-admin-journal-suggest="${escAdminJournal(login)}"><b>${escAdminJournal(login)}</b><small>${escAdminJournal(display)} · ур. ${adminJournalNumber(p.level || 0)}</small></button>`;
       }).join('');
       box.classList.remove('hidden');
     };
@@ -293,5 +242,36 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', () => setTimeout(setupAdminJournalAutocomplete, 800));
+  document.addEventListener('DOMContentLoaded', () => {
+    const loginInput = document.getElementById('admin-events-login');
+    if (loginInput) loginInput.placeholder = 'ник игрока или пусто = все игроки за 7 дней';
+    const loadBtn = document.getElementById('admin-load-events');
+    if (loadBtn) loadBtn.textContent = 'Показать журнал за 7 дней';
+    document.querySelectorAll('[data-admin-tab]').forEach((btn) => btn.addEventListener('click', () => setTimeout(setAdminJournalOnlyMode, 0)));
+    document.getElementById('admin-events-type')?.addEventListener('change', () => window.loadAdminEvents?.().catch((e) => setAdminStatus?.(e.message, true)));
+    document.getElementById('admin-events-login')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        window.loadAdminEvents?.().catch((err) => setAdminStatus?.(err.message, true));
+      }
+    });
+    document.getElementById('admin-load-more-events')?.addEventListener('click', async () => {
+      const btn = document.getElementById('admin-load-more-events');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Загрузка...';
+      }
+      try {
+        await loadAdminEventsPage({ append: true });
+      } catch (e) {
+        setAdminStatus?.(e.message, true);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Показать ещё';
+        }
+      }
+    });
+    setTimeout(setupAdminJournalAutocomplete, 800);
+    setTimeout(setAdminJournalOnlyMode, 250);
+  });
 })();

@@ -16,6 +16,7 @@ const authRoutes = require('./routes/authRoutes');
 const apiRoutes = require('./routes/apiRoutes');
 const bridgeRoutes = require('./routes/bridgeRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const adminJournalRoutes = require('./routes/adminJournalRoutes');
 
 function startWebServer() {
   const app = express();
@@ -46,6 +47,7 @@ function startWebServer() {
   app.use('/auth', authRoutes);
 
   // ВАЖНО: админка должна быть ДО общего /api
+  app.use('/api/admin/journal', adminJournalRoutes(getDb()));
   app.use('/api/admin', adminRoutes(getDb()));
 
   app.use('/api', apiRoutes);
