@@ -1,0 +1,719 @@
+/* ==========================================================================
+   RAID HISTORY + MAX FARM BUTTONS PATCH styles
+   ========================================================================== */
+.raid-action-wrap {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.raid-action-wrap > .compact-action {
+  width: 100%;
+}
+.raid-history-small-btn {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  font-size: 13px;
+  background: rgba(255,255,255,.09);
+  color: #f5fff2;
+  border: 1px solid rgba(255,255,255,.12);
+}
+.raid-history-small-btn:not(:disabled):hover {
+  background: rgba(145,226,109,.24);
+}
+.raid-history-small-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.farm-max-disabled,
+.farm-max-disabled:hover,
+button.farm-max-disabled {
+  opacity: .48 !important;
+  filter: grayscale(.35) brightness(.82);
+  cursor: not-allowed !important;
+  background: rgba(142, 226, 109, .45) !important;
+  color: rgba(0,0,0,.72) !important;
+}
+.raid-history-modal-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 310px) 1fr;
+  gap: 16px;
+}
+.raid-history-sidebar {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  max-height: 58vh;
+  overflow: auto;
+}
+.raid-history-mini {
+  text-align: left;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #f5fff2;
+}
+.raid-history-mini b,
+.raid-history-mini span {
+  display: block;
+}
+.raid-history-mini span {
+  margin-top: 4px;
+  color: rgba(255,255,255,.68);
+  font-size: 13px;
+}
+.raid-history-mini.active {
+  border-color: rgba(151,232,105,.65);
+  background: rgba(151,232,105,.16);
+}
+.raid-history-detail {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .raid-history-modal-layout {
+    grid-template-columns: 1fr;
+  }
+  .raid-history-sidebar {
+    max-height: 220px;
+  }
+}
+
+
+/* ==========================================================================
+   LONG NICKNAME LAYOUT FIX
+   ========================================================================== */
+
+/* Не даём левому блоку профиля растягивать всю карточку */
+.profile-card-final,
+.visual-profile-patch {
+  min-width: 0;
+}
+
+.profile-main-left {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Текстовый блок рядом с аватаркой может сжиматься */
+.profile-main-left > div:not(.profile-avatar-big) {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Длинные ники не вылезают за рамку */
+.profile-name-final,
+.profile-main-left .profile-name-final {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* На узких экранах/при очень длинном нике разрешаем перенос */
+@media (max-width: 900px) {
+  .profile-name-final,
+  .profile-main-left .profile-name-final {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.05;
+  }
+}
+
+/* Сетка статов не должна налезать на имя */
+.profile-stats-final,
+.stats-2row-grid {
+  min-width: 0;
+}
+
+.stat-tile {
+  min-width: 0;
+}
+
+.stat-tile b,
+.stat-tile span,
+.stat-tile small {
+  overflow-wrap: anywhere;
+}
+
+/* Аватар фиксированный, имя занимает только доступное место */
+.profile-avatar-big {
+  flex: 0 0 auto;
+}
+
+
+
+/* ==========================================================================
+   PATCH: single case modal + bottom-right floating scroll button
+   ========================================================================== */
+#scrollTopBtn {
+  top: auto !important;
+  bottom: 26px !important;
+  right: 26px !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(172, 255, 131, .28) !important;
+  background: linear-gradient(180deg, rgba(123, 205, 82, .98), rgba(92, 168, 59, .98)) !important;
+  color: #0a1909 !important;
+  font-size: 18px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.22) !important;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(.96) !important;
+  transition: opacity .18s ease, transform .18s ease, box-shadow .18s ease !important;
+}
+#scrollTopBtn.visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transform: translateY(0) scale(1) !important;
+}
+#scrollTopBtn:hover {
+  box-shadow: 0 16px 34px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.28) !important;
+  transform: translateY(-1px) scale(1.02) !important;
+}
+.case-overlay-card-fixed {
+  width: min(860px, 94vw);
+}
+.case-overlay-card-fixed .case-result {
+  margin-top: 18px;
+}
+@media (max-width: 900px) {
+  #scrollTopBtn {
+    right: 18px !important;
+    bottom: 18px !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* PATCH screenshots feedback: cleaner buildings, combat, conflict buttons */
+.buildings-grid-clean {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+.building-card-v3 {
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+}
+.building-head-v3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.building-head-v3 h3 {
+  margin: 0;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.building-level-pill {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(139, 226, 101, .16);
+  border: 1px solid rgba(139, 226, 101, .35);
+  font-weight: 800;
+  font-size: .82rem;
+}
+.building-summary-v3,
+.building-effect-v3,
+.building-pack-v3 {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.045);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.building-summary-v3 {
+  display: grid;
+  gap: 8px;
+}
+.building-summary-v3 > div,
+.raid-rows-clean > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.building-summary-v3 span,
+.building-main-v3 span,
+.raid-breakdown-grid span,
+.raid-rows-clean span {
+  opacity: .72;
+}
+.building-summary-v3 b,
+.raid-rows-clean b {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.building-main-v3 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.building-main-v3 > div {
+  min-width: 0;
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.building-main-v3 b {
+  overflow-wrap: anywhere;
+}
+.building-pack-v3 {
+  display: grid;
+  gap: 4px;
+  color: #eefde8;
+}
+.building-pack-v3 .pack-muted { color: #ffdc7a; }
+.building-actions-v3 {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.building-actions-v3 button:only-child { grid-column: 1 / -1; }
+button.is-busy,
+.is-busy {
+  opacity: .72 !important;
+  cursor: wait !important;
+  filter: saturate(.7);
+}
+.combat-grid-v3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(230px, 1fr));
+  gap: 14px;
+}
+.combat-card-v3 {
+  min-width: 0;
+}
+.combat-big {
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+  margin: 10px 0;
+}
+.combat-big small {
+  font-size: .9rem;
+  opacity: .7;
+  margin-left: 4px;
+}
+.raid-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.raid-breakdown-grid > div {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.raid-breakdown-grid b {
+  font-size: 1.25rem;
+}
+.raid-details-more summary {
+  cursor: pointer;
+  font-weight: 800;
+  margin: 10px 0;
+}
+.raid-rows-clean {
+  display: grid;
+  gap: 6px;
+}
+.hero-greeting-title {
+  max-width: min(760px, 100%);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 960px) {
+  .combat-grid-v3 { grid-template-columns: 1fr; }
+  .building-main-v3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .raid-breakdown-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .buildings-grid-clean { grid-template-columns: 1fr; }
+  .building-main-v3 { grid-template-columns: 1fr; }
+  .building-actions-v3 { grid-template-columns: 1fr; }
+}
+
+/* FIX 2026-05-04: clean separate resources strip for buildings */
+.buildings-resources-section {
+  margin-bottom: 18px;
+}
+.buildings-resources-head {
+  padding-bottom: 8px;
+}
+.buildings-resources-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.buildings-resources-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 2px;
+}
+.buildings-resource-item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.035);
+}
+.buildings-resource-item span {
+  opacity: .78;
+  font-weight: 700;
+}
+.buildings-resource-item b {
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.buildings-clean-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+.building-card-clean {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+.building-card-clean.locked,
+.building-card-clean.maxed {
+  opacity: .72;
+}
+.building-card-clean__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.building-card-clean__head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.15;
+}
+.building-card-clean__level {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 226, 101, .35);
+  background: rgba(139, 226, 101, .14);
+  font-size: .82rem;
+  font-weight: 800;
+}
+.building-card-clean__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.building-card-clean__meta > div,
+.building-card-clean__effects,
+.building-card-clean__pack {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.04);
+  border-radius: 16px;
+}
+.building-card-clean__meta > div {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.building-card-clean__meta span {
+  opacity: .72;
+}
+.building-card-clean__meta b {
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+.building-card-clean__effects {
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+  line-height: 1.45;
+}
+.building-card-clean__pack {
+  padding: 12px 14px;
+  font-weight: 700;
+}
+.building-card-clean__actions {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.building-card-clean__actions button:only-child {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1100px) {
+  .buildings-clean-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .buildings-resources-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .buildings-clean-grid,
+  .buildings-resources-grid,
+  .building-card-clean__meta,
+  .building-card-clean__actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* PATCH: history + buildings tiny UI preservation */
+.history-human-row p{line-height:1.45}.history-human-row p b{color:#d8ffb8}.building-main-v3{grid-template-columns:repeat(3,minmax(0,1fr))!important}.building-pack-v3:empty{display:none!important}
+
+/* PATCH: readable raid history + long case spin */
+.polished-raid-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.polished-raid-grid .raid-primary-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(154,230,108,.12), rgba(255,255,255,.04));
+  border: 1px solid rgba(255,255,255,.08);
+}
+.polished-raid-grid .raid-primary-card.good { border-color: rgba(149,224,108,.35); }
+.polished-raid-grid .raid-primary-card.bad { border-color: rgba(255,120,120,.30); }
+.polished-raid-grid .raid-primary-card span,
+.polished-raid-meta span,
+.polished-raid-rows span {
+  display: block;
+  color: rgba(255,255,255,.68);
+  margin-bottom: 4px;
+}
+.polished-raid-grid .raid-primary-card b {
+  font-size: 28px;
+  line-height: 1.15;
+}
+.polished-raid-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.polished-raid-meta > div,
+.polished-raid-rows > div {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.06);
+}
+.polished-raid-details summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.polished-raid-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.case-overlay-card-longspin .case-result {
+  min-height: 58px;
+}
+.case-result-pending {
+  opacity: .85;
+}
+.case-result-pending .case-result-status {
+  font-size: 18px;
+  font-weight: 800;
+}
+.case-pending-win {
+  border-color: rgba(255,255,255,.1) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08) !important;
+}
+
+/* PATCH: clickable raid rows in info */
+.polished-raid-log-row {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.04);
+  color: #fff;
+}
+.polished-raid-log-row:hover {
+  border-color: rgba(149,224,108,.28);
+  background: rgba(149,224,108,.08);
+}
+.polished-raid-log-row .raid-log-main,
+.polished-raid-log-row .raid-log-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.polished-raid-log-row .raid-log-meta span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  font-weight: 800;
+}
+@media (max-width: 860px) {
+  .polished-raid-log-row { grid-template-columns: 1fr; }
+}
+
+
+/* PATCH: market preset layout/clarity */
+.market-preset-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.market-preset-btn-eq,
+.market-preset-row-minus button {
+  min-width: 96px;
+  justify-content: center;
+}
+.market-calc-hint {
+  margin: 10px 0 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.06);
+  color: rgba(255,255,255,.82);
+}
+
+/* ADMIN JOURNAL POLISH SAFE PATCH 2026-05-04
+   ВАЖНО: это добавлено В КОНЕЦ полного рабочего style.css, файл не обнулён. */
+.admin-journal-tools {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 320px);
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0 10px;
+}
+.admin-journal-search,
+.admin-journal-filter {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+.admin-journal-search label,
+.admin-journal-filter label {
+  color: rgba(255,255,255,.72);
+  font-size: 13px;
+  font-weight: 800;
+}
+.admin-journal-search input,
+.admin-journal-filter select {
+  width: 100%;
+}
+.admin-events-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  max-height: 260px;
+  overflow: auto;
+}
+.admin-journal-load {
+  width: 100%;
+  margin: 4px 0 10px;
+}
+.admin-events-summary {
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(142,226,101,.25);
+  border-radius: 14px;
+  background: rgba(142,226,101,.08);
+  color: rgba(255,255,255,.82);
+}
+.admin-events-box-polished {
+  display: grid;
+  gap: 12px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 8px;
+}
+.admin-event-card {
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.045);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+.admin-event-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.admin-event-head b {
+  display: block;
+  font-size: 16px;
+}
+.admin-event-head small {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255,255,255,.48);
+}
+.admin-event-head span {
+  color: rgba(255,255,255,.68);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.admin-event-body {
+  margin-top: 10px;
+  color: rgba(255,255,255,.88);
+  line-height: 1.45;
+}
+.admin-event-raid { border-color: rgba(177,110,255,.22); }
+.admin-event-off { border-color: rgba(255,207,93,.22); }
+.admin-event-market { border-color: rgba(71,182,255,.22); }
+.admin-event-admin { border-color: rgba(255,93,128,.22); }
+.admin-events-empty {
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.045);
+  color: rgba(255,255,255,.75);
+  text-align: center;
+}
+@media (max-width: 760px) {
+  .admin-journal-tools { grid-template-columns: 1fr; }
+  .admin-event-head { flex-direction: column; }
+}
