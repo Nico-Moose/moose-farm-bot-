@@ -723,12 +723,16 @@ router.post('/farm/off-collect', requireAuth, async (req, res) => {
 router.get('/farm/history', requireAuth, (req, res) => {
   const type = String(req.query.type || '').trim();
   const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '100', 10) || 100));
+  const cacheKey = `farm:${req.session.twitchUser.id}:history:${type || 'all'}:${limit}`;
+  const cached = getCache(cacheKey);
+  if (cached) return res.json(cached);
+
   const events = listFarmEvents({
     twitchId: req.session.twitchUser.id,
     type,
     limit
   });
-  res.json({ ok: true, events });
+  res.json(setCache(cacheKey, { ok: true, events }, 1200));
 });
 
 router.get('/farm/info', requireAuth, (req, res) => {
@@ -745,7 +749,13 @@ router.get('/farm/top', requireAuth, (req, res) => {
   const cached = getCache(cacheKey);
   if (cached) return res.json(cached);
 
-  const profiles = listTopProfilesLite();
+  const profilesCacheKey = 'farm:top:profiles';
+  let profiles = getCache(profilesCacheKey);
+  if (!profiles) {
+    profiles = listTopProfilesLite();
+    setCache(profilesCacheKey, profiles, 5000);
+  }
+
   res.json(setCache(cacheKey, {
     ok: true,
     days,
