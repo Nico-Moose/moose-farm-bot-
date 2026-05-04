@@ -4707,29 +4707,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function pack10Line(afford10 = {}) {
     const count = Number(afford10.count || 0);
-    const cost = Number(afford10.cost || 0);
-    const parts = Number(afford10.parts || 0);
-    if (count <= 0) return `<span class="pack-muted">+10 сейчас недоступно</span>`;
-    return `<span>+10 доступно: <b>${formatNumber(count)} ур.</b></span><span>цена пачки: <b>${formatNumber(cost)}💰 / ${formatNumber(parts)}🔧</b></span>`;
+    if (count <= 0) return '';
+    return `<span>+10 доступно: <b>${formatNumber(count)} ур.</b></span>`;
   }
 
   function renderBuildingsQuickStatus(data) {
-    const panel = document.querySelector('.farm-tab-panel[data-farm-panel="buildings"]');
-    if (!panel) return;
-
-    let box = document.getElementById('buildingsQuickStatus');
-    if (!box) {
-      box = document.createElement('section');
-      box.id = 'buildingsQuickStatus';
-      box.className = 'quick-status';
-      const firstCard = panel.querySelector('.visual-section.tab-page-card');
-      if (firstCard) {
-        panel.insertBefore(box, firstCard);
-      } else {
-        panel.appendChild(box);
-      }
-    }
-
+    const box = document.getElementById('buildingsResourcesSection');
+    if (!box) return;
     const profile = data.profile || {};
     box.innerHTML = `
       <div><b>Текущие ресурсы</b></div>
@@ -4790,7 +4774,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="building-main-v3">
             <div><span>След. ур.</span><b>${nextLabel}</b></div>
             <div><span>Цена</span><b>${formatNumber(nextCost.coins)}💰</b><b>${formatNumber(nextCost.parts)}🔧</b></div>
-            <div><span>У тебя</span><b>${formatNumber(currentCoins(p))}💰</b><b>${formatNumber(p.parts || 0)}🔧</b></div>
             <div><span>Хватит</span><b>${levelLocked || maxed ? '—' : `${formatNumber(affordAll.count)} ур.`}</b></div>
           </div>
 
