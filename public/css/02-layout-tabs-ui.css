@@ -382,12 +382,16 @@ button.is-busy {
 
 /* Final app-like tab UI polish */
 body {
+  min-height: 100vh;
+  display: block;
+  place-items: initial;
   background:
     radial-gradient(circle at top left, rgba(139, 224, 108, 0.16), transparent 28%),
     linear-gradient(180deg, #173b16 0%, #0c1d10 100%);
 }
 
 .app-shell {
+  min-height: calc(100vh - 36px);
   width: min(1180px, calc(100% - 24px));
   margin: 18px auto;
   padding: 22px;
@@ -473,7 +477,45 @@ body {
 
 .farm-tab-panel.active {
   display: block;
+  min-height: 860px;
 }
+
+.farm-tab-panel[data-farm-panel="main"].active {
+  min-height: 1380px;
+}
+
+#profile,
+#extrasBox,
+#combatBox,
+#licenseBox,
+#buildingsResourcesSection,
+#buildings,
+#marketBox,
+#infoBox,
+#topsBox,
+#historyBox {
+  min-height: 120px;
+}
+
+#extrasBox,
+#combatBox,
+#infoBox,
+#topsBox,
+#historyBox,
+#buildings,
+#marketBox {
+  content-visibility: auto;
+  contain-intrinsic-size: 600px;
+}
+
+#combatBox { min-height: 340px; }
+#extrasBox { min-height: 250px; }
+#buildings { min-height: 920px; }
+#infoBox { min-height: 360px; }
+#topsBox { min-height: 220px; }
+#historyBox { min-height: 520px; }
+#marketBox { min-height: 340px; }
+#licenseBox { min-height: 0; }
 
 .profile-shell {
   margin-bottom: 16px;
@@ -576,6 +618,12 @@ body {
 
 .main-actions-card {
   margin-top: 0;
+}
+
+#upgrade1Btn,
+#upgrade10Btn {
+  min-width: 220px;
+  min-height: 82px;
 }
 
 .tab-page-card {
