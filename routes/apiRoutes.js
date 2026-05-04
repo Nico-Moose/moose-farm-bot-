@@ -7,6 +7,8 @@ const {
   markWizebotSyncAt,
   logFarmEvent,
   listProfiles,
+  listRaidCandidateProfiles,
+  listTopProfilesLite,
   listFarmEvents
 } = require('../services/userService');
 
@@ -586,7 +588,7 @@ router.post('/farm/turret/upgrade', requireAuth, async (req, res) => {
 
 router.post('/farm/raid', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
-  const candidates = listProfiles();
+  const candidates = listRaidCandidateProfiles();
   const result = performRaid(profile, candidates);
 
   if (!result.ok) {
@@ -743,7 +745,7 @@ router.get('/farm/top', requireAuth, (req, res) => {
   const cached = getCache(cacheKey);
   if (cached) return res.json(cached);
 
-  const profiles = listProfiles();
+  const profiles = listTopProfilesLite();
   res.json(setCache(cacheKey, {
     ok: true,
     days,

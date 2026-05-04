@@ -204,6 +204,50 @@ function listProfiles() {
   return rows.map(normalizeProfile).filter(Boolean);
 }
 
+function listRaidCandidateProfiles() {
+  const rows = getDb().prepare(`
+    SELECT
+      u.twitch_id,
+      u.login,
+      u.display_name,
+      f.level,
+      f.farm_balance,
+      f.twitch_balance,
+      f.upgrade_balance,
+      f.parts,
+      f.last_collect_at,
+      f.created_at,
+      f.farm_json,
+      f.configs_json,
+      f.protection_level,
+      f.raid_power
+    FROM twitch_users u
+    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+  `).all();
+
+  return rows.map(normalizeProfile).filter(Boolean);
+}
+
+function listTopProfilesLite() {
+  const rows = getDb().prepare(`
+    SELECT
+      u.twitch_id,
+      u.login,
+      u.display_name,
+      f.level,
+      f.farm_balance,
+      f.twitch_balance,
+      f.upgrade_balance,
+      f.parts,
+      f.farm_json,
+      f.configs_json
+    FROM twitch_users u
+    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+  `).all();
+
+  return rows.map(normalizeProfile).filter(Boolean);
+}
+
 function logFarmEvent(twitchId, type, payload = {}) {
   const db = getDb();
   const createdAt = Date.now();
@@ -271,6 +315,8 @@ module.exports = {
   updateProfile,
   markWizebotSyncAt,
   listProfiles,
+  listRaidCandidateProfiles,
+  listTopProfilesLite,
   logFarmEvent,
   listFarmEvents
 };
