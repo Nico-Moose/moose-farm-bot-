@@ -6489,3 +6489,60 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 })();
+
+
+/* ==========================================================================
+   PATCH: market single-request lock only
+   ========================================================================== */
+(function(){
+  let marketRequestInFlight = false;
+
+  const prevMarketTrade = typeof marketTrade === 'function' ? marketTrade : null;
+  if (prevMarketTrade && !window.__mooseMarketSingleRequestLock) {
+    window.__mooseMarketSingleRequestLock = true;
+
+    function setMarketButtonsBusy(isBusy) {
+      ['marketBuyBtn', 'marketSellBtn'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.disabled = !!isBusy;
+        btn.classList.toggle('is-busy', !!isBusy);
+      });
+    }
+
+    marketTrade = async function lockedMarketTrade(action) {
+      if (marketRequestInFlight) {
+        return;
+      }
+
+      marketRequestInFlight = true;
+      setMarketButtonsBusy(true);
+
+      try {
+        const result = await prevMarketTrade(action);
+        return result;
+      } catch (err) {
+        const text = String(err && err.message ? err.message : err || '');
+        if (!/action_in_progress/i.test(text)) {
+          throw err;
+        }
+      } finally {
+        marketRequestInFlight = false;
+        setMarketButtonsBusy(false);
+      }
+    };
+  }
+
+  // If an older handler still produces this backend duplicate response,
+  // hide the noisy user-facing message because the first request already succeeded.
+  const prevShowMessage = typeof showMessage === 'function' ? showMessage : null;
+  if (prevShowMessage && !window.__mooseHideActionInProgressMessage) {
+    window.__mooseHideActionInProgressMessage = true;
+    showMessage = function patchedShowMessage(message, ...rest) {
+      if (/action_in_progress/i.test(String(message || ''))) {
+        return;
+      }
+      return prevShowMessage(message, ...rest);
+    };
+  }
+})();
