@@ -183,7 +183,7 @@
     return `❌ Турель: ${labels[data?.error] || data?.error || 'ошибка'}`;
   }
 
-  async function finalizeAction(data, successMessage, failMessage) {
+  async function finalizeAction(data, successMessage, failMessage, options = {}) {
     if (data?.error === 'action_in_progress') {
       if (!mergeForRender(data)) await loadMe(true);
       showMessage(`⏳ ${data?.message || 'Действие уже выполняется. Обновили данные.'}`);
@@ -203,6 +203,9 @@
     }
 
     showMessage(successMessage);
+    if (options.refreshBuildings) {
+      refreshBuildingsIfVisible?.(true);
+    }
     setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
   }
 
@@ -245,7 +248,8 @@
         await finalizeAction(
           data,
           `🏗 ${data?.name || key}: построено. Потрачено ${formatNumber(data?.totalCost || 0)}💰 / ${formatNumber(data?.totalParts || 0)}🔧`,
-          buildingFailMessage(key, data)
+          buildingFailMessage(key, data),
+          { refreshBuildings: true }
         );
       });
       return;
@@ -259,7 +263,8 @@
         await finalizeAction(
           data,
           `🏗 ${data?.name || key}: +${formatNumber(data?.upgraded || 0)} ур. Потрачено ${formatNumber(data?.totalCost || 0)}💰 / ${formatNumber(data?.totalParts || 0)}🔧`,
-          buildingFailMessage(key, data)
+          buildingFailMessage(key, data),
+          { refreshBuildings: true }
         );
       });
       return;

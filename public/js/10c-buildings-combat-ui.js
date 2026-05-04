@@ -324,15 +324,16 @@
   }
 
 
-
   window.refreshBuildingsIfVisible = function refreshBuildingsIfVisible(force) {
-    const panel = document.querySelector('[data-farm-panel="buildings"]');
-    const isActive = !!(panel && panel.classList.contains('active'));
-    const box = document.getElementById('buildings');
-    const resourcesBox = document.getElementById('buildingsResourcesSection');
-    const needsRender = force || !box || box.dataset.loaded !== '1' || !resourcesBox || resourcesBox.dataset.loaded !== '1' || !box.children.length;
-    if (!state || (!isActive && !force) || !needsRender) return;
-    renderBuildings(state);
+    if (!isFarmTabActive || !isFarmTabActive('buildings')) return false;
+    if (!state?.profile) return false;
+    try {
+      renderBuildings(state);
+      return true;
+    } catch (err) {
+      console.warn('[BUILDINGS REFRESH]', err);
+      return false;
+    }
   };
 
   window.hasRenderedBuildings = function hasRenderedBuildings() {

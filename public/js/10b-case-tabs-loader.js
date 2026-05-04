@@ -38,12 +38,7 @@
       } else if (activePanel === 'tops' || activePanel === 'info') {
         refreshTopsIfVisible(true).catch((err) => console.warn('[TOPS]', err));
       } else if (activePanel === 'buildings') {
-        try {
-          if (typeof refreshBuildingsIfVisible === 'function') refreshBuildingsIfVisible(true);
-          else if (typeof renderBuildings === 'function') renderBuildings(data);
-        } catch (err) {
-          console.warn('[BUILDINGS]', err);
-        }
+        refreshBuildingsIfVisible?.(true);
       }
     } catch (error) {
       document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
@@ -65,12 +60,7 @@
     } else if (target === 'tops' || target === 'info') {
       refreshTopsIfVisible(true).catch((err) => console.warn('[TOPS]', err));
     } else if (target === 'buildings') {
-      try {
-        if (typeof refreshBuildingsIfVisible === 'function') refreshBuildingsIfVisible(true);
-        else if (window.state && typeof renderBuildings === 'function') renderBuildings(window.state);
-      } catch (err) {
-        console.warn('[BUILDINGS]', err);
-      }
+      refreshBuildingsIfVisible?.(true);
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });

@@ -229,7 +229,13 @@
       }
       const data = await res.json();
       render(data);
-      refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
+      if (isFarmTabActive('history')) {
+        refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
+      } else if (isFarmTabActive('buildings')) {
+        refreshBuildingsIfVisible?.(true);
+      } else if (isFarmTabActive('tops') || isFarmTabActive('info')) {
+        refreshTopsIfVisible?.(true).catch((err) => console.warn('[TOPS]', err));
+      }
       return data;
     } catch (error) {
       document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
