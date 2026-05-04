@@ -721,14 +721,22 @@ router.post('/farm/off-collect', requireAuth, async (req, res) => {
 
 
 router.get('/farm/history', requireAuth, (req, res) => {
+  const twitchId = req.session.twitchUser.id;
   const type = String(req.query.type || '').trim();
   const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '100', 10) || 100));
-  const events = listFarmEvents({
-    twitchId: req.session.twitchUser.id,
-    type,
-    limit
-  });
-  res.json({ ok: true, events });
+  const cacheKey = `farm:${twitchId}:history:${type || 'all'}:${limit}`;
+  const cached = getCache(cacheKey);
+  if (cached) return res.json(cached);
+
+  const payload = {
+    ok: true,
+    events: listFarmEvents({
+      twitchId,
+      type,
+      limit
+    })
+  };
+  res.json(setCache(cacheKey, payload, 1200));
 });
 
 router.get('/farm/info', requireAuth, (req, res) => {

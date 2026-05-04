@@ -1,4 +1,5 @@
 const { getDb } = require('./dbService');
+const { getCache, setCache } = require('./apiCacheService');
 const { parseJsonSafe } = require('./farm/numberUtils');
 
 function normalizeProfile(row) {
@@ -23,6 +24,30 @@ function normalizeProfile(row) {
     created_at: Number(row.created_at) || Date.now(),
     updated_at: Number(row.updated_at) || Date.now()
   };
+}
+
+
+let listTopProfilesLiteStmt = null;
+
+function getListTopProfilesLiteStmt() {
+  if (!listTopProfilesLiteStmt) {
+    listTopProfilesLiteStmt = getDb().prepare(`
+      SELECT
+        u.twitch_id,
+        u.login,
+        u.display_name,
+        f.level,
+        f.farm_balance,
+        f.twitch_balance,
+        f.upgrade_balance,
+        f.parts,
+        f.farm_json,
+        f.configs_json
+      FROM twitch_users u
+      JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+    `);
+  }
+  return listTopProfilesLiteStmt;
 }
 
 function upsertTwitchUser(user) {
@@ -229,23 +254,13 @@ function listRaidCandidateProfiles() {
 }
 
 function listTopProfilesLite() {
-  const rows = getDb().prepare(`
-    SELECT
-      u.twitch_id,
-      u.login,
-      u.display_name,
-      f.level,
-      f.farm_balance,
-      f.twitch_balance,
-      f.upgrade_balance,
-      f.parts,
-      f.farm_json,
-      f.configs_json
-    FROM twitch_users u
-    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
-  `).all();
+  const cacheKey = 'farm:top:profiles';
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
 
-  return rows.map(normalizeProfile).filter(Boolean);
+  const rows = getListTopProfilesLiteStmt().all();
+  const result = rows.map(normalizeProfile).filter(Boolean);
+  return setCache(cacheKey, result, 5000);
 }
 
 function logFarmEvent(twitchId, type, payload = {}) {
