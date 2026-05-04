@@ -638,56 +638,58 @@ body {
 
 
 
-/* stage1-31 CLS stabilize: prevent centered body relayout and reserve first-screen slots */
-body {
-  display: block;
-  place-items: initial;
-}
-
-.app-shell {
-  min-height: calc(100vh - 36px);
+/* Stage1-30 anti-CLS stabilization for top sections */
+.quick-actions-section,
+.extra-section,
+.combat-section {
+  min-height: 238px;
 }
 
 .action-grid-top {
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
   align-items: stretch;
+  min-height: 132px;
 }
 
 #upgrade1Btn,
-#upgrade10Btn,
-#raidActionBtn {
-  min-height: 74px;
+#upgrade10Btn {
+  min-width: 168px;
+  min-height: 82px;
 }
 
-#raidHistoryBtn {
-  min-height: 34px;
+#extrasBox.combat-grid {
+  min-height: 150px;
+  align-content: start;
 }
 
-.placeholder-card {
-  min-height: 172px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+#combatBox,
+#buildings,
+#historyBox,
+#infoBox,
+#topsBox,
+#marketBox {
+  min-height: 160px;
 }
 
-.placeholder-card h3 {
-  margin: 0 0 12px;
-}
+@media (max-width: 760px) {
+  .quick-actions-section,
+  .extra-section,
+  .combat-section {
+    min-height: 0;
+  }
 
-.placeholder-line {
-  display: block;
-  height: 14px;
-  margin: 8px 0;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-}
+  #upgrade1Btn,
+  #upgrade10Btn {
+    min-width: 0;
+    width: 100%;
+  }
 
-.placeholder-line.short { width: 38%; }
-.placeholder-line.mid { width: 64%; }
-.placeholder-line.long { width: 86%; }
-
-@media (max-width: 900px) {
-  .action-grid-top {
-    grid-template-columns: 1fr;
+  #extrasBox.combat-grid,
+  #combatBox,
+  #buildings,
+  #historyBox,
+  #infoBox,
+  #topsBox,
+  #marketBox {
+    min-height: 0;
   }
 }
