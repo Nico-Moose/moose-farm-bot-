@@ -6764,3 +6764,148 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 })();
+
+/* ============================================================================
+   SAFE PATCH 2026-05-04: market resources strip + keep exact qty after trade
+   - adds the same current-resources strip on market as buildings
+   - keeps market input as full exact number after buy/sell/live refresh
+   ========================================================================== */
+(function(){
+  if (window.__mooseMarketResourcesExactAfterTradeFix) return;
+  window.__mooseMarketResourcesExactAfterTradeFix = true;
+
+  function mrNum(v) { return Math.max(0, Math.floor(Number(v || 0))); }
+
+  function mrFmt(v) {
+    if (typeof formatNumber === 'function') {
+      try { return formatNumber(v); } catch (_) {}
+    }
+    if (typeof stageFormat === 'function') {
+      try { return stageFormat(v); } catch (_) {}
+    }
+    return String(mrNum(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function mrFullNumber(v) {
+    return String(mrNum(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function mrParseQty(value) {
+    const raw = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '').replace(/,/g, '.');
+    if (!raw) return 0;
+    const m = raw.match(/^(-?\d+(?:\.\d+)?)(млрд|миллиард(?:а|ов)?|b|bn|кк|kk|м|m|к|k)?$/i);
+    if (!m) return mrNum(Number(raw.replace(/[^0-9.-]/g, '')) || 0);
+    const n = Number(m[1] || 0);
+    const s = String(m[2] || '').toLowerCase();
+    let mult = 1;
+    if (s === 'к' || s === 'k') mult = 1_000;
+    else if (s === 'кк' || s === 'kk' || s === 'м' || s === 'm') mult = 1_000_000;
+    else if (s === 'млрд' || s === 'b' || s === 'bn' || s.startsWith('миллиард')) mult = 1_000_000_000;
+    return mrNum(n * mult);
+  }
+
+  function mrGetQty(input) {
+    if (!input) return 0;
+    const exact = Number(input.dataset.exactQty || input.dataset.numericValue || 0);
+    const parsed = mrParseQty(input.value);
+    const value = input.dataset.exactQty && String(input.value || '').trim() === String(input.dataset.prettyQty || '').trim()
+      ? exact
+      : parsed;
+    const safe = mrNum(value);
+    input.dataset.exactQty = String(safe);
+    input.dataset.numericValue = String(safe);
+    return safe;
+  }
+
+  function mrSetQty(input, value) {
+    if (!input) return;
+    const safe = mrNum(value);
+    const pretty = mrFullNumber(safe);
+    input.dataset.exactQty = String(safe);
+    input.dataset.numericValue = String(safe);
+    input.dataset.prettyQty = pretty;
+    input.value = pretty;
+    try {
+      lastMarketQty = safe;
+      localStorage.setItem('mooseFarmLastMarketQty', String(safe));
+    } catch (_) {}
+  }
+
+  function mrProfileValue(profile, key, fallbackFn) {
+    if (typeof fallbackFn === 'function') {
+      try { return fallbackFn(profile); } catch (_) {}
+    }
+    return mrNum(profile?.[key] || 0);
+  }
+
+  function mrResourcesHtml(data) {
+    const profile = data?.profile || {};
+    const ordinary = mrProfileValue(profile, 'coins', typeof ordinaryCoins === 'function' ? ordinaryCoins : null);
+    const farm = mrProfileValue(profile, 'farm_balance', typeof farmCoins === 'function' ? farmCoins : null);
+    const bonus = mrProfileValue(profile, 'upgrade_balance', typeof bonusCoins === 'function' ? bonusCoins : null);
+    const parts = mrNum(profile.parts || 0);
+    return `
+      <div id="marketResourcesSection" class="buildings-resources-section market-resources-section">
+        <div><b>Текущие ресурсы</b></div>
+        <div class="quick-status-grid compact-stats">
+          <span>💰 Голда: <b>${mrFmt(ordinary)}</b></span>
+          <span>🌾 Ферма: <b>${mrFmt(farm)}</b></span>
+          <span>💎 Бонусные: <b>${mrFmt(bonus)}</b></span>
+          <span>🔧 Запчасти: <b>${mrFmt(parts)}</b></span>
+        </div>
+      </div>`;
+  }
+
+  function mrInstallResources(data) {
+    const box = document.getElementById('marketBox');
+    if (!box) return;
+    box.querySelector('#marketResourcesSection')?.remove();
+    const hero = box.querySelector('.market-hero');
+    if (hero) hero.insertAdjacentHTML('beforebegin', mrResourcesHtml(data));
+    else box.insertAdjacentHTML('afterbegin', mrResourcesHtml(data));
+  }
+
+  function mrInstallExactInputHandlers() {
+    const input = document.getElementById('marketQty');
+    if (!input) return;
+    const current = mrParseQty(input.dataset.exactQty || input.dataset.numericValue || input.value || lastMarketQty || 1000);
+    mrSetQty(input, current || 1000);
+
+    input.oninput = () => {
+      const exact = mrParseQty(input.value);
+      input.dataset.exactQty = String(exact);
+      input.dataset.numericValue = String(exact);
+      input.dataset.prettyQty = input.value;
+      try {
+        lastMarketQty = exact;
+        localStorage.setItem('mooseFarmLastMarketQty', String(exact));
+      } catch (_) {}
+    };
+    input.onblur = () => mrSetQty(input, mrGetQty(input));
+    input.onchange = () => mrSetQty(input, mrGetQty(input));
+  }
+
+  const prevRenderMarket = typeof renderMarket === 'function' ? renderMarket : null;
+  if (prevRenderMarket) {
+    renderMarket = function renderMarketResourcesExactQty(data) {
+      prevRenderMarket(data);
+      try { mrInstallResources(data); } catch (e) { console.warn('[MARKET RESOURCES]', e); }
+      try { mrInstallExactInputHandlers(); } catch (e) { console.warn('[MARKET EXACT INPUT]', e); }
+    };
+  }
+
+  const prevMarketTrade = typeof marketTrade === 'function' ? marketTrade : null;
+  if (prevMarketTrade) {
+    marketTrade = async function marketTradeKeepExactQty(action) {
+      const beforeInput = document.getElementById('marketQty');
+      const qty = mrGetQty(beforeInput);
+      if (beforeInput) beforeInput.value = String(qty);
+      try {
+        return await prevMarketTrade(action);
+      } finally {
+        const currentInput = document.getElementById('marketQty');
+        mrSetQty(currentInput, qty);
+      }
+    };
+  }
+})();
