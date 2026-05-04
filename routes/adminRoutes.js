@@ -5,8 +5,6 @@ const { syncProfileToWizebot } = require("../services/wizebotApiService");
 const { upsertTwitchUser, getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
 const { getStreamStatus, setSetting } = require("../services/streamStatusService");
 const { setMarketStock } = require("../services/farm/marketService");
-const registerAdminTransferRoutes = require("./admin/registerAdminTransferRoutes");
-const { getCache, setCache, invalidatePrefix } = require("../services/apiCacheService");
 
 function parseAmount(value) {
   if (typeof value === "number") return Math.trunc(value);
@@ -165,58 +163,6 @@ function logAdminEvent(db, twitchId, type, payload) {
 module.exports = function (db) {
   const router = express.Router();
 
-  registerAdminTransferRoutes(router, {
-    db,
-    getProfileByLogin,
-    upsertTwitchUser,
-    saveFarmBackup,
-    logAdminEvent,
-  });
-
-  const stmtListPlayerLogins = db.prepare(`
-    SELECT u.login, u.display_name, f.level
-    FROM twitch_users u
-    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
-    WHERE ? = '' OR LOWER(u.login) LIKE ? OR LOWER(u.display_name) LIKE ?
-    ORDER BY LOWER(u.login) ASC
-    LIMIT 50
-  `);
-
-  const stmtAdminEventsBase = db.prepare(`
-    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
-    FROM farm_events e
-    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
-    WHERE e.created_at >= ?
-    ORDER BY e.created_at DESC
-    LIMIT ?
-  `);
-
-  const stmtAdminEventsByTwitch = db.prepare(`
-    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
-    FROM farm_events e
-    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
-    WHERE e.created_at >= ? AND e.twitch_id = ?
-    ORDER BY e.created_at DESC
-    LIMIT ?
-  `);
-
-  const stmtAdminEventsByType = db.prepare(`
-    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
-    FROM farm_events e
-    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
-    WHERE e.created_at >= ? AND e.type = ?
-    ORDER BY e.created_at DESC
-    LIMIT ?
-  `);
-
-  const stmtAdminEventsByTwitchAndType = db.prepare(`
-    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
-    FROM farm_events e
-    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
-    WHERE e.created_at >= ? AND e.twitch_id = ? AND e.type = ?
-    ORDER BY e.created_at DESC
-    LIMIT ?
-  `);
 
   const pendingAdminActions = new Set();
 
@@ -236,10 +182,7 @@ module.exports = function (db) {
     }
 
     pendingAdminActions.add(key);
-    res.on('finish', () => {
-      pendingAdminActions.delete(key);
-      if (res.statusCode < 500) invalidatePrefix('admin:');
-    });
+    res.on('finish', () => pendingAdminActions.delete(key));
     res.on('close', () => pendingAdminActions.delete(key));
     next();
   }
@@ -247,12 +190,14 @@ module.exports = function (db) {
   function listPlayerLogins(prefix = '') {
     const q = String(prefix || '').toLowerCase().replace(/^@/, '').trim();
     const like = `${q}%`;
-    const cacheKey = `admin:players:${q}`;
-    const cached = getCache(cacheKey);
-    if (cached) return cached;
-
-    const players = stmtListPlayerLogins.all(q, like, like);
-    return setCache(cacheKey, players, 5000);
+    return db.prepare(`
+      SELECT u.login, u.display_name, f.level
+      FROM twitch_users u
+      JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+      WHERE ? = '' OR LOWER(u.login) LIKE ? OR LOWER(u.display_name) LIKE ?
+      ORDER BY LOWER(u.login) ASC
+      LIMIT 50
+    `).all(q, like, like);
   }
 
   router.get("/me", (req, res) => {
@@ -924,20 +869,32 @@ function restoreFarmBackup(profile) {
 
   return backup;
 }
-
-  function restoreFarmBackup(profile) {
-    const farm = profile?.farm || {};
-    const backups = Array.isArray(farm.adminBackups) ? farm.adminBackups : [];
-    const backup = backups[0];
-    if (!backup) return null;
-    const restoredFarm = backup.farm || {};
-    restoredFarm.adminBackups = backups;
-    db.prepare(`UPDATE farm_profiles SET level=?, farm_balance=?, upgrade_balance=?, total_income=?, parts=?, last_collect_at=?, farm_json=?, configs_json=?, license_level=?, protection_level=?, raid_power=?, turret_json=?, updated_at=? WHERE twitch_id=?`).run(
-      Number(backup.level || 0), Number(backup.farm_balance || 0), Number(backup.upgrade_balance || 0), Number(backup.total_income || 0), Number(backup.parts || 0), backup.last_collect_at || null, JSON.stringify(restoredFarm), JSON.stringify(backup.configs || {}), Number(backup.license_level || 0), Number(backup.protection_level || 0), Number(backup.raid_power || 0), JSON.stringify(backup.turret || {}), Date.now(), profile.twitch_id
-    );
-    return backup;
-  }
-
+  router.post('/transfer-farm', (req, res) => {
+    const oldLogin = String(req.body.oldLogin || '').toLowerCase().replace(/^@/, '');
+    const newLogin = String(req.body.newLogin || '').toLowerCase().replace(/^@/, '');
+    if (!oldLogin || !newLogin || oldLogin === newLogin) return res.status(400).json({ ok: false, error: 'Нужен старый и новый ник' });
+    const oldProfile = getProfileByLogin(db, oldLogin);
+    let newProfile = getProfileByLogin(db, newLogin);
+    if (!oldProfile) return res.status(404).json({ ok: false, error: 'Старая ферма не найдена' });
+    if (!newProfile) {
+      upsertTwitchUser({
+        id: `transfer:${newLogin}`,
+        login: newLogin,
+        display_name: newLogin,
+        profile_image_url: ''
+      });
+      newProfile = getProfileByLogin(db, newLogin);
+    }
+    if (!newProfile) return res.status(404).json({ ok: false, error: 'Не удалось создать нового игрока для переноса' });
+    saveFarmBackup(oldProfile, 'before_transfer_from');
+    saveFarmBackup(newProfile, 'before_transfer_to');
+    const farm = oldProfile.farm || {};
+    farm.owner = newLogin;
+    db.prepare(`UPDATE farm_profiles SET level=?, farm_balance=?, upgrade_balance=?, total_income=?, parts=?, last_collect_at=?, farm_json=?, configs_json=?, license_level=?, protection_level=?, raid_power=?, turret_json=?, updated_at=? WHERE twitch_id=?`).run(oldProfile.level, oldProfile.farm_balance + newProfile.farm_balance, oldProfile.upgrade_balance + newProfile.upgrade_balance, oldProfile.total_income + newProfile.total_income, oldProfile.parts + newProfile.parts, oldProfile.last_collect_at || newProfile.last_collect_at || null, JSON.stringify(farm), JSON.stringify(oldProfile.configs || newProfile.configs || {}), Math.max(oldProfile.license_level || 0, newProfile.license_level || 0), Math.max(oldProfile.protection_level || 0, newProfile.protection_level || 0), Math.max(oldProfile.raid_power || 0, newProfile.raid_power || 0), JSON.stringify(oldProfile.turret || newProfile.turret || {}), Date.now(), newProfile.twitch_id);
+    db.prepare(`UPDATE farm_profiles SET level=0, farm_balance=0, upgrade_balance=0, total_income=0, parts=0, last_collect_at=?, farm_json='{}', license_level=0, protection_level=0, raid_power=0, turret_json='{}', updated_at=? WHERE twitch_id=?`).run(Date.now(), Date.now(), oldProfile.twitch_id);
+    logAdminEvent(db, newProfile.twitch_id, 'admin_transfer_farm', { oldLogin, newLogin });
+    res.json({ ok: true, message: `Ферма перенесена: ${oldLogin} -> ${newLogin}`, profile: getProfileByLogin(db, newLogin) });
+  });
 
   router.post('/set-market-stock', (req, res) => {
     const login = String(req.body.login || '').toLowerCase().replace(/^@/, '');
@@ -1098,29 +1055,18 @@ function restoreFarmBackup(profile) {
     const limit = Math.min(300, Math.max(1, parseInt(req.query.limit || '120', 10) || 120));
     const days = Math.min(30, Math.max(1, parseInt(req.query.days || '7', 10) || 7));
     const since = Date.now() - days * 24 * 60 * 60 * 1000;
-    const cacheKey = `admin:events:${login || '-'}:${type || '-'}:${days}:${limit}`;
-    const cached = getCache(cacheKey);
-    if (cached) return res.json(cached);
-
-    let twitchId = null;
+    const params = [since];
+    let where = 'e.created_at >= ?';
     if (login) {
       const profile = getProfileByLogin(db, login);
       if (!profile) return res.json({ ok: true, events: [] });
-      twitchId = profile.twitch_id;
+      where += ' AND e.twitch_id = ?';
+      params.push(profile.twitch_id);
     }
-
-    let rows;
-    if (twitchId && type) rows = stmtAdminEventsByTwitchAndType.all(since, twitchId, type, limit);
-    else if (twitchId) rows = stmtAdminEventsByTwitch.all(since, twitchId, limit);
-    else if (type) rows = stmtAdminEventsByType.all(since, type, limit);
-    else rows = stmtAdminEventsBase.all(since, limit);
-
-    const payload = {
-      ok: true,
-      events: rows.map((e) => ({ ...e, payload: parseJsonSafe(e.payload, {}) }))
-    };
-
-    return res.json(setCache(cacheKey, payload, 2000));
+    if (type) { where += ' AND e.type = ?'; params.push(type); }
+    params.push(limit);
+    const events = db.prepare(`SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at FROM farm_events e LEFT JOIN twitch_users u ON u.twitch_id=e.twitch_id WHERE ${where} ORDER BY e.created_at DESC LIMIT ?`).all(...params).map((e) => ({ ...e, payload: parseJsonSafe(e.payload, {}) }));
+    res.json({ ok: true, events });
   });
 
   router.get('/checklist', (req, res) => {
