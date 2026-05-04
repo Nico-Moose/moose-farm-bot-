@@ -5,7 +5,7 @@ const { getDb } = require('../dbService');
 const SELL_PRICE = 10; // 1 part -> 10 upgrade coins
 const BUY_PRICE = 20;  // 20 upgrade coins -> 1 part
 const DEFAULT_STOCK = 20000;
-const MAX_QTY_INPUT = 2000000;
+const MAX_QTY_INPUT = Number.MAX_SAFE_INTEGER;
 
 const STOCK_KEY = 'global_market_parts_stock';
 const SOLD_KEY = 'global_market_parts_sold_total';
