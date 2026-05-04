@@ -5589,178 +5589,35 @@ document.addEventListener('DOMContentLoaded', () => {
   }, true);
 })();
 
+
 /* ==========================================================================
-   PATCH: mine unlock condition + compact readable history only
+   PATCH: single factual history rows + hide technical sync rows
    ========================================================================== */
-(function () {
-  function hx(value) {
-    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[ch]));
-  }
-  function nf(value) {
-    if (typeof stageFormat === 'function') return stageFormat(value);
-    if (typeof formatNumber === 'function') return formatNumber(value);
-    return String(value ?? 0);
-  }
-  function eventDate(e) {
-    return new Date(e.created_at || e.timestamp || e.date || Date.now()).toLocaleString('ru-RU');
-  }
-  function eventPayload(e) {
-    let p = e?.payload || e?.details || {};
-    if (typeof p === 'string') {
-      try { p = JSON.parse(p); } catch (_) {}
-    }
-    return p && typeof p === 'object' ? p : {};
-  }
-  function eventLogin(e, p) {
-    return e?.login || p?.login || p?.user || state?.profile?.login || '';
-  }
-  function compactEventTitle(type, p) {
-    const t = String(type || '').toLowerCase();
-    const source = String(p.source || p.action || '').toLowerCase();
-    if (p.building || t.includes('building') || source.includes('building')) return '🏗 Здание улучшено';
-    if (t.includes('raid') || source.includes('raid_power')) return '🏴 Рейд-сила улучшена';
-    if (source.includes('turret') || t.includes('turret')) return '🔫 Турель улучшена';
-    if (source.includes('protection') || source.includes('defense') || t.includes('protection') || t.includes('defense')) return '🛡 Защита улучшена';
-    if (source.includes('farm') || t.includes('farm_upgrade')) return '🌾 Ферма улучшена';
-    if (t.includes('case')) return '🎰 Кейс открыт';
-    if (t.includes('market')) return '🏪 Рынок';
-    if (t.includes('off')) return '🌙 Оффсбор';
-    if (t.includes('gamus')) return '🎁 GAMUS';
-    if (t.includes('sync')) return '🔄 Синхронизация';
-    return '📌 Событие';
-  }
-  function compactEventText(type, p) {
-    const t = String(type || '').toLowerCase();
-    const source = String(p.source || p.action || '').toLowerCase();
-
-    if (p.building || t.includes('building') || source.includes('building')) {
-      const name = p.building || p.key || 'здание';
-      const up = p.upgraded || p.levels || p.count || 1;
-      const money = p.totalCost ?? p.cost ?? p.coins ?? 0;
-      const parts = p.totalParts ?? p.parts ?? 0;
-      return `Игрок улучшил здание: <b>${hx(name)}</b> +${nf(up)} ур.${money ? ` -${nf(money)}💰` : ''}${parts ? ` -${nf(parts)}🔧` : ''}`;
-    }
-    if (source.includes('turret') || t.includes('turret')) {
-      const up = p.upgraded || p.levels || p.count || 1;
-      const lvl = p.level || p.newLevel;
-      const money = p.totalCost ?? p.cost ?? p.coins ?? 0;
-      const parts = p.totalParts ?? p.parts ?? 0;
-      return `Игрок улучшил турель${lvl ? ` до ${nf(lvl)} ур.` : ` +${nf(up)} ур.`}${money ? ` -${nf(money)}💰` : ''}${parts ? ` -${nf(parts)}🔧` : ''}`;
-    }
-    if (t.includes('raid') || source.includes('raid_power')) {
-      const up = p.upgraded || p.levels || p.count || 1;
-      const lvl = p.level || p.newLevel;
-      const money = p.totalCost ?? p.cost ?? p.coins ?? 0;
-      const parts = p.totalParts ?? p.parts ?? 0;
-      return `Игрок улучшил рейд-силу${lvl ? ` до ${nf(lvl)} ур.` : ` +${nf(up)} ур.`}${money ? ` -${nf(money)}💰` : ''}${parts ? ` -${nf(parts)}🔧` : ''}`;
-    }
-    if (source.includes('protection') || source.includes('defense') || t.includes('protection') || t.includes('defense')) {
-      const up = p.upgraded || p.levels || p.count || 1;
-      const lvl = p.level || p.newLevel;
-      const money = p.totalCost ?? p.cost ?? p.coins ?? 0;
-      const parts = p.totalParts ?? p.parts ?? 0;
-      return `Игрок улучшил защиту${lvl ? ` до ${nf(lvl)} ур.` : ` +${nf(up)} ур.`}${money ? ` -${nf(money)}💰` : ''}${parts ? ` -${nf(parts)}🔧` : ''}`;
-    }
-    if (t.includes('case')) {
-      const value = p.finalValue || p.value || p.amount || 0;
-      const icon = p.type === 'parts' ? '🔧' : '💎';
-      return `Игрок открыл кейс${value ? ` и получил <b>+${nf(value)}${icon}</b>` : ''}.`;
-    }
-    return 'Действие выполнено.';
-  }
-  function groupEvents(events) {
-    const result = [];
-    const arr = Array.isArray(events) ? events : [];
-    for (let i = 0; i < arr.length; i++) {
-      const e = arr[i];
-      const p = eventPayload(e);
-      const source = String(p.source || p.action || '').toLowerCase();
-      // Drop technical sync shadow rows when the next/previous row contains the actual action.
-      if (String(e.type || '').toLowerCase().includes('sync') && (
-        source.includes('building') || source.includes('turret') || source.includes('raid_power') || source.includes('protection')
-      )) {
-        const near = arr[i + 1] || arr[i - 1];
-        const np = eventPayload(near);
-        const ns = String(np.source || np.action || near?.type || '').toLowerCase();
-        if (
-          (source.includes('building') && (np.building || ns.includes('building'))) ||
-          (source.includes('turret') && ns.includes('turret')) ||
-          (source.includes('raid_power') && ns.includes('raid')) ||
-          (source.includes('protection') && (ns.includes('protection') || ns.includes('defense')))
-        ) {
-          continue;
-        }
-      }
-      result.push(e);
-    }
-    return result;
-  }
-  function patchedRenderEventsList(events) {
-    return groupEvents(events).map((e) => {
-      const p = eventPayload(e);
-      const login = eventLogin(e, p);
-      return `
-        <div class="pretty-event-row event-row-clean history-human-row">
-          <div class="event-title-line">
-            <b>${compactEventTitle(e.type, p)}</b>
-            ${login ? `<span>@${hx(login)}</span>` : ''}
-          </div>
-          <small>${eventDate(e)}</small>
-          <p>${compactEventText(e.type, p)}</p>
-        </div>`;
-    }).join('');
-  }
-
-  if (typeof renderEventsList === 'function') renderEventsList = patchedRenderEventsList;
-  if (typeof cleanPayloadText === 'function') cleanPayloadText = (payload) => compactEventText('', eventPayload({ payload }));
-
-  // Fix mine lock text/availability on frontend when завод + фабрика are already enough.
-  function mineDepsOk(owned) {
-    const plant = Number(owned?.['завод'] || 0);
-    const factory = Number(owned?.['фабрика'] || 0);
-    return plant >= 125 && factory >= 125;
-  }
-  const oldCompactStopReason = typeof compactStopReason === 'function' ? compactStopReason : null;
-  if (oldCompactStopReason && !window.__mooseMineStopReasonFix) {
-    window.__mooseMineStopReasonFix = true;
-    compactStopReason = function patchedCompactStopReason(profile, conf, currentLevel, requiredLevel, maxed) {
-      const name = String(conf?.name || conf?.key || '').toLowerCase();
-      if (name.includes('шахта') && mineDepsOk(profile?.farm?.buildings || {})) {
-        if (maxed) return 'максимальный уровень';
-        const next = Number(currentLevel || 0) + 1;
-        const cost = calcBuildingCost(conf, next);
-        const miss = typeof missingLine === 'function' ? missingLine(profile, cost.coins, cost.parts) : 'ресурсов хватает';
-        if (miss === 'ресурсов хватает') return 'можно улучшать';
-        return miss;
-      }
-      return oldCompactStopReason(profile, conf, currentLevel, requiredLevel, maxed);
-    };
-  }
-  const oldRenderBuildings = typeof renderBuildings === 'function' ? renderBuildings : null;
-  if (oldRenderBuildings && !window.__mooseMineFrontendFix) {
-    window.__mooseMineFrontendFix = true;
-    renderBuildings = function patchedRenderBuildingsMine(data) {
-      oldRenderBuildings(data);
-      const owned = data?.profile?.farm?.buildings || {};
-      if (!mineDepsOk(owned)) return;
-      document.querySelectorAll('[data-building-upgrade="шахта"], [data-building-buy="шахта"]').forEach((btn) => {
-        btn.disabled = false;
-        btn.removeAttribute('disabled');
-        btn.title = 'можно улучшать';
-      });
-      document.querySelectorAll('.building-card-v3, .building-card').forEach((card) => {
-        const title = (card.querySelector('h3')?.textContent || '').toLowerCase();
-        if (!title.includes('шахта')) return;
-        card.classList.remove('locked', 'blocked', 'locked-building', 'shortage-building');
-        card.classList.add('ready');
-        card.querySelectorAll('b').forEach((b) => {
-          if (String(b.textContent || '').includes('нужны завод') || String(b.textContent || '').includes('нужен завод')) {
-            b.textContent = 'можно улучшать';
-          }
-        });
-      });
-    };
-  }
+(function(){
+  function esc(value){ return String(value ?? '').replace(/[&<>"']/g, (ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function fmt(value){ if (typeof stageFormat === 'function') return stageFormat(value); if (typeof formatNumber === 'function') return formatNumber(value); return String(value ?? 0); }
+  function getPayload(e){ let p=e?.payload||e?.details||{}; if(typeof p==='string'){ try{p=JSON.parse(p);}catch(_){}} return p && typeof p==='object' ? p : {}; }
+  function isTechSync(e){ const t=String(e?.type||'').toLowerCase(); return t.startsWith('sync_') || t.includes('sync_wizebot'); }
+  function titleFor(e,p){ const t=String(e?.type||'').toLowerCase(); const s=String(p.source||p.action||'').toLowerCase();
+    if(p.building||t.includes('building')) return '🏗 Здание улучшено';
+    if(t.includes('raid_power')||s.includes('raid_power')) return '🏴 Рейд-сила улучшена';
+    if(t.includes('turret')||s.includes('turret')) return '🔫 Турель улучшена';
+    if(t.includes('protection')||s.includes('protection')||t.includes('defense')||s.includes('defense')) return '🛡 Защита улучшена';
+    if(t==='upgrade'||s.includes('farm_upgrade')) return '🌾 Ферма улучшена';
+    if(t.includes('case')) return '🎰 Кейс открыт';
+    if(t.includes('market')) return '🏪 Рынок';
+    if(t.includes('raid')) return '🏴 Рейд';
+    if(t.includes('off')) return '🌙 Оффсбор';
+    if(t.includes('gamus')) return '🎁 GAMUS';
+    return '📌 Событие'; }
+  function textFor(e,p){ const t=String(e?.type||'').toLowerCase(); const s=String(p.source||p.action||'').toLowerCase(); const money=p.totalCost??p.cost??p.coins??0; const parts=p.totalParts??p.parts??0; const up=p.upgraded??p.levels??p.count??1; const lvl=p.level??p.newLevel;
+    if(p.building||t.includes('building')) return `Игрок улучшил здание: <b>${esc(p.building||p.key||'здание')}</b> +${fmt(up)} ур.${money?` -${fmt(money)}💰`:''}${parts?` -${fmt(parts)}🔧`:''}`;
+    if(t.includes('raid_power')||s.includes('raid_power')) return `Игрок улучшил рейд-силу${lvl?` до ${fmt(lvl)} ур.`:` +${fmt(up)} ур.`}${money?` -${fmt(money)}💰`:''}${parts?` -${fmt(parts)}🔧`:''}`;
+    if(t.includes('turret')||s.includes('turret')) return `Игрок улучшил турель${lvl?` до ${fmt(lvl)} ур.`:` +${fmt(up)} ур.`}${money?` -${fmt(money)}💰`:''}${parts?` -${fmt(parts)}🔧`:''}`;
+    if(t.includes('protection')||s.includes('protection')||t.includes('defense')||s.includes('defense')) return `Игрок улучшил защиту${lvl?` до ${fmt(lvl)} ур.`:` +${fmt(up)} ур.`}${money?` -${fmt(money)}💰`:''}${parts?` -${fmt(parts)}🔧`:''}`;
+    if(t==='upgrade'||s.includes('farm_upgrade')) return `Игрок улучшил ферму +${fmt(up)} ур.${money?` -${fmt(money)}💰`:''}${parts?` -${fmt(parts)}🔧`:''}`;
+    if(t.includes('case')){ const val=p.prizeValue??p.finalValue??p.value??0; const icon=(p.prizeType||p.type)==='parts'?'🔧':'💎'; return `Игрок открыл кейс${val?` и получил <b>+${fmt(val)}${icon}</b>`:''}.`; }
+    if(t.includes('market')) return `Операция на рынке${p.qty?`: ${fmt(p.qty)}🔧`:''}${money?` за ${fmt(money)}💎`:''}.`;
+    return 'Действие выполнено.'; }
+  renderEventsList = function renderEventsList(events){ const rows=(events||[]).filter((e)=>!isTechSync(e)); if(!rows.length) return '<p>Событий пока нет.</p>'; return rows.map((e)=>{ const p=getPayload(e); const login=e.login||p.login||state?.profile?.login||''; const date=e.created_at||e.timestamp||e.date||Date.now(); return `<div class="pretty-event-row event-row-clean history-human-row"><div class="event-title-line"><b>${titleFor(e,p)}</b>${login?`<span>@${esc(login)}</span>`:''}</div><small>${new Date(date).toLocaleString('ru-RU')}</small><p>${textFor(e,p)}</p></div>`; }).join(''); };
 })();

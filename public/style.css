@@ -2401,10 +2401,5 @@ button.is-busy,
   }
 }
 
-/* PATCH: compact readable history */
-.history-human-row p {
-  line-height: 1.45;
-}
-.history-human-row p b {
-  color: #d8ffb8;
-}
+/* PATCH: history + buildings tiny UI preservation */
+.history-human-row p{line-height:1.45}.history-human-row p b{color:#d8ffb8}.building-main-v3{grid-template-columns:repeat(3,minmax(0,1fr))!important}.building-pack-v3:empty{display:none!important}

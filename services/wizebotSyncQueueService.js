@@ -58,15 +58,6 @@ async function processSyncQueue(login) {
         const result = await syncProfileToWizebotIfNeeded(current.profile);
         if (result?.ok || (Array.isArray(result?.keys) && result.keys.length > 0)) {
           markWizebotSyncAt(current.profile.twitch_id, result.syncedAt || Date.now());
-          logFarmEvent(current.twitchUserId, 'sync_wizebot_push_async', {
-            login: current.profile.login,
-            ok: !!result.ok,
-            keys: result.keys || [],
-            skippedKeys: result.skippedKeys || [],
-            failedKeys: result.failedKeys || [],
-            syncedAt: result.syncedAt || Date.now(),
-            source: current.source || 'api'
-          });
         } else {
           logFarmEvent(current.twitchUserId, 'sync_wizebot_push_async_failed', {
             login: current.profile.login,

@@ -8,7 +8,7 @@ const {
   getMaxBuildingLevel: calcMaxBuildingLevel
 } = require('./economyMath');
 
-const BUILDING_ORDER = ['завод', 'фабрика', 'кузница', 'укрепления', 'шахта', 'глушилка', 'центр'];
+const BUILDING_ORDER = ['завод', 'фабрика', 'шахта', 'кузница', 'укрепления', 'глушилка', 'центр'];
 
 function getBuildingConfig(profile, key) {
   ensureFarmShape(profile);
@@ -37,13 +37,13 @@ function checkCustomUpgradeRestrictions(profile, key, targetLevel) {
     if (targetLevel <= 25 && (current('завод') < 50 || current('фабрика') < 50)) {
       return { code: 'mine_requires_zavod_50_factory_50', requirements: [check('завод', 50), check('фабрика', 50)] };
     }
-    if (targetLevel <= 50 && (current('завод') < 100 || current('фабрика') < 100)) {
+    if (targetLevel > 25 && targetLevel <= 50 && (current('завод') < 100 || current('фабрика') < 100)) {
       return { code: 'mine_requires_zavod_100_factory_100', requirements: [check('завод', 100), check('фабрика', 100)] };
     }
-    if (targetLevel <= 75 && (current('завод') < 125 || current('фабрика') < 125)) {
+    if (targetLevel > 50 && targetLevel <= 75 && (current('завод') < 125 || current('фабрика') < 125)) {
       return { code: 'mine_requires_zavod_125_factory_125', requirements: [check('завод', 125), check('фабрика', 125)] };
     }
-    if (targetLevel <= 100 && (current('завод') < 200 || current('фабрика') < 200)) {
+    if (targetLevel > 75 && targetLevel <= 100 && (current('завод') < 200 || current('фабрика') < 200)) {
       return { code: 'mine_requires_zavod_200_factory_200', requirements: [check('завод', 200), check('фабрика', 200)] };
     }
     if (targetLevel >= 200 && (current('завод') < 300 || current('фабрика') < 300)) {

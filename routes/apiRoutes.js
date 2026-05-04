@@ -312,7 +312,7 @@ router.post('/farm/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const wizebotSync = fastSyncMeta(updatedProfile, req, 'building_upgrade');
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'farm_upgrade');
 
   res.json({
     ok: result.ok,
@@ -436,7 +436,7 @@ router.post('/farm/market/buy', requireAuth, async (req, res) => {
     });
   }
 
-  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'market_buy_parts');
 
   res.json({
     ...result,
@@ -461,7 +461,7 @@ router.post('/farm/market/sell', requireAuth, async (req, res) => {
     });
   }
 
-  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'market_sell_parts');
 
   res.json({
     ...result,
@@ -489,7 +489,7 @@ router.post('/farm/raid-power/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'raid_power_upgrade');
 
   res.json({
     ...result,
@@ -513,7 +513,7 @@ router.post('/farm/protection/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'protection_upgrade');
 
   res.json({
     ...result,
@@ -537,7 +537,7 @@ router.post('/farm/turret/upgrade', requireAuth, async (req, res) => {
     });
   }
 
-  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'case_open');
 
   res.json({
     ...result,
@@ -608,7 +608,7 @@ router.post('/farm/case/open', requireAuth, async (req, res) => {
     });
   }
 
-  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'gamus_claim');
 
   res.json({
     ...result,
@@ -636,7 +636,7 @@ router.post('/farm/gamus/claim', requireAuth, async (req, res) => {
     });
   }
 
-  const wizebotSync = fastSyncMeta(updatedProfile, req, 'turret_upgrade');
+  const wizebotSync = fastSyncMeta(updatedProfile, req, 'off_collect');
 
   res.json({
     ...result,
