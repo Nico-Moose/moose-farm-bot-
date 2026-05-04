@@ -1,11 +1,6 @@
-module.exports = function registerAdminBalanceRoutes({
-  router,
-  db,
-  parseAmount,
-  getProfileByLogin,
-  updateFarmJsonParts,
-  logAdminEvent,
-}) {
+module.exports = function registerAdminBalanceRoutes(router, deps) {
+  const { db, parseAmount, getProfileByLogin, updateFarmJsonParts, logAdminEvent } = deps;
+
   router.post("/give-farm-balance", (req, res) => {
     const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
     const amount = parseAmount(req.body.amount);
@@ -17,7 +12,7 @@ module.exports = function registerAdminBalanceRoutes({
     const profile = getProfileByLogin(db, login);
     if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
 
-    const next = profile.farm_balance + amount;
+    const next = Math.max(0, profile.farm_balance + amount);
 
     db.prepare(`
       UPDATE farm_profiles
@@ -29,7 +24,7 @@ module.exports = function registerAdminBalanceRoutes({
 
     res.json({
       ok: true,
-      message: `Фермерский баланс изменён на ${amount}. Теперь: ${next}`,
+      message: `Баланс фермы изменён на ${amount}. Теперь: ${next}`,
       profile: getProfileByLogin(db, login)
     });
   });
@@ -57,7 +52,7 @@ module.exports = function registerAdminBalanceRoutes({
 
     res.json({
       ok: true,
-      message: `Бонусный баланс изменён на ${amount}. Теперь: ${next}`,
+      message: `Баланс апгрейдов изменён на ${amount}. Теперь: ${next}`,
       profile: getProfileByLogin(db, login)
     });
   });
