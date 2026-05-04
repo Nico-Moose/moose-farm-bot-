@@ -54,6 +54,14 @@
     return loadTops(!!force).catch((err) => console.warn('[TOPS]', err));
   };
 
+  refreshBuildingsIfVisible = function refreshBuildingsIfVisible(force) {
+    if (!isFarmTabActive('buildings')) return Promise.resolve();
+    if (typeof state === 'undefined' || !state) return Promise.resolve();
+    if (!force && typeof hasRenderedBuildings === 'function' && hasRenderedBuildings()) return Promise.resolve();
+    renderBuildings(state);
+    return Promise.resolve();
+  };
+
   openFarmTab = function openFarmTab(name) {
     const target = name || 'main';
     document.querySelectorAll('.farm-tab-panel').forEach((panel) => {
@@ -67,6 +75,8 @@
       loadHistory().catch((err) => console.warn('[HISTORY]', err));
     } else if (target === 'tops') {
       refreshTopsIfVisible(true);
+    } else if (target === 'buildings') {
+      refreshBuildingsIfVisible(true);
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
