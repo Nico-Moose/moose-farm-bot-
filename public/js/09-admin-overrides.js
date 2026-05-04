@@ -197,12 +197,28 @@ function renderTopMiniList(title, arr, valueFn, hintFn) {
     <li><span><em>#${i+1}</em> ${p.nick || p.login || '—'}</span><strong>${valueFn(p)}</strong><small>${hintFn ? hintFn(p) : ''}</small></li>`).join('') : '<li>нет данных</li>'}</ol></div>`;
 }
 
-async function loadTops() {
+let topsLoadController = null;
+let topsLoadSeq = 0;
+
+async function loadTops(force) {
   const topsBox = document.getElementById('topsBox');
   if (!topsBox) return;
+
+  const requestSeq = ++topsLoadSeq;
+  if (topsLoadController) {
+    topsLoadController.abort();
+  }
+  topsLoadController = new AbortController();
+
+  if (force || topsBox.dataset.loaded !== '1') {
+    topsBox.dataset.loaded = force ? '' : (topsBox.dataset.loaded || '');
+    topsBox.textContent = 'Загрузка топов...';
+  }
+
   try {
-    const res = await fetch('/api/farm/top?days=14');
+    const res = await fetch('/api/farm/top?days=14', { signal: topsLoadController.signal, cache: 'no-store' });
     const data = await res.json();
+    if (requestSeq !== topsLoadSeq) return;
     if (!data.ok) throw new Error(data.error || 'top_failed');
     topsBox.dataset.loaded = '1';
     const players = (data.playerTop || []).slice();
@@ -220,6 +236,8 @@ async function loadTops() {
         ${renderTopMiniList('⚡ Активные', by(p=>p.last_collect_at), p=>p.nick || p.login, p=>p.last_collect_at ? new Date(Number(p.last_collect_at)).toLocaleString('ru-RU') : 'нет сбора')}
       </div>`;
   } catch (error) {
+    if (error?.name === 'AbortError') return;
+    if (requestSeq !== topsLoadSeq) return;
     topsBox.textContent = 'Не удалось загрузить топы';
   }
 }

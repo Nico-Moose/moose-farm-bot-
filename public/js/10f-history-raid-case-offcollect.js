@@ -440,9 +440,14 @@
       <div class="info-buildings-panel"><h3>🏗 Постройки</h3><div class="info-building-grid">${buildingCells}</div></div>
       <div class="raid-log-list beautiful-raid-log polished-raid-log-list"><div class="section-inline-title">Последние рейды</div>${raidRows}</div>
       <button id="refreshTopBtn">🏆 Обновить топы</button>`;
-    document.getElementById('refreshTopBtn')?.addEventListener('click', loadTops);
+    const refreshTopBtn = document.getElementById('refreshTopBtn');
+    if (refreshTopBtn) {
+      refreshTopBtn.onclick = () => loadTops(true);
+    }
     document.querySelectorAll('[data-raid-log-index]').forEach((btn)=>btn.addEventListener('click', ()=>openRaidLogModal(Number(btn.dataset.raidLogIndex||0))));
-    if(topsBox && !topsBox.dataset.loaded) loadTops();
+    if (typeof refreshTopsIfVisible === 'function') {
+      refreshTopsIfVisible(false);
+    }
   };
 })();
 

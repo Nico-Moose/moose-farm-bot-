@@ -42,6 +42,18 @@
     }
   };
 
+  isFarmTabActive = function isFarmTabActive(name) {
+    const target = String(name || 'main');
+    return !!document.querySelector(`.farm-tab-panel.active[data-farm-panel="${target}"]`);
+  };
+
+  refreshTopsIfVisible = function refreshTopsIfVisible(force) {
+    if (!isFarmTabActive('tops')) return Promise.resolve();
+    const topsBox = document.getElementById('topsBox');
+    if (!force && topsBox?.dataset.loaded === '1') return Promise.resolve();
+    return loadTops(!!force).catch((err) => console.warn('[TOPS]', err));
+  };
+
   openFarmTab = function openFarmTab(name) {
     const target = name || 'main';
     document.querySelectorAll('.farm-tab-panel').forEach((panel) => {
@@ -54,7 +66,7 @@
     if (target === 'history') {
       loadHistory().catch((err) => console.warn('[HISTORY]', err));
     } else if (target === 'tops') {
-      loadTops().catch((err) => console.warn('[TOPS]', err));
+      refreshTopsIfVisible(true);
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
