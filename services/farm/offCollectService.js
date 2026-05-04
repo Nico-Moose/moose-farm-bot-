@@ -1,7 +1,7 @@
 const { ensureFarmShape } = require('./profileShape');
 const { num } = require('./numberUtils');
 const { WIZEBOT } = require('./economyConfig');
-const { getPassiveIncomePerHour, getPlantIncomePerHour, getAnimalIncomePerHour } = require('./incomeService');
+const { estimateHourlyIncome } = require('./incomeService');
 
 function offCollect(profile, now = Date.now()) {
   ensureFarmShape(profile);
