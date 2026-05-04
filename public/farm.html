@@ -311,5 +311,15 @@
       <div id="admin-status" class="admin-status"></div>
     </div>
   </section>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.__farmBootstrapped) return;
+      window.__farmBootstrapped = true;
+      if (typeof initVisualPanels === 'function') initVisualPanels();
+      if (typeof loadMe === 'function') {
+        Promise.resolve(loadMe(true)).catch((err) => console.warn('bootstrap loadMe failed', err));
+      }
+    });
+  </script>
 </body>
 </html>

@@ -245,5 +245,3 @@ function initVisualPanels() {
 }
 
 initVisualPanels();
-
-loadMe();
