@@ -6247,3 +6247,77 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 })();
+
+/* ==========================================================================
+   PATCH: market human display kk formatting only
+   ========================================================================== */
+(function(){
+  function mqPretty(value) {
+    const n = Math.max(0, Math.round(Number(value || 0)));
+    if (n >= 1_000_000_000) {
+      const v = n / 1_000_000_000;
+      return `${v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0).replace(/\.0+$/,'').replace(/(\.\d*[1-9])0$/,'$1')}млрд`;
+    }
+    if (n >= 1_000_000) {
+      const v = n / 1_000_000;
+      return `${v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0).replace(/\.0+$/,'').replace(/(\.\d*[1-9])0$/,'$1')}кк`;
+    }
+    if (n >= 1_000) {
+      const v = n / 1_000;
+      return `${v.toFixed(v < 10 ? 2 : v < 100 ? 1 : 0).replace(/\.0+$/,'').replace(/(\.\d*[1-9])0$/,'$1')}к`;
+    }
+    return String(n);
+  }
+
+  const oldRenderMarket = typeof renderMarket === 'function' ? renderMarket : null;
+  if (oldRenderMarket && !window.__mooseMarketPrettyFormatPatch) {
+    window.__mooseMarketPrettyFormatPatch = true;
+    renderMarket = function patchedRenderMarketPretty(data) {
+      oldRenderMarket(data);
+      const input = document.getElementById('marketQty');
+      if (!input) return;
+
+      const parse = (value) => {
+        const raw = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '').replace(',', '.');
+        if (!raw) return 0;
+        const m = raw.match(/^(-?\d+(?:\.\d+)?)(кк|kk|к|k|млрд|b|м|m)?$/i);
+        if (!m) return Number(raw) || 0;
+        const num = Number(m[1] || 0);
+        const suf = String(m[2] || '').toLowerCase();
+        if (suf === 'к' || suf === 'k') return Math.round(num * 1_000);
+        if (suf === 'кк' || suf === 'kk' || suf === 'м' || suf === 'm') return Math.round(num * 1_000_000);
+        if (suf === 'млрд' || suf === 'b') return Math.round(num * 1_000_000_000);
+        return Math.round(num);
+      };
+
+      const syncPretty = () => {
+        const num = Math.max(0, parse(input.dataset.numericValue || input.value || 0));
+        input.dataset.numericValue = String(num);
+        input.value = mqPretty(num);
+      };
+
+      input.addEventListener('blur', syncPretty);
+      input.addEventListener('change', syncPretty);
+      input.addEventListener('input', () => {
+        input.dataset.numericValue = String(Math.max(0, parse(input.value)));
+      });
+
+      document.querySelectorAll('[data-market-preset],[data-market-adjust]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          setTimeout(syncPretty, 0);
+        });
+      });
+
+      const buyBtn = document.getElementById('marketBuyBtn');
+      const sellBtn = document.getElementById('marketSellBtn');
+      [buyBtn, sellBtn].forEach((btn) => {
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          setTimeout(syncPretty, 0);
+        });
+      });
+
+      syncPretty();
+    };
+  }
+})();
