@@ -126,9 +126,18 @@ function showRaidDetails(log = {}) {
   showActionToast(title, lines, { kind: turretBlocked ? 'danger' : 'raid', timeout: 12000 });
 }
 
+function isFarmTabActive(name) {
+  return !!document.querySelector(`.farm-tab-panel.active[data-farm-panel="${String(name || '').replace(/"/g, '')}"]`);
+}
+
+function refreshHistoryIfVisible() {
+  if (!isFarmTabActive('history') || typeof loadHistory !== 'function') return;
+  loadHistory().catch((err) => console.warn('[HISTORY REFRESH]', err));
+}
+
 function refreshVisibleData() {
   loadMe().catch((err) => console.warn('[REFRESH]', err));
-  loadHistory().catch((err) => console.warn('[HISTORY REFRESH]', err));
+  refreshHistoryIfVisible();
   if (document.getElementById('admin-panel')?.classList.contains('active')) {
     refreshAdminPlayer().catch(() => {});
     loadAdminEvents().catch(() => {});
