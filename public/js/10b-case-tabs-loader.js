@@ -34,32 +34,14 @@
       render(data);
       const activePanel = document.querySelector('.farm-tab-panel.active')?.getAttribute('data-farm-panel') || 'main';
       if (activePanel === 'history') {
-        loadHistory().catch((err) => console.warn('[HISTORY]', err));
+        refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
+      } else if (activePanel === 'tops' || activePanel === 'info') {
+        refreshTopsIfVisible(true).catch((err) => console.warn('[TOPS]', err));
       }
     } catch (error) {
       document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
       console.error(error);
     }
-  };
-
-  isFarmTabActive = function isFarmTabActive(name) {
-    const target = String(name || 'main');
-    return !!document.querySelector(`.farm-tab-panel.active[data-farm-panel="${target}"]`);
-  };
-
-  refreshTopsIfVisible = function refreshTopsIfVisible(force) {
-    if (!isFarmTabActive('tops')) return Promise.resolve();
-    const topsBox = document.getElementById('topsBox');
-    if (!force && topsBox?.dataset.loaded === '1') return Promise.resolve();
-    return loadTops(!!force).catch((err) => console.warn('[TOPS]', err));
-  };
-
-  refreshBuildingsIfVisible = function refreshBuildingsIfVisible(force) {
-    if (!isFarmTabActive('buildings')) return Promise.resolve();
-    if (typeof state === 'undefined' || !state) return Promise.resolve();
-    if (!force && typeof hasRenderedBuildings === 'function' && hasRenderedBuildings()) return Promise.resolve();
-    renderBuildings(state);
-    return Promise.resolve();
   };
 
   openFarmTab = function openFarmTab(name) {
@@ -72,11 +54,9 @@
     });
 
     if (target === 'history') {
-      loadHistory().catch((err) => console.warn('[HISTORY]', err));
-    } else if (target === 'tops') {
-      refreshTopsIfVisible(true);
-    } else if (target === 'buildings') {
-      refreshBuildingsIfVisible(true);
+      refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
+    } else if (target === 'tops' || target === 'info') {
+      refreshTopsIfVisible(true).catch((err) => console.warn('[TOPS]', err));
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });

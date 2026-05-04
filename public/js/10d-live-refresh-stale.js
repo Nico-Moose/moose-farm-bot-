@@ -229,21 +229,13 @@
       }
       const data = await res.json();
       render(data);
-      if (typeof refreshHistoryIfVisible === 'function') {
-        refreshHistoryIfVisible();
-      } else if (typeof loadHistory === 'function') {
-        loadHistory().catch((err) => console.warn('[HISTORY]', err));
-      }
+      refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
       return data;
     } catch (error) {
       document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
       console.error(error);
     }
   };
-
-  // История уже грузится лениво только на вкладке журнала.
-  // Старый no-store wrapper для loadHistory здесь не нужен: базовая функция не принимает URL,
-  // а скрытая вкладка не должна лишний раз бить по /api/farm/history.
 
   function renderFromActionIfPossible(data) {
     if (!(data && data.profile && data.farmInfo && data.market && data.raidUpgrades && data.turret)) return false;
