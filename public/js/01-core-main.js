@@ -126,15 +126,9 @@ function showRaidDetails(log = {}) {
   showActionToast(title, lines, { kind: turretBlocked ? 'danger' : 'raid', timeout: 12000 });
 }
 
-function isFarmTabActive(name) {
-  return document.querySelector(`[data-farm-panel="${name}"]`)?.classList.contains('active');
-}
-
 function refreshVisibleData() {
   loadMe().catch((err) => console.warn('[REFRESH]', err));
-  if (isFarmTabActive('history')) {
-    loadHistory().catch((err) => console.warn('[HISTORY REFRESH]', err));
-  }
+  loadHistory().catch((err) => console.warn('[HISTORY REFRESH]', err));
   if (document.getElementById('admin-panel')?.classList.contains('active')) {
     refreshAdminPlayer().catch(() => {});
     loadAdminEvents().catch(() => {});

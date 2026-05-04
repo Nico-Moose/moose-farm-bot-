@@ -15,7 +15,7 @@ async function loadMe() {
     // WizeBot обновляется вручную через !синкферма / LongText bridge.
 
     render(data);
-    refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
+    loadHistory().catch((err) => console.warn('[HISTORY]', err));
   } catch (error) {
     document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
     console.error(error);

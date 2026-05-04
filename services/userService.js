@@ -1,8 +1,6 @@
 const { getDb } = require('./dbService');
 const { parseJsonSafe } = require('./farm/numberUtils');
 
-let listTopProfilesLiteStmt = null;
-
 function normalizeProfile(row) {
   if (!row) return null;
 
@@ -231,25 +229,22 @@ function listRaidCandidateProfiles() {
 }
 
 function listTopProfilesLite() {
-  if (!listTopProfilesLiteStmt) {
-    listTopProfilesLiteStmt = getDb().prepare(`
-      SELECT
-        u.twitch_id,
-        u.login,
-        u.display_name,
-        f.level,
-        f.farm_balance,
-        f.twitch_balance,
-        f.upgrade_balance,
-        f.parts,
-        f.farm_json,
-        f.configs_json
-      FROM twitch_users u
-      JOIN farm_profiles f ON f.twitch_id = u.twitch_id
-    `);
-  }
+  const rows = getDb().prepare(`
+    SELECT
+      u.twitch_id,
+      u.login,
+      u.display_name,
+      f.level,
+      f.farm_balance,
+      f.twitch_balance,
+      f.upgrade_balance,
+      f.parts,
+      f.farm_json,
+      f.configs_json
+    FROM twitch_users u
+    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+  `).all();
 
-  const rows = listTopProfilesLiteStmt.all();
   return rows.map(normalizeProfile).filter(Boolean);
 }
 

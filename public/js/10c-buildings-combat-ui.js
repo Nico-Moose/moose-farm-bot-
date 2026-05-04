@@ -66,7 +66,6 @@
   function renderBuildingsQuickStatus(data) {
     const box = document.getElementById('buildingsResourcesSection');
     if (!box) return;
-    box.dataset.loaded = '1';
     const profile = data.profile || {};
     box.innerHTML = `
       <div><b>Текущие ресурсы</b></div>
@@ -82,7 +81,6 @@
   renderBuildings = function renderBuildings(data) {
     const el = document.getElementById('buildings');
     if (!el) return;
-    el.dataset.loaded = '1';
     renderBuildingsQuickStatus(data);
     const p = data.profile || {};
     const buildingsConfig = p.configs?.buildings || {};
@@ -322,11 +320,5 @@
       }
     };
   }
-
-
-  window.hasRenderedBuildings = function hasRenderedBuildings() {
-    const el = document.getElementById('buildings');
-    return !!(el && el.dataset.loaded === '1');
-  };
 })();
 

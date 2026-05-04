@@ -100,13 +100,9 @@ async function refreshAdminPlayer() {
   setAdminStatus("Игрок загружен");
 }
 
-let historyAbortController = null;
-let historyRequestSeq = 0;
-
 function bindAdminPanel() {
   const panel = document.getElementById("admin-panel");
-  if (!panel || panel.dataset.bound === '1') return;
-  panel.dataset.bound = '1';
+  if (!panel) return;
 
   const loginOrError = () => {
     const login = adminLoginValue();
@@ -456,21 +452,10 @@ async function loadHistory() {
   if (!box) return;
   const type = document.getElementById('historyType')?.value || '';
   const url = '/api/farm/history?limit=100' + (type ? '&type=' + encodeURIComponent(type) : '');
-
-  if (historyAbortController) historyAbortController.abort();
-  historyAbortController = new AbortController();
-  const requestSeq = ++historyRequestSeq;
-
-  try {
-    const res = await fetch(url, { signal: historyAbortController.signal });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'history_failed');
-    if (requestSeq !== historyRequestSeq) return;
-    box.innerHTML = renderEventsList(data.events || []);
-  } catch (error) {
-    if (error?.name === 'AbortError') return;
-    throw error;
-  }
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'history_failed');
+  box.innerHTML = renderEventsList(data.events || []);
 }
 
 function renderAdminEvents(events) {

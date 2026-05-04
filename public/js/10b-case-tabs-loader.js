@@ -34,9 +34,7 @@
       render(data);
       const activePanel = document.querySelector('.farm-tab-panel.active')?.getAttribute('data-farm-panel') || 'main';
       if (activePanel === 'history') {
-        refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
-      } else if (activePanel === 'tops' || activePanel === 'info') {
-        refreshTopsIfVisible(true).catch((err) => console.warn('[TOPS]', err));
+        loadHistory().catch((err) => console.warn('[HISTORY]', err));
       }
     } catch (error) {
       document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
@@ -54,9 +52,9 @@
     });
 
     if (target === 'history') {
-      refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
-    } else if (target === 'tops' || target === 'info') {
-      refreshTopsIfVisible(true).catch((err) => console.warn('[TOPS]', err));
+      loadHistory().catch((err) => console.warn('[HISTORY]', err));
+    } else if (target === 'tops') {
+      loadTops().catch((err) => console.warn('[TOPS]', err));
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });

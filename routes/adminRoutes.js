@@ -869,6 +869,20 @@ function restoreFarmBackup(profile) {
 
   return backup;
 }
+
+  function restoreFarmBackup(profile) {
+    const farm = profile?.farm || {};
+    const backups = Array.isArray(farm.adminBackups) ? farm.adminBackups : [];
+    const backup = backups[0];
+    if (!backup) return null;
+    const restoredFarm = backup.farm || {};
+    restoredFarm.adminBackups = backups;
+    db.prepare(`UPDATE farm_profiles SET level=?, farm_balance=?, upgrade_balance=?, total_income=?, parts=?, last_collect_at=?, farm_json=?, configs_json=?, license_level=?, protection_level=?, raid_power=?, turret_json=?, updated_at=? WHERE twitch_id=?`).run(
+      Number(backup.level || 0), Number(backup.farm_balance || 0), Number(backup.upgrade_balance || 0), Number(backup.total_income || 0), Number(backup.parts || 0), backup.last_collect_at || null, JSON.stringify(restoredFarm), JSON.stringify(backup.configs || {}), Number(backup.license_level || 0), Number(backup.protection_level || 0), Number(backup.raid_power || 0), JSON.stringify(backup.turret || {}), Date.now(), profile.twitch_id
+    );
+    return backup;
+  }
+
   router.post('/transfer-farm', (req, res) => {
     const oldLogin = String(req.body.oldLogin || '').toLowerCase().replace(/^@/, '');
     const newLogin = String(req.body.newLogin || '').toLowerCase().replace(/^@/, '');

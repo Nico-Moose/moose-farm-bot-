@@ -229,13 +229,25 @@
       }
       const data = await res.json();
       render(data);
-      refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
+      loadHistory().catch((err) => console.warn('[HISTORY]', err));
       return data;
     } catch (error) {
       document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
       console.error(error);
     }
   };
+
+  if (typeof loadHistory === 'function') {
+    const oldLoadHistoryNoStore = loadHistory;
+    loadHistory = async function loadHistory() {
+      try {
+        return await oldLoadHistoryNoStore(bust('/api/history'));
+      } catch (_) {
+        // fallback: если старая функция не принимает url, повторим стандартный вызов
+        return await oldLoadHistoryNoStore();
+      }
+    };
+  }
 
   function renderFromActionIfPossible(data) {
     if (!(data && data.profile && data.farmInfo && data.market && data.raidUpgrades && data.turret)) return false;
