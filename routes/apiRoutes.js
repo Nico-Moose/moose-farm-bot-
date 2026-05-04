@@ -130,6 +130,20 @@ function farmActionGuard(req, res, next) {
 }
 
 
+function runImmediateDbTransaction(work) {
+  const db = getDb();
+  db.prepare('BEGIN IMMEDIATE').run();
+  try {
+    const result = work();
+    db.prepare('COMMIT').run();
+    return result;
+  } catch (error) {
+    try { db.prepare('ROLLBACK').run(); } catch (_) {}
+    throw error;
+  }
+}
+
+
 async function pushProfileToWizebotForTest(req, profile) {
   try {
     const result = await syncProfileToWizebotIfNeeded(profile);
@@ -422,19 +436,23 @@ router.post('/farm/building/upgrade', requireAuth, async (req, res) => {
 });
 
 router.post('/farm/market/buy', requireAuth, async (req, res) => {
-  const profile = getProfile(req.session.twitchUser.id);
-  const result = buyParts(profile, req.body.qty);
-  let updatedProfile = updateProfile(result.profile);
+  const { result, updatedProfile } = runImmediateDbTransaction(() => {
+    const profile = getProfile(req.session.twitchUser.id);
+    const result = buyParts(profile, req.body.qty);
+    const updatedProfile = updateProfile(result.profile);
 
-  if (result.ok) {
-    logFarmEvent(req.session.twitchUser.id, 'market_buy_parts', {
-      requested: result.requested,
-      qty: result.qty,
-      totalCost: result.totalCost,
-      totalParts: result.totalParts,
-      limited: result.limited
-    });
-  }
+    if (result.ok) {
+      logFarmEvent(req.session.twitchUser.id, 'market_buy_parts', {
+        requested: result.requested,
+        qty: result.qty,
+        totalCost: result.totalCost,
+        totalParts: result.totalParts,
+        limited: result.limited
+      });
+    }
+
+    return { result, updatedProfile };
+  });
 
   const wizebotSync = fastSyncMeta(updatedProfile, req, 'market_buy_parts');
 
@@ -449,17 +467,21 @@ router.post('/farm/market/buy', requireAuth, async (req, res) => {
 });
 
 router.post('/farm/market/sell', requireAuth, async (req, res) => {
-  const profile = getProfile(req.session.twitchUser.id);
-  const result = sellParts(profile, req.body.qty);
-  let updatedProfile = updateProfile(result.profile);
+  const { result, updatedProfile } = runImmediateDbTransaction(() => {
+    const profile = getProfile(req.session.twitchUser.id);
+    const result = sellParts(profile, req.body.qty);
+    const updatedProfile = updateProfile(result.profile);
 
-  if (result.ok) {
-    logFarmEvent(req.session.twitchUser.id, 'market_sell_parts', {
-      qty: result.qty,
-      totalCost: result.totalCost,
-      totalParts: result.totalParts
-    });
-  }
+    if (result.ok) {
+      logFarmEvent(req.session.twitchUser.id, 'market_sell_parts', {
+        qty: result.qty,
+        totalCost: result.totalCost,
+        totalParts: result.totalParts
+      });
+    }
+
+    return { result, updatedProfile };
+  });
 
   const wizebotSync = fastSyncMeta(updatedProfile, req, 'market_sell_parts');
 
