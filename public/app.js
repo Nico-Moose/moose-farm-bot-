@@ -7095,6 +7095,27 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   let mxBusy = false;
+  let mxLockedExactQty = null;
+
+  // During buy/sell loadMe() redraws the market. Older market layers may briefly
+  // format the input as 1.5кк. Keep the user's exact number locked until the
+  // operation is fully finished.
+  const prevRenderMarketNoBusyAbbrev = typeof renderMarket === 'function' ? renderMarket : null;
+  if (prevRenderMarketNoBusyAbbrev) {
+    renderMarket = function renderMarketNoBusyAbbrev(data) {
+      prevRenderMarketNoBusyAbbrev(data);
+      try {
+        if (mxLockedExactQty != null) {
+          mxSetInput(mxLockedExactQty);
+        } else {
+          mxReapplyExact();
+        }
+      } catch (e) {
+        console.warn('[MARKET NO BUSY ABBREV]', e);
+      }
+    };
+  }
+
   marketTrade = async function marketTradeStrictExactIntegerQty(action) {
     if (mxBusy) return;
     const qty = mxReadInput();
@@ -7104,6 +7125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     mxBusy = true;
+    mxLockedExactQty = qty;
+    mxSetInput(qty);
     ['marketBuyBtn', 'marketSellBtn'].forEach((id) => {
       const btn = document.getElementById(id);
       if (btn) {
@@ -7154,11 +7177,14 @@ document.addEventListener('DOMContentLoaded', () => {
       mxSetInput(qty);
       mxCalc();
     } finally {
+      mxLockedExactQty = qty;
+      mxSetInput(qty);
       mxBusy = false;
       ['marketBuyBtn', 'marketSellBtn'].forEach((id) => {
         const btn = document.getElementById(id);
         if (btn) btn.classList.remove('is-busy');
       });
+      setTimeout(() => { mxLockedExactQty = null; }, 100);
     }
   };
 
