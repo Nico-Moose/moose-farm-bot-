@@ -6981,74 +6981,154 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 })();
 
-/* ==========================================================================
-   SAFE PATCH: exact journal text for raids/offcollect + hide generic wording
-   ========================================================================== */
-(function(){
-  const nf = new Intl.NumberFormat('ru-RU').format;
-  function esc(value){ return String(value ?? '').replace(/[&<>"']/g, (ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
-  function payloadOf(e){ let p=e?.payload||e?.details||{}; if(typeof p==='string'){ try{p=JSON.parse(p);}catch(_){ p={}; } } return p && typeof p === 'object' ? p : {}; }
-  function n(value){ const num=Number(value||0); return Number.isFinite(num) ? num : 0; }
-  function full(value){ return nf(Math.round(n(value))); }
-  function eventTitle(type){
-    const t=String(type||'').toLowerCase();
-    if(t==='raid') return '🏴 Рейд';
-    if(t==='off_collect') return '🌙 Оффсбор';
-    if(t.includes('market')) return '🏪 Рынок';
-    if(t.includes('case')) return '🎰 Кейс';
-    if(t.includes('gamus')) return '🎁 GAMUS';
-    if(t.includes('turret')) return '🔫 Турель';
-    if(t.includes('protection')) return '🛡 Защита';
-    if(t.includes('raid_power')) return '⚔️ Рейд-сила';
-    if(t.includes('building')) return '🏗 Здание';
-    if(t==='upgrade') return '🌾 Ап фермы';
-    if(t.includes('license')) return '📜 Лицензия';
-    if(t.includes('admin')) return '👑 Админ';
-    return (typeof prettyEventName === 'function') ? prettyEventName(type) : '📌 Событие';
-  }
-  function raidText(p){
-    const turret = !!(p.killed_by_turret || p.raid_blocked_by_turret || p.turret_triggered);
-    const target = p.target ? `цель <b>${esc(p.target)}</b>` : 'цель не указана';
-    const coins = turret ? -Math.abs(n(p.turret_refund || p.turret_penalty || p.penalty || 0)) : n(p.stolen || 0);
-    const bonus = turret ? -Math.abs(n(p.bonus_lost || p.bonus_penalty || 0)) : n(p.bonus_stolen || 0);
-    const parts = [];
-    parts.push(turret ? `Рейд отбит турелью, ${target}.` : `Рейд по ${target}.`);
-    if(coins) parts.push(`${coins > 0 ? '+' : '-'}${full(Math.abs(coins))}💰`);
-    if(bonus) parts.push(`${bonus > 0 ? '+' : '-'}${full(Math.abs(bonus))}💎`);
-    if(n(p.blocked)) parts.push(`щит заблокировал ${full(p.blocked)}🛡`);
-    if(n(p.strength)) parts.push(`сила ${full(p.strength)}%`);
-    return parts.join(' · ');
-  }
-  function offCollectText(p){
-    const income = n(p.income || p.money || p.farmIncome);
-    const partsIncome = n(p.partsIncome || p.parts || p.detailsIncome);
-    const minutes = n(p.minutes);
-    const out = [];
-    if(income) out.push(`+${full(income)}🌾`);
-    if(partsIncome) out.push(`+${full(partsIncome)}🔧`);
-    if(minutes) out.push(`${full(minutes)} мин оффлайна`);
-    return out.length ? `Получено: ${out.join(' · ')}` : 'Оффсбор получен.';
-  }
-  function fallbackText(e,p){
-    const t=String(e?.type||'').toLowerCase();
-    if(t.includes('market')) return `Операция на рынке${p.qty?`: ${full(p.qty)}🔧`:''}${(p.totalCost||p.cost)?` за ${full(p.totalCost||p.cost)}💎`:''}.`;
-    if(t.includes('case')) return `Кейс открыт${(p.prizeValue||p.value)?`: +${full(p.prizeValue||p.value)}${String(p.prizeType||'').includes('parts')?'🔧':'💎'}`:''}.`;
-    if(t.includes('gamus')) return `GAMUS получен${p.money?`: +${full(p.money)}💰`:''}${p.parts?` · +${full(p.parts)}🔧`:''}.`;
-    if(t.includes('building')) return `Здание ${esc(p.building||p.key||'')} улучшено${p.upgraded?` +${full(p.upgraded)} ур.`:''}${p.totalCost?` · -${full(p.totalCost)}💰`:''}${p.totalParts?` · -${full(p.totalParts)}🔧`:''}`;
-    if(t==='upgrade') return `Ферма улучшена${p.upgraded?` +${full(p.upgraded)} ур.`:''}${p.totalCost?` · -${full(p.totalCost)}💰`:''}`;
-    if(t.includes('raid_power')||t.includes('protection')||t.includes('turret')) return `${eventTitle(t)} улучшена${p.level?` до ${full(p.level)} ур.`:''}${p.totalCost?` · -${full(p.totalCost)}💰`:''}${p.totalParts?` · -${full(p.totalParts)}🔧`:''}`;
-    return (typeof cleanPayloadText === 'function') ? cleanPayloadText(p) : 'Событие записано.';
-  }
-  renderEventsList = function renderEventsList(events){
-    const rows=(events||[]).filter((e)=>{ const t=String(e?.type||'').toLowerCase(); return !(t.startsWith('sync_') || t.includes('sync_wizebot')); });
-    if(!rows.length) return '<p>Событий пока нет.</p>';
-    return rows.map((e)=>{
-      const p=payloadOf(e);
-      const type=String(e?.type||'').toLowerCase();
-      const login=e.login||p.login||state?.profile?.login||'';
-      const date=e.created_at||e.timestamp||e.date||Date.now();
-      const text = type==='raid' ? raidText(p) : (type==='off_collect' ? offCollectText(p) : fallbackText(e,p));
-      return `<div class="pretty-event-row event-row-clean history-human-row"><div class="event-title-line"><b>${eventTitle(type)}</b>${login?`<span>@${esc(login)}</span>`:''}</div><small>${new Date(date).toLocaleString('ru-RU')}</small><p>${text}</p></div>`;
-    }).join('');
+
+/* === ADMIN JOURNAL SAFE PATCH: 7 days, player filter, hide player card on journal tab === */
+(function () {
+  const escAdminJournal = (value) => String(value ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const adminJournalNumber = (value) => {
+    const n = Number(value || 0);
+    if (!Number.isFinite(n)) return '0';
+    return Math.trunc(n).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
   };
+
+  function adminJournalEventName(type) {
+    const map = {
+      upgrade: '🌾 Ап фермы',
+      building_buy: '🏗 Покупка здания',
+      building_upgrade: '🏗 Ап здания',
+      market_buy_parts: '🏪 Покупка на рынке',
+      market_sell_parts: '🏪 Продажа на рынке',
+      raid_power_upgrade: '⚔️ Ап рейд-силы',
+      protection_upgrade: '🛡️ Ап защиты',
+      turret_upgrade: '🔫 Ап турели',
+      raid: '🏴 Рейд',
+      case_open: '🎰 Кейс',
+      gamus_claim: '🎯 GAMUS',
+      off_collect: '🌙 Оффсбор',
+      collect: '🧺 Сбор',
+      license_buy: '📜 Лицензия',
+      admin_farm_balance: '👑 Админ: баланс фермы',
+      admin_upgrade_balance: '👑 Админ: бонусные',
+      admin_parts: '👑 Админ: запчасти',
+      admin_set_level: '👑 Админ: уровень',
+      admin_set_protection: '👑 Админ: защита',
+      admin_set_raid_power: '👑 Админ: рейд-сила',
+      admin_transfer_farm: '👑 Админ: перенос фермы',
+      admin_clear_debt: '👑 Админ: долги',
+      admin_set_market_stock: '👑 Админ: склад рынка',
+      admin_reset_cases: '👑 Админ: кейсы',
+      admin_reset_gamus: '👑 Админ: GAMUS',
+      admin_delete_turret: '👑 Админ: удаление турели',
+      admin_restore_backup: '👑 Админ: backup',
+      admin_set_roulette_tickets: '👑 Админ: билеты рулетки',
+      admin_sync_from_wizebot: '👑 Админ: импорт из WizeBot',
+      admin_push_to_wizebot: '👑 Админ: пуш в WizeBot',
+      sync_wizebot_harvest: '🔄 WizeBot → сайт'
+    };
+    return map[type] || type || 'Событие';
+  }
+
+  function adminJournalText(event) {
+    const p = event?.payload || {};
+    const type = event?.type || '';
+    const parts = [];
+
+    if (type === 'raid') {
+      const money = Number(p.stolen ?? p.money ?? p.farm_delta ?? p.amount ?? 0);
+      const bonus = Number(p.bonus_stolen ?? p.bonus ?? p.upgrade_delta ?? 0);
+      if (p.target) parts.push('цель: @' + escAdminJournal(p.target));
+      if (Number.isFinite(money) && money) parts.push((money > 0 ? '+' : '') + adminJournalNumber(money) + '💰');
+      if (Number.isFinite(bonus) && bonus) parts.push((bonus > 0 ? '+' : '') + adminJournalNumber(bonus) + '💎');
+      if (p.raid_blocked_by_turret || p.killed_by_turret || p.turret_triggered) parts.push('турель отбила рейд');
+      return parts.join(' · ') || 'Рейд записан.';
+    }
+
+    if (type === 'off_collect') {
+      const money = Number(p.money ?? p.income ?? p.farmIncome ?? 0);
+      const bonus = Number(p.bonus ?? p.upgradeIncome ?? 0);
+      const details = Number(p.parts ?? p.partsIncome ?? 0);
+      if (money) parts.push('получено: ' + adminJournalNumber(money) + '💰');
+      if (bonus) parts.push('бонусные: ' + adminJournalNumber(bonus) + '💎');
+      if (details) parts.push('запчасти: ' + adminJournalNumber(details) + '🔧');
+      return parts.join(' · ') || 'Оффсбор выполнен.';
+    }
+
+    if (type === 'market_buy_parts' || type === 'market_sell_parts') {
+      if (p.qty !== undefined) parts.push((type === 'market_buy_parts' ? 'куплено: ' : 'продано: ') + adminJournalNumber(p.qty) + '🔧');
+      if (p.totalCost !== undefined || p.cost !== undefined) parts.push((type === 'market_buy_parts' ? 'потрачено: ' : 'получено: ') + adminJournalNumber(p.totalCost ?? p.cost) + '💎');
+      return parts.join(' · ') || 'Сделка на рынке.';
+    }
+
+    if (p.amount !== undefined) parts.push('изменение: ' + adminJournalNumber(p.amount));
+    if (p.next !== undefined) parts.push('итог: ' + adminJournalNumber(p.next));
+    if (p.qty !== undefined) parts.push('кол-во: ' + adminJournalNumber(p.qty));
+    if (p.cost !== undefined) parts.push('цена: ' + adminJournalNumber(p.cost));
+    if (p.totalCost !== undefined) parts.push('цена: ' + adminJournalNumber(p.totalCost));
+    if (p.money !== undefined) parts.push('монеты: ' + adminJournalNumber(p.money));
+    if (p.bonus !== undefined) parts.push('бонусные: ' + adminJournalNumber(p.bonus));
+    if (p.parts !== undefined) parts.push('запчасти: ' + adminJournalNumber(p.parts));
+    if (p.building) parts.push('здание: ' + escAdminJournal(p.building));
+    if (p.oldLogin && p.newLogin) parts.push(escAdminJournal(p.oldLogin) + ' → ' + escAdminJournal(p.newLogin));
+    return parts.join(' · ') || 'Действие выполнено.';
+  }
+
+  window.renderAdminEvents = function renderAdminEventsJournalOnly(events) {
+    const box = document.getElementById('admin-events-box');
+    if (!box) return;
+    const rows = Array.isArray(events) ? events : [];
+    if (!rows.length) {
+      box.innerHTML = '<p class="admin-journal-empty">За последние 7 дней событий не найдено.</p>';
+      return;
+    }
+    box.innerHTML = '<div class="events-list admin-journal-list">' + rows.map((event) => {
+      const date = new Date(Number(event.created_at || Date.now())).toLocaleString('ru-RU');
+      const login = event.login || event.display_name || event.payload?.login || '';
+      return `<div class="pretty-event-row event-row-clean admin-journal-row">
+        <div class="event-title-line"><b>${escAdminJournal(adminJournalEventName(event.type))}</b>${login ? `<span>@${escAdminJournal(login)}</span>` : ''}</div>
+        <small>${escAdminJournal(date)}</small>
+        <p>${adminJournalText(event)}</p>
+      </div>`;
+    }).join('') + '</div>';
+  };
+
+  window.loadAdminEvents = async function loadAdminEventsSevenDays() {
+    const login = document.getElementById('admin-events-login')?.value?.trim()?.toLowerCase().replace(/^@/, '') || '';
+    const type = document.getElementById('admin-events-type')?.value || '';
+    const params = new URLSearchParams({ limit: '150', days: '7' });
+    if (login) params.set('login', login);
+    if (type) params.set('type', type);
+    const data = await adminGet('events?' + params.toString());
+    window.renderAdminEvents(data.events || []);
+  };
+
+  function setAdminJournalOnlyMode() {
+    const activeTab = document.querySelector('[data-admin-tab].active')?.getAttribute('data-admin-tab');
+    const isJournal = activeTab === 'journal';
+    const playerInfo = document.getElementById('admin-player-info');
+    const playerSearch = document.querySelector('.admin-player-search');
+    if (playerInfo) playerInfo.style.display = isJournal ? 'none' : '';
+    if (playerSearch) playerSearch.style.display = isJournal ? 'none' : '';
+    if (isJournal) {
+      const mainLogin = document.getElementById('admin-login')?.value?.trim() || '';
+      const journalLogin = document.getElementById('admin-events-login');
+      if (journalLogin && !journalLogin.value && mainLogin) journalLogin.value = mainLogin;
+      window.loadAdminEvents?.().catch((e) => setAdminStatus?.(e.message, true));
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const loginInput = document.getElementById('admin-events-login');
+    if (loginInput) loginInput.placeholder = 'ник игрока или пусто = все игроки за 7 дней';
+    const loadBtn = document.getElementById('admin-load-events');
+    if (loadBtn) loadBtn.textContent = 'Показать журнал за 7 дней';
+    document.querySelectorAll('[data-admin-tab]').forEach((btn) => btn.addEventListener('click', () => setTimeout(setAdminJournalOnlyMode, 0)));
+    document.getElementById('admin-events-type')?.addEventListener('change', () => window.loadAdminEvents?.().catch((e) => setAdminStatus?.(e.message, true)));
+    document.getElementById('admin-events-login')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        window.loadAdminEvents?.().catch((err) => setAdminStatus?.(err.message, true));
+      }
+    });
+    setTimeout(setAdminJournalOnlyMode, 250);
+  });
 })();

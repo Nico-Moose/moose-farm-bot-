@@ -1064,21 +1064,23 @@ function restoreFarmBackup(profile) {
   });
 
   router.get('/events', (req, res) => {
-    const login = String(req.query.login || '').toLowerCase().replace(/^@/, '');
+    const login = String(req.query.login || '').toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
     const type = String(req.query.type || '').trim();
-    const limit = Math.min(300, Math.max(1, parseInt(req.query.limit || '120', 10) || 120));
-    const params = [];
-    let where = '1=1';
+    const limit = Math.min(300, Math.max(1, parseInt(req.query.limit || '150', 10) || 150));
+    const days = Math.min(30, Math.max(1, parseInt(req.query.days || '7', 10) || 7));
+    const since = Date.now() - days * 24 * 60 * 60 * 1000;
+    const params = [since];
+    let where = 'e.created_at >= ?';
     if (login) {
       const profile = getProfileByLogin(db, login);
-      if (!profile) return res.json({ ok: true, events: [] });
+      if (!profile) return res.json({ ok: true, events: [], days });
       where += ' AND e.twitch_id = ?';
       params.push(profile.twitch_id);
     }
     if (type) { where += ' AND e.type = ?'; params.push(type); }
     params.push(limit);
     const events = db.prepare(`SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at FROM farm_events e LEFT JOIN twitch_users u ON u.twitch_id=e.twitch_id WHERE ${where} ORDER BY e.created_at DESC LIMIT ?`).all(...params).map((e) => ({ ...e, payload: parseJsonSafe(e.payload, {}) }));
-    res.json({ ok: true, events });
+    res.json({ ok: true, events, days });
   });
 
   router.get('/checklist', (req, res) => {

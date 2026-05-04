@@ -237,9 +237,18 @@
       <div class="admin-tab-panel" data-admin-panel="journal">
         <div class="admin-card">
           <h3>Админ-журнал</h3>
-          <input id="admin-events-login" placeholder="фильтр по нику, можно пусто" />
+          <input id="admin-events-login" placeholder="ник игрока или пусто = все игроки за 7 дней" />
           <select id="admin-events-type">
             <option value="">Все типы</option>
+            <option value="raid">Рейды</option>
+            <option value="off_collect">Оффсбор</option>
+            <option value="market_buy_parts">Рынок: покупка</option>
+            <option value="market_sell_parts">Рынок: продажа</option>
+            <option value="case_open">Кейсы</option>
+            <option value="gamus_claim">GAMUS</option>
+            <option value="upgrade">Апы фермы</option>
+            <option value="building_buy">Покупки зданий</option>
+            <option value="building_upgrade">Апы зданий</option>
             <option value="admin_farm_balance">Админ: фермерский баланс</option>
             <option value="admin_upgrade_balance">Админ: бонусный баланс</option>
             <option value="admin_parts">Админ: запчасти</option>
@@ -256,7 +265,7 @@
             <option value="sync_wizebot_harvest">Авто: урожай WizeBot → сайт</option>
             <option value="admin_1to1_check">Админ: 1:1 чеклист</option>
           </select>
-          <button id="admin-load-events">Показать журнал</button>
+          <button id="admin-load-events">Показать журнал за 7 дней</button>
           <div id="admin-events-box" class="admin-events-box"></div>
         </div>
       </div>
