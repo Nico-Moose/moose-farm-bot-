@@ -438,6 +438,9 @@ function describePayload(payload = {}, type = '') {
   return parts.join(' | ') || JSON.stringify(payload).slice(0, 180);
 }
 
+let historyLoadController = null;
+let adminEventsLoadController = null;
+
 function renderEventsList(events) {
   if (!events || !events.length) return '<p>Событий пока нет.</p>';
   return '<div class="events-list">' + events.map((event) => {
@@ -452,7 +455,11 @@ async function loadHistory() {
   if (!box) return;
   const type = document.getElementById('historyType')?.value || '';
   const url = '/api/farm/history?limit=100' + (type ? '&type=' + encodeURIComponent(type) : '');
-  const res = await fetch(url);
+
+  if (historyLoadController) historyLoadController.abort();
+  historyLoadController = new AbortController();
+
+  const res = await fetch(url, { signal: historyLoadController.signal });
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'history_failed');
   box.innerHTML = renderEventsList(data.events || []);
@@ -470,7 +477,13 @@ async function loadAdminEvents() {
   const params = new URLSearchParams({ limit: '120' });
   if (login) params.set('login', login);
   if (type) params.set('type', type);
-  const data = await adminGet('events?' + params.toString());
+
+  if (adminEventsLoadController) adminEventsLoadController.abort();
+  adminEventsLoadController = new AbortController();
+
+  const res = await fetch('/api/admin/events?' + params.toString(), { signal: adminEventsLoadController.signal });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) throw new Error(data.error || 'Ошибка загрузки');
   renderAdminEvents(data.events || []);
 }
 
@@ -654,10 +667,19 @@ function bindExtendedAdminPanel() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  const historyRoot = document.getElementById('historyBox') || document.body;
+  if (historyRoot.dataset.historyBound === '1') return;
+  historyRoot.dataset.historyBound = '1';
+
+  const ignoreAbort = (e, prefix) => {
+    if (e?.name === 'AbortError') return;
+    showMessage(prefix + e.message);
+  };
+
   document.getElementById('historyRefreshBtn')?.addEventListener('click', () => {
-    loadHistory().catch((e) => showMessage('❌ История: ' + e.message));
+    loadHistory().catch((e) => ignoreAbort(e, '❌ История: '));
   });
   document.getElementById('historyType')?.addEventListener('change', () => {
-    loadHistory().catch((e) => showMessage('❌ История: ' + e.message));
+    loadHistory().catch((e) => ignoreAbort(e, '❌ История: '));
   });
 });
