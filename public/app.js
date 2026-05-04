@@ -6952,3 +6952,215 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 })();
+
+/* ============================================================================
+   SAFE PATCH 2026-05-04: market strict exact integer formatting
+   - market qty input never uses 1к/1кк/млрд after blur, render or trade
+   - buy/sell always sends the exact number currently typed in the input
+   - market calculator/toast/history show full grouped numbers
+   ========================================================================== */
+(function(){
+  if (window.__mooseMarketStrictExactIntegerQty) return;
+  window.__mooseMarketStrictExactIntegerQty = true;
+
+  function mxNum(value) {
+    const n = Number(value || 0);
+    return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+  }
+
+  function mxExact(value) {
+    return String(mxNum(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function mxParse(value) {
+    const rawInput = String(value ?? '').trim();
+    if (!rawInput) return 0;
+    const raw = rawInput.toLowerCase().replace(/\s+/g, '').replace(/,/g, '.');
+    const m = raw.match(/^(-?\d+(?:\.\d+)?)(млрд|миллиард(?:а|ов)?|b|bn|кк|kk|м|m|к|k)?$/i);
+    if (m) {
+      const n = Number(m[1] || 0);
+      const s = String(m[2] || '').toLowerCase();
+      let mult = 1;
+      if (s === 'к' || s === 'k') mult = 1000;
+      else if (s === 'кк' || s === 'kk' || s === 'м' || s === 'm') mult = 1000000;
+      else if (s === 'млрд' || s === 'b' || s === 'bn' || s.startsWith('миллиард')) mult = 1000000000;
+      return mxNum(n * mult);
+    }
+    return mxNum(Number(raw.replace(/[^0-9.-]/g, '')) || 0);
+  }
+
+  function mxInput() {
+    return document.getElementById('marketQty');
+  }
+
+  function mxReadInput() {
+    const input = mxInput();
+    if (!input) return 0;
+    // Важно: при ручном вводе всегда верим текущему тексту поля, а не старому dataset.
+    const value = mxParse(input.value);
+    input.dataset.exactQty = String(value);
+    input.dataset.numericValue = String(value);
+    input.dataset.prettyQty = mxExact(value);
+    try {
+      lastMarketQty = value;
+      localStorage.setItem('mooseFarmLastMarketQty', String(value));
+    } catch (_) {}
+    return value;
+  }
+
+  function mxSetInput(value) {
+    const input = mxInput();
+    if (!input) return;
+    const safe = mxNum(value);
+    input.type = 'text';
+    input.setAttribute('inputmode', 'numeric');
+    input.setAttribute('autocomplete', 'off');
+    input.dataset.exactQty = String(safe);
+    input.dataset.numericValue = String(safe);
+    input.dataset.prettyQty = mxExact(safe);
+    input.value = mxExact(safe);
+    try {
+      lastMarketQty = safe;
+      localStorage.setItem('mooseFarmLastMarketQty', String(safe));
+    } catch (_) {}
+  }
+
+  function mxState() {
+    return state || window.state || {};
+  }
+
+  function mxCalc() {
+    const calc = document.getElementById('marketCalc');
+    if (!calc) return;
+    const q = mxReadInput();
+    const data = mxState();
+    const market = data.market || {};
+    const profile = data.profile || {};
+    const buyPrice = Math.max(1, Number(market.buyPrice || 20));
+    const sellPrice = Math.max(1, Number(market.sellPrice || 10));
+    const stock = Math.max(0, Number(market.stock || 0));
+    const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || 0));
+    const parts = Math.max(0, Number(profile.parts || 0));
+    const maxBuy = Math.max(0, Math.min(stock, Math.floor(upgradeBalance / buyPrice)));
+    const buyBtn = document.getElementById('marketBuyBtn');
+    const sellBtn = document.getElementById('marketSellBtn');
+    if (buyBtn) buyBtn.disabled = !(q > 0 && q <= maxBuy);
+    if (sellBtn) sellBtn.disabled = !(q > 0 && q <= parts);
+    calc.innerHTML = `Калькулятор: купить <b>${mxExact(q)}🔧</b> = <b>${mxExact(q * buyPrice)}💎</b> · продать <b>${mxExact(q)}🔧</b> = <b>${mxExact(q * sellPrice)}💎</b>`;
+  }
+
+  function mxBindInput() {
+    const input = mxInput();
+    if (!input) return;
+    input.type = 'text';
+    input.setAttribute('inputmode', 'numeric');
+    input.oninput = () => {
+      mxReadInput();
+      mxCalc();
+    };
+    input.onblur = () => {
+      mxSetInput(mxReadInput());
+      mxCalc();
+    };
+    input.onchange = input.onblur;
+  }
+
+  function mxReapplyExact() {
+    const input = mxInput();
+    if (!input) return;
+    const current = mxParse(input.value || input.dataset.exactQty || input.dataset.numericValue || lastMarketQty || 1000);
+    mxSetInput(current || 1000);
+    mxBindInput();
+    mxCalc();
+  }
+
+  const prevRenderMarketStrictExact = typeof renderMarket === 'function' ? renderMarket : null;
+  if (prevRenderMarketStrictExact) {
+    renderMarket = function renderMarketStrictExactIntegerQty(data) {
+      prevRenderMarketStrictExact(data);
+      try { mxReapplyExact(); } catch (e) { console.warn('[MARKET STRICT EXACT QTY]', e); }
+    };
+  }
+
+  if (typeof marketHistoryHtml === 'function') {
+    marketHistoryHtml = function marketHistoryHtmlStrictExact() {
+      return stageMarketHistory.length ? stageMarketHistory.map((h)=>`
+        <div class="market-history-row">
+          <span>${new Date(h.ts).toLocaleTimeString('ru-RU')}</span>
+          <b>${h.action === 'buy' ? '🔵 Куплено' : '🟢 Продано'}</b>
+          <span>${mxExact(h.qty)}🔧</span>
+          <span>${mxExact(h.cost)}💎</span>
+        </div>`).join('') : '<p>Пока нет сделок в этой сессии.</p>';
+    };
+  }
+
+  let mxBusy = false;
+  marketTrade = async function marketTradeStrictExactIntegerQty(action) {
+    if (mxBusy) return;
+    const qty = mxReadInput();
+    if (!qty || qty <= 0) {
+      if (typeof showMessage === 'function') showMessage('❌ Рынок: укажи количество больше 0');
+      return;
+    }
+
+    mxBusy = true;
+    ['marketBuyBtn', 'marketSellBtn'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.add('is-busy');
+      }
+    });
+
+    try {
+      lastMarketQty = qty;
+      localStorage.setItem('mooseFarmLastMarketQty', String(qty));
+    } catch (_) {}
+
+    try {
+      const data = await postJson(`/api/farm/market/${action}`, { qty });
+      if (!data.ok) {
+        const labels = {
+          invalid_quantity: 'укажи количество больше 0',
+          quantity_too_large: `слишком большое число, максимум ${mxExact(data.maxQty || 0)}🔧`,
+          not_enough_parts: `не хватает запчастей: ${mxExact(data.available || 0)}/${mxExact(data.needed || 0)}🔧`,
+          not_enough_upgrade_balance: `не хватает 💎: ${mxExact(data.available || 0)} / ${mxExact(data.needed || 0)}`,
+          market_stock_empty: 'общий склад пуст',
+          not_enough_market_stock: 'на общем складе недостаточно 🔧',
+          action_in_progress: 'операция уже выполняется'
+        };
+        if (typeof showMessage === 'function') showMessage(`❌ Рынок: ${labels[data.error] || data.error}`);
+        await loadMe();
+        mxSetInput(qty);
+        return;
+      }
+
+      const doneQty = mxNum(data.qty || qty);
+      const totalCost = mxNum(data.totalCost || 0);
+      if (typeof pushMarketHistory === 'function') pushMarketHistory({ action, qty: doneQty, cost: totalCost });
+      if (typeof showActionToast === 'function') {
+        showActionToast(
+          action === 'buy' ? '🏪 Покупка на рынке' : '🏪 Продажа на рынке',
+          [
+            action === 'buy' ? `Куплено: <b>${mxExact(doneQty)}🔧</b>` : `Продано: <b>${mxExact(doneQty)}🔧</b>`,
+            action === 'buy' ? `Потрачено: <b>${mxExact(totalCost)}💎</b>` : `Получено: <b>${mxExact(totalCost)}💎</b>`,
+            `Общий склад: <b>${mxExact(data.market?.stock ?? 0)}🔧</b>`
+          ],
+          { kind: 'market' }
+        );
+      }
+      await loadMe();
+      // Оставляем в поле ровно последнее использованное количество полным числом.
+      mxSetInput(qty);
+      mxCalc();
+    } finally {
+      mxBusy = false;
+      ['marketBuyBtn', 'marketSellBtn'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.remove('is-busy');
+      });
+    }
+  };
+
+  try { mxReapplyExact(); } catch (_) {}
+})();
