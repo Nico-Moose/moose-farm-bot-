@@ -1,6 +1,9 @@
 const express = require('express');
 const { requireAdmin } = require('../middleware/requireAdmin');
-const { getOrSetCache } = require('../services/apiCacheService');
+const { getCache, setCache } = require('../services/apiCacheService');
+
+const PLAYERS_CACHE_TTL_MS = 1200;
+const EVENTS_CACHE_TTL_MS = 1200;
 
 function parseJsonSafe(raw, fallback) {
   try {
@@ -14,20 +17,17 @@ function normalizeLogin(value) {
   return String(value || '').toLowerCase().replace(/^@/, '').trim();
 }
 
-function getProfileIdByLogin(db, login) {
-  const row = db.prepare(`
+module.exports = function adminJournalRoutes(db) {
+  const router = express.Router();
+  router.use(requireAdmin);
+
+  const findTwitchIdByLoginStmt = db.prepare(`
     SELECT u.twitch_id
     FROM twitch_users u
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE LOWER(u.login) = ?
     LIMIT 1
-  `).get(normalizeLogin(login));
-  return row?.twitch_id || null;
-}
-
-module.exports = function adminJournalRoutes(db) {
-  const router = express.Router();
-  router.use(requireAdmin);
+  `);
 
   const listPlayersStmt = db.prepare(`
     SELECT u.login, u.display_name, f.level
@@ -38,66 +38,28 @@ module.exports = function adminJournalRoutes(db) {
     LIMIT ?
   `);
 
-  const getProfileIdByLoginStmt = db.prepare(`
-    SELECT u.twitch_id
-    FROM twitch_users u
-    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
-    WHERE LOWER(u.login) = ?
-    LIMIT 1
-  `);
-
-  const eventsCountByLoginAndTypeStmt = db.prepare(`
-    SELECT COUNT(*) AS total
-    FROM farm_events e
-    WHERE e.created_at >= ? AND e.twitch_id = ? AND e.type = ?
-  `);
-
-  const eventsListByLoginAndTypeStmt = db.prepare(`
-    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
-    FROM farm_events e
-    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
-    WHERE e.created_at >= ? AND e.twitch_id = ? AND e.type = ?
-    ORDER BY e.created_at DESC
-    LIMIT ? OFFSET ?
-  `);
-
-  const eventsCountByLoginStmt = db.prepare(`
-    SELECT COUNT(*) AS total
-    FROM farm_events e
-    WHERE e.created_at >= ? AND e.twitch_id = ?
-  `);
-
-  const eventsListByLoginStmt = db.prepare(`
-    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
-    FROM farm_events e
-    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
-    WHERE e.created_at >= ? AND e.twitch_id = ?
-    ORDER BY e.created_at DESC
-    LIMIT ? OFFSET ?
-  `);
-
-  const eventsCountByTypeStmt = db.prepare(`
-    SELECT COUNT(*) AS total
-    FROM farm_events e
-    WHERE e.created_at >= ? AND e.type = ?
-  `);
-
-  const eventsListByTypeStmt = db.prepare(`
-    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
-    FROM farm_events e
-    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
-    WHERE e.created_at >= ? AND e.type = ?
-    ORDER BY e.created_at DESC
-    LIMIT ? OFFSET ?
-  `);
-
-  const eventsCountSinceStmt = db.prepare(`
+  const countEventsByDaysStmt = db.prepare(`
     SELECT COUNT(*) AS total
     FROM farm_events e
     WHERE e.created_at >= ?
   `);
+  const countEventsByLoginStmt = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM farm_events e
+    WHERE e.created_at >= ? AND e.twitch_id = ?
+  `);
+  const countEventsByTypeStmt = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM farm_events e
+    WHERE e.created_at >= ? AND e.type = ?
+  `);
+  const countEventsByLoginAndTypeStmt = db.prepare(`
+    SELECT COUNT(*) AS total
+    FROM farm_events e
+    WHERE e.created_at >= ? AND e.twitch_id = ? AND e.type = ?
+  `);
 
-  const eventsListSinceStmt = db.prepare(`
+  const listEventsByDaysStmt = db.prepare(`
     SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
     FROM farm_events e
     LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
@@ -105,18 +67,48 @@ module.exports = function adminJournalRoutes(db) {
     ORDER BY e.created_at DESC
     LIMIT ? OFFSET ?
   `);
+  const listEventsByLoginStmt = db.prepare(`
+    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
+    FROM farm_events e
+    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
+    WHERE e.created_at >= ? AND e.twitch_id = ?
+    ORDER BY e.created_at DESC
+    LIMIT ? OFFSET ?
+  `);
+  const listEventsByTypeStmt = db.prepare(`
+    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
+    FROM farm_events e
+    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
+    WHERE e.created_at >= ? AND e.type = ?
+    ORDER BY e.created_at DESC
+    LIMIT ? OFFSET ?
+  `);
+  const listEventsByLoginAndTypeStmt = db.prepare(`
+    SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
+    FROM farm_events e
+    LEFT JOIN twitch_users u ON u.twitch_id = e.twitch_id
+    WHERE e.created_at >= ? AND e.twitch_id = ? AND e.type = ?
+    ORDER BY e.created_at DESC
+    LIMIT ? OFFSET ?
+  `);
+
+  function getProfileIdByLogin(login) {
+    const row = findTwitchIdByLoginStmt.get(normalizeLogin(login));
+    return row?.twitch_id || null;
+  }
 
   router.get('/players', (req, res) => {
     const prefix = normalizeLogin(req.query.prefix || '');
-    const like = `${prefix}%`;
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit || '12', 10) || 12));
     const cacheKey = `admin:journal:players:${prefix}:${limit}`;
+    const cached = getCache(cacheKey);
+    if (cached) return res.json(cached);
 
-    const players = getOrSetCache(cacheKey, 1500, () => (
-      listPlayersStmt.all(prefix, like, like, limit)
-    ));
-
-    res.json({ ok: true, players });
+    const like = `${prefix}%`;
+    const players = listPlayersStmt.all(prefix, like, like, limit);
+    const payload = { ok: true, players };
+    setCache(cacheKey, payload, PLAYERS_CACHE_TTL_MS);
+    res.json(payload);
   });
 
   router.get('/events', (req, res) => {
@@ -126,51 +118,48 @@ module.exports = function adminJournalRoutes(db) {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit || '100', 10) || 100));
     const offset = Math.max(0, parseInt(req.query.offset || '0', 10) || 0);
     const since = Date.now() - days * 24 * 60 * 60 * 1000;
-
     const cacheKey = `admin:journal:events:${login}:${type}:${days}:${limit}:${offset}`;
-    const result = getOrSetCache(cacheKey, 1200, () => {
-      let twitchId = null;
-      if (login) {
-        const row = getProfileIdByLoginStmt.get(login);
-        twitchId = row?.twitch_id || null;
-        if (!twitchId) {
-          return { events: [], total: 0 };
-        }
+    const cached = getCache(cacheKey);
+    if (cached) return res.json(cached);
+
+    let twitchId = null;
+    if (login) {
+      twitchId = getProfileIdByLogin(login);
+      if (!twitchId) {
+        const emptyPayload = { ok: true, events: [], total: 0, hasMore: false, nextOffset: null };
+        setCache(cacheKey, emptyPayload, EVENTS_CACHE_TTL_MS);
+        return res.json(emptyPayload);
       }
+    }
 
-      let totalRow;
-      let rows;
+    let totalRow;
+    let rows;
+    if (login && type) {
+      totalRow = countEventsByLoginAndTypeStmt.get(since, twitchId, type);
+      rows = listEventsByLoginAndTypeStmt.all(since, twitchId, type, limit, offset);
+    } else if (login) {
+      totalRow = countEventsByLoginStmt.get(since, twitchId);
+      rows = listEventsByLoginStmt.all(since, twitchId, limit, offset);
+    } else if (type) {
+      totalRow = countEventsByTypeStmt.get(since, type);
+      rows = listEventsByTypeStmt.all(since, type, limit, offset);
+    } else {
+      totalRow = countEventsByDaysStmt.get(since);
+      rows = listEventsByDaysStmt.all(since, limit, offset);
+    }
 
-      if (twitchId && type) {
-        totalRow = eventsCountByLoginAndTypeStmt.get(since, twitchId, type);
-        rows = eventsListByLoginAndTypeStmt.all(since, twitchId, type, limit, offset);
-      } else if (twitchId) {
-        totalRow = eventsCountByLoginStmt.get(since, twitchId);
-        rows = eventsListByLoginStmt.all(since, twitchId, limit, offset);
-      } else if (type) {
-        totalRow = eventsCountByTypeStmt.get(since, type);
-        rows = eventsListByTypeStmt.all(since, type, limit, offset);
-      } else {
-        totalRow = eventsCountSinceStmt.get(since);
-        rows = eventsListSinceStmt.all(since, limit, offset);
-      }
-
-      return {
-        total: Number(totalRow?.total || 0),
-        events: rows.map((e) => ({ ...e, payload: parseJsonSafe(e.payload, {}) })),
-      };
-    });
-
-    const total = Number(result.total || 0);
-    const events = result.events || [];
+    const total = Number(totalRow?.total || 0);
+    const events = rows.map((e) => ({ ...e, payload: parseJsonSafe(e.payload, {}) }));
     const nextOffset = offset + events.length;
-    res.json({
+    const payload = {
       ok: true,
       events,
       total,
       hasMore: nextOffset < total,
       nextOffset: nextOffset < total ? nextOffset : null,
-    });
+    };
+    setCache(cacheKey, payload, EVENTS_CACHE_TTL_MS);
+    res.json(payload);
   });
 
   return router;
