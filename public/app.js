@@ -6980,3 +6980,75 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => marketSetInput(document.getElementById('marketQty'), qty), 0);
   };
 })();
+
+/* ==========================================================================
+   SAFE PATCH: exact journal text for raids/offcollect + hide generic wording
+   ========================================================================== */
+(function(){
+  const nf = new Intl.NumberFormat('ru-RU').format;
+  function esc(value){ return String(value ?? '').replace(/[&<>"']/g, (ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function payloadOf(e){ let p=e?.payload||e?.details||{}; if(typeof p==='string'){ try{p=JSON.parse(p);}catch(_){ p={}; } } return p && typeof p === 'object' ? p : {}; }
+  function n(value){ const num=Number(value||0); return Number.isFinite(num) ? num : 0; }
+  function full(value){ return nf(Math.round(n(value))); }
+  function eventTitle(type){
+    const t=String(type||'').toLowerCase();
+    if(t==='raid') return '🏴 Рейд';
+    if(t==='off_collect') return '🌙 Оффсбор';
+    if(t.includes('market')) return '🏪 Рынок';
+    if(t.includes('case')) return '🎰 Кейс';
+    if(t.includes('gamus')) return '🎁 GAMUS';
+    if(t.includes('turret')) return '🔫 Турель';
+    if(t.includes('protection')) return '🛡 Защита';
+    if(t.includes('raid_power')) return '⚔️ Рейд-сила';
+    if(t.includes('building')) return '🏗 Здание';
+    if(t==='upgrade') return '🌾 Ап фермы';
+    if(t.includes('license')) return '📜 Лицензия';
+    if(t.includes('admin')) return '👑 Админ';
+    return (typeof prettyEventName === 'function') ? prettyEventName(type) : '📌 Событие';
+  }
+  function raidText(p){
+    const turret = !!(p.killed_by_turret || p.raid_blocked_by_turret || p.turret_triggered);
+    const target = p.target ? `цель <b>${esc(p.target)}</b>` : 'цель не указана';
+    const coins = turret ? -Math.abs(n(p.turret_refund || p.turret_penalty || p.penalty || 0)) : n(p.stolen || 0);
+    const bonus = turret ? -Math.abs(n(p.bonus_lost || p.bonus_penalty || 0)) : n(p.bonus_stolen || 0);
+    const parts = [];
+    parts.push(turret ? `Рейд отбит турелью, ${target}.` : `Рейд по ${target}.`);
+    if(coins) parts.push(`${coins > 0 ? '+' : '-'}${full(Math.abs(coins))}💰`);
+    if(bonus) parts.push(`${bonus > 0 ? '+' : '-'}${full(Math.abs(bonus))}💎`);
+    if(n(p.blocked)) parts.push(`щит заблокировал ${full(p.blocked)}🛡`);
+    if(n(p.strength)) parts.push(`сила ${full(p.strength)}%`);
+    return parts.join(' · ');
+  }
+  function offCollectText(p){
+    const income = n(p.income || p.money || p.farmIncome);
+    const partsIncome = n(p.partsIncome || p.parts || p.detailsIncome);
+    const minutes = n(p.minutes);
+    const out = [];
+    if(income) out.push(`+${full(income)}🌾`);
+    if(partsIncome) out.push(`+${full(partsIncome)}🔧`);
+    if(minutes) out.push(`${full(minutes)} мин оффлайна`);
+    return out.length ? `Получено: ${out.join(' · ')}` : 'Оффсбор получен.';
+  }
+  function fallbackText(e,p){
+    const t=String(e?.type||'').toLowerCase();
+    if(t.includes('market')) return `Операция на рынке${p.qty?`: ${full(p.qty)}🔧`:''}${(p.totalCost||p.cost)?` за ${full(p.totalCost||p.cost)}💎`:''}.`;
+    if(t.includes('case')) return `Кейс открыт${(p.prizeValue||p.value)?`: +${full(p.prizeValue||p.value)}${String(p.prizeType||'').includes('parts')?'🔧':'💎'}`:''}.`;
+    if(t.includes('gamus')) return `GAMUS получен${p.money?`: +${full(p.money)}💰`:''}${p.parts?` · +${full(p.parts)}🔧`:''}.`;
+    if(t.includes('building')) return `Здание ${esc(p.building||p.key||'')} улучшено${p.upgraded?` +${full(p.upgraded)} ур.`:''}${p.totalCost?` · -${full(p.totalCost)}💰`:''}${p.totalParts?` · -${full(p.totalParts)}🔧`:''}`;
+    if(t==='upgrade') return `Ферма улучшена${p.upgraded?` +${full(p.upgraded)} ур.`:''}${p.totalCost?` · -${full(p.totalCost)}💰`:''}`;
+    if(t.includes('raid_power')||t.includes('protection')||t.includes('turret')) return `${eventTitle(t)} улучшена${p.level?` до ${full(p.level)} ур.`:''}${p.totalCost?` · -${full(p.totalCost)}💰`:''}${p.totalParts?` · -${full(p.totalParts)}🔧`:''}`;
+    return (typeof cleanPayloadText === 'function') ? cleanPayloadText(p) : 'Событие записано.';
+  }
+  renderEventsList = function renderEventsList(events){
+    const rows=(events||[]).filter((e)=>{ const t=String(e?.type||'').toLowerCase(); return !(t.startsWith('sync_') || t.includes('sync_wizebot')); });
+    if(!rows.length) return '<p>Событий пока нет.</p>';
+    return rows.map((e)=>{
+      const p=payloadOf(e);
+      const type=String(e?.type||'').toLowerCase();
+      const login=e.login||p.login||state?.profile?.login||'';
+      const date=e.created_at||e.timestamp||e.date||Date.now();
+      const text = type==='raid' ? raidText(p) : (type==='off_collect' ? offCollectText(p) : fallbackText(e,p));
+      return `<div class="pretty-event-row event-row-clean history-human-row"><div class="event-title-line"><b>${eventTitle(type)}</b>${login?`<span>@${esc(login)}</span>`:''}</div><small>${new Date(date).toLocaleString('ru-RU')}</small><p>${text}</p></div>`;
+    }).join('');
+  };
+})();

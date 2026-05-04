@@ -205,10 +205,26 @@ function listProfiles() {
 }
 
 function logFarmEvent(twitchId, type, payload = {}) {
-  getDb().prepare(`
+  const db = getDb();
+  const createdAt = Date.now();
+  db.prepare(`
     INSERT INTO farm_events (twitch_id, type, payload, created_at)
     VALUES (?, ?, ?, ?)
-  `).run(twitchId, type, JSON.stringify(payload), Date.now());
+  `).run(twitchId, type, JSON.stringify(payload), createdAt);
+
+  // Храним только последние 10 записей каждого типа для игрока.
+  // Это экономит место и не даёт журналу разрастаться бесконечно.
+  db.prepare(`
+    DELETE FROM farm_events
+    WHERE twitch_id = ?
+      AND type = ?
+      AND id NOT IN (
+        SELECT id FROM farm_events
+        WHERE twitch_id = ? AND type = ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT 10
+      )
+  `).run(twitchId, type, twitchId, type);
 }
 
 function listFarmEvents({ twitchId = null, login = '', type = '', limit = 100 } = {}) {
