@@ -6766,146 +6766,189 @@ document.addEventListener('DOMContentLoaded', () => {
 })();
 
 /* ============================================================================
-   SAFE PATCH 2026-05-04: market resources strip + keep exact qty after trade
-   - adds the same current-resources strip on market as buildings
-   - keeps market input as full exact number after buy/sell/live refresh
+   SAFE PATCH 2026-05-04: market exact quantity display + resources strip final
+   - hides the old market wallet strip
+   - adds one exact "Текущие ресурсы" strip like buildings
+   - keeps market input/toast/history on exact full numbers after buy/sell
    ========================================================================== */
 (function(){
-  if (window.__mooseMarketResourcesExactAfterTradeFix) return;
-  window.__mooseMarketResourcesExactAfterTradeFix = true;
+  if (window.__mooseMarketExactResourcesFinal) return;
+  window.__mooseMarketExactResourcesFinal = true;
 
-  function mrNum(v) { return Math.max(0, Math.floor(Number(v || 0))); }
-
-  function mrFmt(v) {
-    if (typeof formatNumber === 'function') {
-      try { return formatNumber(v); } catch (_) {}
-    }
-    if (typeof stageFormat === 'function') {
-      try { return stageFormat(v); } catch (_) {}
-    }
-    return String(mrNum(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  function meNum(value) {
+    const n = Number(value || 0);
+    return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
   }
 
-  function mrFullNumber(v) {
-    return String(mrNum(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  function meExact(value) {
+    return String(meNum(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
 
-  function mrParseQty(value) {
+  function meParse(value) {
     const raw = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '').replace(/,/g, '.');
     if (!raw) return 0;
     const m = raw.match(/^(-?\d+(?:\.\d+)?)(млрд|миллиард(?:а|ов)?|b|bn|кк|kk|м|m|к|k)?$/i);
-    if (!m) return mrNum(Number(raw.replace(/[^0-9.-]/g, '')) || 0);
+    if (!m) return meNum(Number(raw.replace(/[^0-9.-]/g, '')) || 0);
     const n = Number(m[1] || 0);
     const s = String(m[2] || '').toLowerCase();
     let mult = 1;
-    if (s === 'к' || s === 'k') mult = 1_000;
-    else if (s === 'кк' || s === 'kk' || s === 'м' || s === 'm') mult = 1_000_000;
-    else if (s === 'млрд' || s === 'b' || s === 'bn' || s.startsWith('миллиард')) mult = 1_000_000_000;
-    return mrNum(n * mult);
+    if (s === 'к' || s === 'k') mult = 1000;
+    else if (s === 'кк' || s === 'kk' || s === 'м' || s === 'm') mult = 1000000;
+    else if (s === 'млрд' || s === 'b' || s === 'bn' || s.startsWith('миллиард')) mult = 1000000000;
+    return meNum(n * mult);
   }
 
-  function mrGetQty(input) {
+  function meGetQty() {
+    const input = document.getElementById('marketQty');
     if (!input) return 0;
-    const exact = Number(input.dataset.exactQty || input.dataset.numericValue || 0);
-    const parsed = mrParseQty(input.value);
-    const value = input.dataset.exactQty && String(input.value || '').trim() === String(input.dataset.prettyQty || '').trim()
-      ? exact
-      : parsed;
-    const safe = mrNum(value);
-    input.dataset.exactQty = String(safe);
-    input.dataset.numericValue = String(safe);
-    return safe;
+    const exact = input.dataset.exactQty || input.dataset.numericValue;
+    const parsed = exact ? meNum(exact) : meParse(input.value);
+    input.dataset.exactQty = String(parsed);
+    input.dataset.numericValue = String(parsed);
+    return parsed;
   }
 
-  function mrSetQty(input, value) {
+  function meSetQty(value) {
+    const input = document.getElementById('marketQty');
     if (!input) return;
-    const safe = mrNum(value);
-    const pretty = mrFullNumber(safe);
+    const safe = meNum(value);
     input.dataset.exactQty = String(safe);
     input.dataset.numericValue = String(safe);
-    input.dataset.prettyQty = pretty;
-    input.value = pretty;
+    input.dataset.prettyQty = meExact(safe);
+    input.value = meExact(safe);
     try {
       lastMarketQty = safe;
       localStorage.setItem('mooseFarmLastMarketQty', String(safe));
     } catch (_) {}
   }
 
-  function mrProfileValue(profile, key, fallbackFn) {
-    if (typeof fallbackFn === 'function') {
-      try { return fallbackFn(profile); } catch (_) {}
-    }
-    return mrNum(profile?.[key] || 0);
-  }
-
-  function mrResourcesHtml(data) {
-    const profile = data?.profile || {};
-    const ordinary = mrProfileValue(profile, 'coins', typeof ordinaryCoins === 'function' ? ordinaryCoins : null);
-    const farm = mrProfileValue(profile, 'farm_balance', typeof farmCoins === 'function' ? farmCoins : null);
-    const bonus = mrProfileValue(profile, 'upgrade_balance', typeof bonusCoins === 'function' ? bonusCoins : null);
-    const parts = mrNum(profile.parts || 0);
+  function meResourcesHtml(data) {
+    const p = data?.profile || {};
+    const ordinary = typeof ordinaryCoins === 'function' ? ordinaryCoins(p) : Number(p.balance || p.coins || 0);
+    const farm = typeof farmCoins === 'function' ? farmCoins(p) : Number(p.farm_balance || 0);
+    const bonus = typeof bonusCoins === 'function' ? bonusCoins(p) : Number(p.upgrade_balance || 0);
     return `
-      <div id="marketResourcesSection" class="buildings-resources-section market-resources-section">
+      <div id="marketResourcesSection" class="quick-status market-resources-section">
         <div><b>Текущие ресурсы</b></div>
         <div class="quick-status-grid compact-stats">
-          <span>💰 Голда: <b>${mrFmt(ordinary)}</b></span>
-          <span>🌾 Ферма: <b>${mrFmt(farm)}</b></span>
-          <span>💎 Бонусные: <b>${mrFmt(bonus)}</b></span>
-          <span>🔧 Запчасти: <b>${mrFmt(parts)}</b></span>
+          <span>💰 Голда: <b>${meExact(ordinary)}</b></span>
+          <span>🌾 Ферма: <b>${meExact(farm)}</b></span>
+          <span>💎 Бонусные: <b>${meExact(bonus)}</b></span>
+          <span>🔧 Запчасти: <b>${meExact(p.parts || 0)}</b></span>
         </div>
       </div>`;
   }
 
-  function mrInstallResources(data) {
+  function mePolishMarket(data) {
     const box = document.getElementById('marketBox');
     if (!box) return;
-    box.querySelector('#marketResourcesSection')?.remove();
+
+    // Старую зелёную строку "Баланс / Запчасти" убираем, чтобы остался только новый блок ресурсов.
+    box.querySelectorAll('.market-wallet').forEach((el) => el.remove());
+
+    const oldRes = box.querySelector('#marketResourcesSection');
+    if (oldRes) oldRes.remove();
     const hero = box.querySelector('.market-hero');
-    if (hero) hero.insertAdjacentHTML('beforebegin', mrResourcesHtml(data));
-    else box.insertAdjacentHTML('afterbegin', mrResourcesHtml(data));
+    if (hero) hero.insertAdjacentHTML('beforebegin', meResourcesHtml(data));
+    else box.insertAdjacentHTML('afterbegin', meResourcesHtml(data));
+
+    const input = document.getElementById('marketQty');
+    if (input) {
+      const qty = meParse(input.dataset.exactQty || input.dataset.numericValue || input.value || lastMarketQty || 1000);
+      meSetQty(qty || 1000);
+      input.onblur = () => meSetQty(meGetQty());
+      input.onchange = () => meSetQty(meGetQty());
+    }
   }
 
-  function mrInstallExactInputHandlers() {
-    const input = document.getElementById('marketQty');
-    if (!input) return;
-    const current = mrParseQty(input.dataset.exactQty || input.dataset.numericValue || input.value || lastMarketQty || 1000);
-    mrSetQty(input, current || 1000);
-
-    input.oninput = () => {
-      const exact = mrParseQty(input.value);
-      input.dataset.exactQty = String(exact);
-      input.dataset.numericValue = String(exact);
-      input.dataset.prettyQty = input.value;
-      try {
-        lastMarketQty = exact;
-        localStorage.setItem('mooseFarmLastMarketQty', String(exact));
-      } catch (_) {}
+  if (typeof marketHistoryHtml === 'function') {
+    marketHistoryHtml = function marketHistoryHtmlExactFinal() {
+      return stageMarketHistory.length ? stageMarketHistory.map((h)=>`
+        <div class="market-history-row">
+          <span>${new Date(h.ts).toLocaleTimeString('ru-RU')}</span>
+          <b>${h.action === 'buy' ? '🔵 Куплено' : '🟢 Продано'}</b>
+          <span>${meExact(h.qty)}🔧</span>
+          <span>${meExact(h.cost)}💎</span>
+        </div>`).join('') : '<p>Пока нет сделок в этой сессии.</p>';
     };
-    input.onblur = () => mrSetQty(input, mrGetQty(input));
-    input.onchange = () => mrSetQty(input, mrGetQty(input));
   }
 
   const prevRenderMarket = typeof renderMarket === 'function' ? renderMarket : null;
   if (prevRenderMarket) {
-    renderMarket = function renderMarketResourcesExactQty(data) {
+    renderMarket = function renderMarketExactResourcesFinal(data) {
       prevRenderMarket(data);
-      try { mrInstallResources(data); } catch (e) { console.warn('[MARKET RESOURCES]', e); }
-      try { mrInstallExactInputHandlers(); } catch (e) { console.warn('[MARKET EXACT INPUT]', e); }
+      try { mePolishMarket(data); } catch (e) { console.warn('[MARKET EXACT RESOURCES FINAL]', e); }
     };
   }
 
-  const prevMarketTrade = typeof marketTrade === 'function' ? marketTrade : null;
-  if (prevMarketTrade) {
-    marketTrade = async function marketTradeKeepExactQty(action) {
-      const beforeInput = document.getElementById('marketQty');
-      const qty = mrGetQty(beforeInput);
-      if (beforeInput) beforeInput.value = String(qty);
-      try {
-        return await prevMarketTrade(action);
-      } finally {
-        const currentInput = document.getElementById('marketQty');
-        mrSetQty(currentInput, qty);
+  let marketExactFinalBusy = false;
+  marketTrade = async function marketTradeExactFinal(action) {
+    if (marketExactFinalBusy) return;
+    const input = document.getElementById('marketQty');
+    const qty = meGetQty();
+    if (!qty || qty <= 0) {
+      if (typeof showMessage === 'function') showMessage('❌ Рынок: укажи количество больше 0');
+      return;
+    }
+
+    marketExactFinalBusy = true;
+    ['marketBuyBtn', 'marketSellBtn'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.add('is-busy');
       }
-    };
-  }
+    });
+
+    if (input) input.value = String(qty); // сервер получает точное число, без 1.1кк
+    try {
+      lastMarketQty = qty;
+      localStorage.setItem('mooseFarmLastMarketQty', String(qty));
+    } catch (_) {}
+
+    try {
+      const data = await postJson(`/api/farm/market/${action}`, { qty });
+      if (!data.ok) {
+        const labels = {
+          invalid_quantity: 'укажи количество больше 0',
+          quantity_too_large: `слишком большое число, максимум ${meExact(data.maxQty || 0)}🔧`,
+          not_enough_parts: `не хватает запчастей: ${meExact(data.available || 0)}/${meExact(data.needed || 0)}🔧`,
+          not_enough_upgrade_balance: `не хватает 💎: ${meExact(data.available || 0)} / ${meExact(data.needed || 0)}`,
+          market_stock_empty: 'общий склад пуст',
+          not_enough_market_stock: 'на общем складе недостаточно 🔧',
+          action_in_progress: 'операция уже выполняется'
+        };
+        if (typeof showMessage === 'function') showMessage(`❌ Рынок: ${labels[data.error] || data.error}`);
+        await loadMe();
+        meSetQty(qty);
+        return;
+      }
+
+      const doneQty = meNum(data.qty || qty);
+      const totalCost = meNum(data.totalCost || 0);
+      if (typeof pushMarketHistory === 'function') pushMarketHistory({ action, qty: doneQty, cost: totalCost });
+      if (typeof showActionToast === 'function') {
+        showActionToast(
+          action === 'buy' ? '🏪 Покупка на рынке' : '🏪 Продажа на рынке',
+          [
+            action === 'buy' ? `Куплено: <b>${meExact(doneQty)}🔧</b>` : `Продано: <b>${meExact(doneQty)}🔧</b>`,
+            action === 'buy' ? `Потрачено: <b>${meExact(totalCost)}💎</b>` : `Получено: <b>${meExact(totalCost)}💎</b>`,
+            `Общий склад: <b>${meExact(data.market?.stock ?? 0)}🔧</b>`
+          ],
+          { kind: 'market' }
+        );
+      }
+      await loadMe();
+      meSetQty(qty);
+    } finally {
+      marketExactFinalBusy = false;
+      ['marketBuyBtn', 'marketSellBtn'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+          btn.classList.remove('is-busy');
+          // disabled пересчитает renderMarket/mqCalc, тут принудительно не включаем.
+        }
+      });
+    }
+  };
 })();
