@@ -97,6 +97,7 @@ const { config } = require('../config');
 const { syncProfileToWizebotIfNeeded, isWebMasterProfile } = require('../services/wizebotApiService');
 const { enqueueProfileSync, getQueueStats } = require('../services/wizebotSyncQueueService');
 const { getStreamStatus, getStreamStatusSnapshot } = require('../services/streamStatusService');
+const { getCache, setCache, invalidateFarmCache } = require('../services/apiCacheService');
 
 function requireAuth(req, res, next) {
   if (!req.session.twitchUser) {
@@ -248,17 +249,32 @@ function conflictResponse(req, res, stale, profile) {
 
 router.use('/farm', requireAuth, farmActionGuard);
 
+router.use('/farm', (req, res, next) => {
+  if (req.method === 'POST') {
+    const twitchId = req.session?.twitchUser?.id;
+    res.on('finish', () => {
+      if (res.statusCode < 500) invalidateFarmCache(twitchId);
+    });
+  }
+  next();
+});
+
 router.get('/me', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
   const streamStatus = await getStreamStatus();
+  const cacheKey = `farm:${req.session.twitchUser.id}:me:${profile?.updated_at || 0}:${profile?.last_wizebot_sync_at || 0}:${streamStatus?.online ? 1 : 0}`;
+  const cached = getCache(cacheKey);
+  if (cached) return res.json(cached);
 
-  res.json({
+  const payload = {
     ok: true,
     user: req.session.twitchUser,
     ...profilePayload(profile),
     streamStatus,
     streamOnline: !!streamStatus.online
-  });
+  };
+
+  res.json(setCache(cacheKey, payload, 1200));
 });
 
 router.get('/stream/status', requireAuth, async (req, res) => {
@@ -715,18 +731,25 @@ router.get('/farm/history', requireAuth, (req, res) => {
 
 router.get('/farm/info', requireAuth, (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
-  res.json({ ok: true, info: getFarmInfo(profile), raidInfo: getRaidInfo(profile) });
+  const cacheKey = `farm:${req.session.twitchUser.id}:info:${profile?.updated_at || 0}`;
+  const cached = getCache(cacheKey);
+  if (cached) return res.json(cached);
+  res.json(setCache(cacheKey, { ok: true, info: getFarmInfo(profile), raidInfo: getRaidInfo(profile) }, 1500));
 });
 
 router.get('/farm/top', requireAuth, (req, res) => {
   const days = [1, 7, 14].includes(Number(req.query.days)) ? Number(req.query.days) : 14;
+  const cacheKey = `farm:top:${days}`;
+  const cached = getCache(cacheKey);
+  if (cached) return res.json(cached);
+
   const profiles = listProfiles();
-  res.json({
+  res.json(setCache(cacheKey, {
     ok: true,
     days,
     raidTop: getTopRaids(profiles, days),
     playerTop: getTopProfiles(profiles)
-  });
+  }, 5000));
 });
 
 router.post('/farm/license/buy', requireAuth, async (req, res) => {

@@ -84,6 +84,13 @@ function migrate(database) {
   addColumn('raid_power', 'raid_power INTEGER NOT NULL DEFAULT 0');
   addColumn('turret_json', `turret_json TEXT NOT NULL DEFAULT '{}'`);
   addColumn('last_wizebot_sync_at', 'last_wizebot_sync_at INTEGER');
+
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_twitch_users_login_lower ON twitch_users(LOWER(login));
+    CREATE INDEX IF NOT EXISTS idx_farm_events_twitch_type_created ON farm_events(twitch_id, type, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_farm_events_created ON farm_events(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_farm_events_type_created ON farm_events(type, created_at DESC);
+  `);
 }
 
 function closeDb() {
