@@ -237,8 +237,15 @@
       <div class="admin-tab-panel" data-admin-panel="journal">
         <div class="admin-card">
           <h3>Админ-журнал</h3>
-          <input id="admin-events-login" placeholder="ник игрока или пусто = все игроки за 7 дней" />
-          <select id="admin-events-type">
+          <div class="admin-journal-tools">
+            <div class="admin-journal-search">
+              <label>Игрок</label>
+              <input id="admin-events-login" placeholder="Ник игрока или пусто = все игроки за 7 дней" autocomplete="off" />
+              <div id="admin-events-suggestions" class="admin-suggestions admin-events-suggestions hidden"></div>
+            </div>
+            <div class="admin-journal-filter">
+              <label>Тип события</label>
+              <select id="admin-events-type">
             <option value="">Все типы</option>
             <option value="raid">Рейды</option>
             <option value="off_collect">Оффсбор</option>
@@ -264,9 +271,12 @@
             <option value="admin_push_to_wizebot">Админ: пуш в WizeBot</option>
             <option value="sync_wizebot_harvest">Авто: урожай WizeBot → сайт</option>
             <option value="admin_1to1_check">Админ: 1:1 чеклист</option>
-          </select>
-          <button id="admin-load-events">Показать журнал за 7 дней</button>
-          <div id="admin-events-box" class="admin-events-box"></div>
+              </select>
+            </div>
+          </div>
+          <button id="admin-load-events" class="admin-journal-load">Показать журнал за 7 дней</button>
+          <div id="admin-events-summary" class="admin-events-summary"></div>
+          <div id="admin-events-box" class="admin-events-box admin-events-box-polished"></div>
         </div>
       </div>
 
