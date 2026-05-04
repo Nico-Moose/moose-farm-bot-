@@ -6765,155 +6765,158 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 })();
 
-/* ============================================================================
-   SAFE PATCH 2026-05-04: market qty no-abbrev during trade final
-   - prevents old market hotfix click/blur listeners from converting the input to 1.1kk
-   - keeps the exact spaced integer during buy/sell and after refresh
-   ========================================================================== */
-(function(){
-  if (window.__mooseMarketNoAbbrevDuringTradeFinal) return;
-  window.__mooseMarketNoAbbrevDuringTradeFinal = true;
 
-  function parseExact(value) {
+/* === SAFE PATCH 2026-05-04: market exact full-number labels in calc/toasts ===
+   - keeps market qty/calc/toast in full grouped numbers: 1 112 000, not 1.1кк
+   - does not change prices, limits, buttons, or other panels
+*/
+(function marketExactFullNumberFinalPatch(){
+  function meDigits(value){
+    return String(value ?? '').replace(/[^0-9.,кКkKmMмМлЛрРдДbBnN-]/g, '');
+  }
+  function meParse(value){
     const raw = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '').replace(/,/g, '.');
     if (!raw) return 0;
     const m = raw.match(/^(-?\d+(?:\.\d+)?)(млрд|миллиард(?:а|ов)?|b|bn|кк|kk|м|m|к|k)?$/i);
     if (!m) return Math.max(0, Math.floor(Number(raw.replace(/[^0-9.-]/g, '')) || 0));
     const n = Number(m[1] || 0);
-    const s = String(m[2] || '').toLowerCase();
+    const suffix = String(m[2] || '').toLowerCase();
     let mult = 1;
-    if (s === 'к' || s === 'k') mult = 1000;
-    else if (s === 'кк' || s === 'kk' || s === 'м' || s === 'm') mult = 1000000;
-    else if (s === 'млрд' || s === 'b' || s === 'bn' || s.startsWith('миллиард')) mult = 1000000000;
+    if (suffix === 'к' || suffix === 'k') mult = 1000;
+    else if (suffix === 'кк' || suffix === 'kk' || suffix === 'м' || suffix === 'm') mult = 1000000;
+    else if (suffix === 'млрд' || suffix === 'b' || suffix === 'bn' || suffix.startsWith('миллиард')) mult = 1000000000;
     return Math.max(0, Math.floor(n * mult));
   }
-
-  function exactText(value) {
+  function meFormat(value){
     const n = Math.max(0, Math.floor(Number(value || 0)));
     return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
-
-  function getInput() {
-    return document.getElementById('marketQty');
-  }
-
-  function getExact(input) {
+  function meGetQty(input){
     if (!input) return 0;
-    const rawValue = String(input.value || '');
-    const hasShort = /[кkмb]|млрд|миллиард/i.test(rawValue);
-    const stored = Number(input.dataset.exactQty || input.dataset.numericValue || 0);
-    const parsed = parseExact(rawValue);
-    const value = hasShort ? (stored || parsed) : parsed;
-    const safe = Math.max(0, Math.floor(Number(value || 0)));
-    input.dataset.exactQty = String(safe);
-    input.dataset.numericValue = String(safe);
-    input.dataset.prettyQty = exactText(safe);
-    return safe;
+    const fromData = Number(input.dataset.exactQty || input.dataset.numericValue || 0);
+    const parsed = meParse(input.value);
+    const val = input.dataset.exactQty && String(input.value || '').trim() === String(input.dataset.prettyQty || '').trim() ? fromData : parsed;
+    return Math.max(0, Math.floor(Number(val || 0)));
   }
-
-  function setExact(input, value) {
+  function meSetQty(input, value){
     if (!input) return;
-    const safe = Math.max(0, Math.floor(Number(value || 0)));
-    const text = exactText(safe);
-    input.dataset.exactQty = String(safe);
-    input.dataset.numericValue = String(safe);
-    input.dataset.prettyQty = text;
-    input.value = text;
-    try {
-      lastMarketQty = safe;
-      localStorage.setItem('mooseFarmLastMarketQty', String(safe));
-    } catch (_) {}
+    const qty = Math.max(0, Math.floor(Number(value || 0)));
+    const pretty = meFormat(qty);
+    input.dataset.exactQty = String(qty);
+    input.dataset.numericValue = String(qty);
+    input.dataset.prettyQty = pretty;
+    input.value = pretty;
+    try { lastMarketQty = qty; localStorage.setItem('mooseFarmLastMarketQty', String(qty)); } catch (_) {}
+    meUpdateCalc();
   }
-
-  function restoreSoon(value) {
-    [0, 1, 10, 30, 80, 160, 350, 700].forEach((ms) => {
-      setTimeout(() => setExact(getInput(), value), ms);
-    });
+  function meUpdateCalc(){
+    const input = document.getElementById('marketQty');
+    const calc = document.getElementById('marketCalc');
+    if (!input || !calc) return;
+    const data = state || window.state || {};
+    const market = data.market || {};
+    const profile = data.profile || {};
+    const q = meGetQty(input);
+    const buyPrice = Math.max(1, Number(market.buyPrice || 20));
+    const sellPrice = Math.max(1, Number(market.sellPrice || 10));
+    const stock = Math.max(0, Number(market.stock || 0));
+    const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || 0));
+    const parts = Math.max(0, Number(profile.parts || 0));
+    const buyMax = Math.max(0, Math.min(stock, Math.floor(upgradeBalance / buyPrice)));
+    const buyBtn = document.getElementById('marketBuyBtn');
+    const sellBtn = document.getElementById('marketSellBtn');
+    if (buyBtn) buyBtn.disabled = !(q > 0 && q <= buyMax);
+    if (sellBtn) sellBtn.disabled = !(q > 0 && q <= parts);
+    calc.innerHTML = `Калькулятор: купить <b>${meFormat(q)}🔧</b> = <b>${meFormat(q * buyPrice)}💎</b> · продать <b>${meFormat(q)}🔧</b> = <b>${meFormat(q * sellPrice)}💎</b>`;
   }
-
-  function installExactInputGuards() {
-    const input = getInput();
-    if (!input || input.dataset.noAbbrevFinalGuard === '1') return;
-    input.dataset.noAbbrevFinalGuard = '1';
-
-    input.addEventListener('input', () => {
-      const exact = parseExact(input.value);
-      input.dataset.exactQty = String(exact);
-      input.dataset.numericValue = String(exact);
-      input.dataset.prettyQty = input.value;
-      try {
-        lastMarketQty = exact;
-        localStorage.setItem('mooseFarmLastMarketQty', String(exact));
-      } catch (_) {}
-    }, true);
-
-    input.addEventListener('blur', (e) => {
-      const exact = getExact(input);
-      setExact(input, exact);
-      e.stopImmediatePropagation();
-    }, true);
-
-    input.addEventListener('change', (e) => {
-      const exact = getExact(input);
-      setExact(input, exact);
-      e.stopImmediatePropagation();
-    }, true);
+  function meMax(type){
+    const data = state || window.state || {};
+    const market = data.market || {};
+    const profile = data.profile || {};
+    const stock = Math.max(0, Number(market.stock || 0));
+    const buyPrice = Math.max(1, Number(market.buyPrice || 20));
+    const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || 0));
+    const parts = Math.max(0, Number(profile.parts || 0));
+    return type === 'buy' ? Math.max(0, Math.min(stock, Math.floor(upgradeBalance / buyPrice))) : Math.max(0, parts);
   }
-
-  function replaceTradeButton(id, action) {
-    const oldBtn = document.getElementById(id);
-    if (!oldBtn || oldBtn.dataset.noAbbrevFinalButton === '1') return;
-
-    const btn = oldBtn.cloneNode(true);
-    btn.dataset.noAbbrevFinalButton = '1';
-    oldBtn.parentNode.replaceChild(btn, oldBtn);
-
-    btn.onclick = async (e) => {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      const input = getInput();
-      const qty = getExact(input);
-      setExact(input, qty);
-      restoreSoon(qty);
-      try {
-        await marketTrade(action);
-      } finally {
-        setExact(getInput(), qty);
-        restoreSoon(qty);
-      }
-      return false;
+  function meInstall(){
+    const box = document.getElementById('marketBox');
+    const input = document.getElementById('marketQty');
+    if (!box || !input) return;
+    input.setAttribute('inputmode', 'text');
+    input.setAttribute('autocomplete', 'off');
+    const initial = meGetQty(input) || Number(lastMarketQty || 0) || 1000;
+    meSetQty(input, initial);
+    input.oninput = function(){
+      const qty = meParse(input.value);
+      input.dataset.exactQty = String(qty);
+      input.dataset.numericValue = String(qty);
+      input.dataset.prettyQty = String(input.value || '');
+      try { lastMarketQty = qty; localStorage.setItem('mooseFarmLastMarketQty', String(qty)); } catch (_) {}
+      meUpdateCalc();
     };
+    input.onblur = function(){ meSetQty(input, meGetQty(input)); };
+    input.onchange = function(){ meSetQty(input, meGetQty(input)); };
+    box.querySelectorAll('[data-market-delta]').forEach((btn) => {
+      btn.onclick = function(e){ e.preventDefault(); meSetQty(input, meGetQty(input) + Number(btn.getAttribute('data-market-delta') || 0)); };
+    });
+    box.querySelectorAll('[data-market-max]').forEach((btn) => {
+      btn.onclick = function(e){ e.preventDefault(); meSetQty(input, meMax(String(btn.getAttribute('data-market-max') || 'sell'))); };
+    });
+    box.querySelectorAll('[data-market-reset]').forEach((btn) => {
+      btn.onclick = function(e){ e.preventDefault(); meSetQty(input, 0); };
+    });
+    const buyBtn = document.getElementById('marketBuyBtn');
+    const sellBtn = document.getElementById('marketSellBtn');
+    if (buyBtn) buyBtn.onclick = function(e){ e.preventDefault(); marketTrade('buy'); };
+    if (sellBtn) sellBtn.onclick = function(e){ e.preventDefault(); marketTrade('sell'); };
+    meUpdateCalc();
   }
-
-  function installFinalMarketNoAbbrev() {
-    installExactInputGuards();
-    replaceTradeButton('marketBuyBtn', 'buy');
-    replaceTradeButton('marketSellBtn', 'sell');
-    const input = getInput();
-    if (input) setExact(input, getExact(input));
-  }
-
   const prevRenderMarket = typeof renderMarket === 'function' ? renderMarket : null;
   if (prevRenderMarket) {
-    renderMarket = function patchedRenderMarketNoAbbrevDuringTradeFinal(data) {
+    renderMarket = function renderMarketExactFullNumberFinal(data){
       prevRenderMarket(data);
-      try { installFinalMarketNoAbbrev(); } catch (e) { console.warn('[MARKET NO ABBREV FINAL]', e); }
+      try { meInstall(); } catch (e) { console.warn('[MARKET EXACT FULL NUMBER]', e); }
     };
   }
-
-  const prevMarketTrade = typeof marketTrade === 'function' ? marketTrade : null;
-  if (prevMarketTrade) {
-    marketTrade = async function patchedMarketTradeNoAbbrevDuringTradeFinal(action) {
-      const input = getInput();
-      const qty = getExact(input);
-      setExact(input, qty);
-      restoreSoon(qty);
-      try {
-        return await prevMarketTrade(action);
-      } finally {
-        setExact(getInput(), qty);
-        restoreSoon(qty);
+  marketTrade = async function marketTradeExactFullNumberFinal(action){
+    const input = document.getElementById('marketQty');
+    const qty = meGetQty(input);
+    meSetQty(input, qty);
+    if (qty <= 0) { showMessage('❌ Рынок: укажи количество больше 0'); return; }
+    const buyBtn = document.getElementById('marketBuyBtn');
+    const sellBtn = document.getElementById('marketSellBtn');
+    if (buyBtn) buyBtn.disabled = true;
+    if (sellBtn) sellBtn.disabled = true;
+    try {
+      const data = await postJson(`/api/farm/market/${action}`, { qty });
+      if (!data.ok) {
+        const labels = {
+          invalid_quantity: 'укажи количество больше 0',
+          quantity_too_large: `слишком большое число, максимум ${meFormat(data.maxQty || 0)}🔧`,
+          not_enough_parts: `не хватает запчастей: ${meFormat(data.available || 0)}/${meFormat(data.needed || 0)}🔧`,
+          not_enough_upgrade_balance: `не хватает 💎 ап-баланса: сейчас ${meFormat(data.available || 0)} / нужно ${meFormat(data.needed || 0)}`,
+          market_stock_empty: 'склад рынка пуст',
+          not_enough_market_stock: 'на складе рынка недостаточно запчастей'
+        };
+        showMessage(`❌ Рынок: ${labels[data.error] || data.error}`);
+        await loadMe();
+        meSetQty(document.getElementById('marketQty'), qty);
+        return;
       }
-    };
-  }
+      const doneQty = Math.max(0, Number(data.qty || qty));
+      const doneCost = Math.max(0, Number(data.totalCost || 0));
+      showActionToast(action === 'buy' ? '🏪 Покупка на рынке' : '🏪 Продажа на рынке', [
+        action === 'buy' ? `Куплено: <b>${meFormat(doneQty)}🔧</b>` : `Продано: <b>${meFormat(doneQty)}🔧</b>`,
+        action === 'buy' ? `Потрачено: <b>${meFormat(doneCost)}💎</b>` : `Получено: <b>${meFormat(doneCost)}💎</b>`,
+        `Общий склад: <b>${meFormat(data.market?.stock ?? 0)}🔧</b>`
+      ], { kind: 'market' });
+      showMessage(action === 'buy' ? `🔵 Куплено ${meFormat(doneQty)}🔧 за ${meFormat(doneCost)}💎` : `🟢 Продано ${meFormat(doneQty)}🔧 за ${meFormat(doneCost)}💎`);
+      await loadMe();
+      meSetQty(document.getElementById('marketQty'), qty);
+    } finally {
+      meUpdateCalc();
+    }
+  };
+  try { meInstall(); } catch (_) {}
 })();
