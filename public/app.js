@@ -6546,3 +6546,120 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 })();
+
+/* ========================================================================== 
+   HOTFIX 2026-05-04: market plus/minus additive buttons over big values
+   ========================================================================== */
+(function(){
+  function marketQtyParse(value) {
+    const raw = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '').replace(',', '.');
+    if (!raw) return 0;
+    const m = raw.match(/^(-?\d+(?:\.\d+)?)(млрд|млд|b|кк|kk|м|m|к|k)?$/i);
+    if (!m) return Math.max(0, Math.round(Number(raw) || 0));
+    const n = Number(m[1] || 0);
+    const s = String(m[2] || '').toLowerCase();
+    if (s === 'к' || s === 'k') return Math.round(n * 1_000);
+    if (s === 'кк' || s === 'kk' || s === 'м' || s === 'm') return Math.round(n * 1_000_000);
+    if (s === 'млрд' || s === 'млд' || s === 'b') return Math.round(n * 1_000_000_000);
+    return Math.round(n);
+  }
+
+  function marketQtyPretty(value) {
+    const n = Math.max(0, Math.round(Number(value || 0)));
+    const fmt = (num) => String(num.toFixed(num < 10 ? 2 : num < 100 ? 1 : 0)).replace(/\.0+$/,'').replace(/(\.\d*[1-9])0$/,'$1');
+    if (n >= 1_000_000_000) return `${fmt(n / 1_000_000_000)}млрд`;
+    if (n >= 1_000_000) return `${fmt(n / 1_000_000)}кк`;
+    if (n >= 1_000) return `${fmt(n / 1_000)}к`;
+    return String(n);
+  }
+
+  function marketQtyInput() {
+    return document.getElementById('marketQty');
+  }
+
+  function marketQtyGet() {
+    const input = marketQtyInput();
+    if (!input) return 0;
+    const fromTyped = marketQtyParse(input.value);
+    const fromDataset = marketQtyParse(input.dataset.numericValue);
+    const n = Math.max(0, fromTyped || fromDataset || 0);
+    input.dataset.numericValue = String(n);
+    return n;
+  }
+
+  function marketQtySet(value) {
+    const input = marketQtyInput();
+    if (!input) return;
+    const n = Math.max(0, Math.round(Number(value || 0)));
+    input.dataset.numericValue = String(n);
+    input.value = marketQtyPretty(n);
+    try {
+      lastMarketQty = n;
+      localStorage.setItem('mooseFarmLastMarketQty', String(n));
+    } catch (_) {}
+    try {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (_) {}
+  }
+
+  function replaceMarketButton(btn, label, handler) {
+    if (!btn) return;
+    const fresh = btn.cloneNode(true);
+    fresh.textContent = label;
+    fresh.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      handler();
+    }, true);
+    btn.replaceWith(fresh);
+  }
+
+  const prevRenderMarket = typeof renderMarket === 'function' ? renderMarket : null;
+  if (prevRenderMarket && !window.__mooseMarketAdditiveButtonsBigValuesFix) {
+    window.__mooseMarketAdditiveButtonsBigValuesFix = true;
+    renderMarket = function patchedRenderMarketAdditiveButtons(data) {
+      prevRenderMarket(data);
+
+      const box = document.getElementById('marketBox');
+      if (!box || !marketQtyInput()) return;
+
+      const market = data.market || {};
+      const profile = data.profile || {};
+      const stock = Math.max(0, Number(market.stock || 0));
+      const buyPrice = Math.max(1, Number(market.buyPrice || 20));
+      const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || 0));
+      const maxBuy = Math.max(0, Math.min(stock, Math.floor(upgradeBalance / buyPrice)));
+      const maxSell = Math.max(0, Number(profile.parts || 0));
+
+      const plusButtons = [
+        ['1000', '+1к', 1_000],
+        ['10000', '+10к', 10_000],
+        ['100000', '+100к', 100_000],
+        ['1000000', '+1кк', 1_000_000]
+      ];
+      plusButtons.forEach(([preset, label, delta]) => {
+        replaceMarketButton(box.querySelector(`[data-market-preset="${preset}"]`), label, () => {
+          marketQtySet(marketQtyGet() + delta);
+        });
+      });
+
+      replaceMarketButton(box.querySelector('[data-market-preset="buyMax"]'), 'макс купить', () => marketQtySet(maxBuy));
+      replaceMarketButton(box.querySelector('[data-market-preset="sellMax"]'), 'макс продать', () => marketQtySet(maxSell));
+
+      const minusButtons = [
+        ['-1000', '-1к', -1_000],
+        ['-10000', '-10к', -10_000],
+        ['-100000', '-100к', -100_000],
+        ['-1000000', '-1кк', -1_000_000]
+      ];
+      minusButtons.forEach(([adjust, label, delta]) => {
+        replaceMarketButton(box.querySelector(`[data-market-adjust="${adjust}"]`), label, () => {
+          marketQtySet(Math.max(0, marketQtyGet() + delta));
+        });
+      });
+
+      marketQtySet(marketQtyGet());
+    };
+  }
+})();
