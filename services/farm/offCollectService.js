@@ -14,13 +14,13 @@ function offCollect(profile, now = Date.now()) {
   const minutes = Math.min(60, Math.floor(diff / 60000));
   const hours = minutes / 60;
 
-  // Оффсбор = 50% только от дохода фермы: пассив + растения + животные.
-  // Бонусные, фабрика, шахта и другие монетные здания здесь НЕ учитываются.
-  const passive = getPassiveIncomePerHour(profile) * hours;
-  const harvest = (getPlantIncomePerHour(profile) + getAnimalIncomePerHour(profile)) * hours;
-  const income = Math.round((passive + harvest) * 0.5);
+  // Оффсбор = 50% от всего дохода в час.
+  // Сюда входят: пассив, растения, животные и монетные здания.
+  const hourlyTotal = estimateHourlyIncome(profile) * hours;
+  const income = Math.round(hourlyTotal * 0.5);
 
-  // Запчасти = только завод / 2. Фабрика и шахта НЕ усиливают оффсбор.
+  // Запчасти = только завод / 2.
+  // Для оффсбора берём именно базовое производство завода без бонусов шахты/фабрики.
   let partsIncome = 0;
   const lvl = num(profile.farm.buildings?.['завод'], 0);
   const conf = profile.configs.buildings?.['завод'];
@@ -35,7 +35,7 @@ function offCollect(profile, now = Date.now()) {
   profile.last_collect_at = now;
   profile.farm.lastWithdrawAt = now;
 
-  return { ok: true, income, partsIncome, minutes, passive: Math.round(passive), harvest: Math.round(harvest), profile };
+  return { ok: true, income, partsIncome, minutes, hourlyTotal: Math.round(hourlyTotal), profile };
 }
 
 module.exports = { offCollect };
