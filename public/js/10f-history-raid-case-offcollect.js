@@ -356,16 +356,17 @@
     const cs = data.caseStatus || {};
     const gamus = data.gamus || {};
     const ranges = gamus.ranges || {};
-    const lastCases = (cs.history || []).slice(0, 5).map((h) => `<li>${new Date(h.date).toLocaleString('ru-RU')} — ${prizeLabel(h)} за ${pFmt(h.cost)}💰</li>`).join('') || '<li>История пока пустая</li>';
     box.innerHTML = `
-      <div class="combat-card">
+      <div class="combat-card polished-extra-card">
         <h3>🎰 Кейс</h3>
         <p>Доступ: <b>${cs.unlocked ? 'да' : 'с 30 уровня фермы'}</b></p>
         <p>Цена: <b>${pFmt(cs.cost || 0)}💰</b> | множитель: <b>x${Number(cs.finalMultiplier || 1).toFixed(2)}</b></p>
         <p>Призы: <b>${pFmt(ranges.minMoney || cs.minMoney || 0)}-${pFmt(ranges.maxMoney || cs.maxMoney || 0)}💎</b> / <b>${pFmt(ranges.minParts || cs.minParts || 0)}-${pFmt(ranges.maxParts || cs.maxParts || 0)}🔧</b></p>
         <p>Кулдаун: <b>${cs.remainingMs ? formatTime(cs.remainingMs) : 'готово ✅'}</b></p>
-        <button id="openCaseBtn" ${!cs.unlocked || cs.remainingMs ? 'disabled' : ''}>🎰 Открыть кейс</button>
-        <details><summary>Последние кейсы</summary><ol>${lastCases}</ol></details>
+        <div class="extra-actions">
+          <button id="openCaseBtn" ${!cs.unlocked || cs.remainingMs ? 'disabled' : ''}>🎰 Открыть кейс</button>
+          <button id="showCaseHistoryBtn" class="ghost-action">📜 Последние кейсы</button>
+        </div>
       </div>
       <div class="combat-card">
         <h3>🧠 GAMUS</h3>
@@ -382,6 +383,10 @@
       </div>
     `;
     document.getElementById('openCaseBtn')?.addEventListener('click', openCase);
+    document.getElementById('showCaseHistoryBtn')?.addEventListener('click', () => {
+      if (typeof loadCaseHistory === 'function') return loadCaseHistory();
+      if (typeof showCaseHistoryModal === 'function') return showCaseHistoryModal(cs.history || []);
+    });
     document.getElementById('gamusBtn')?.addEventListener('click', claimGamus);
     document.getElementById('offCollectBtn')?.addEventListener('click', offCollect);
   };
