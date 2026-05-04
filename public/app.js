@@ -6036,3 +6036,60 @@ document.addEventListener('DOMContentLoaded', () => {
     if(topsBox && !topsBox.dataset.loaded) loadTops();
   };
 })();
+
+/* ==========================================================================
+   PATCH: market preset human qty parse only
+   ========================================================================== */
+(function(){
+  function parseMarketHumanQty(value) {
+    const raw = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '').replace(',', '.');
+    if (!raw) return 0;
+    const match = raw.match(/^(\d+(?:\.\d+)?)(кк|kk|к|k|м|m)?$/i);
+    if (!match) return Number(raw) || 0;
+    const n = Number(match[1] || 0);
+    const suffix = match[2] || '';
+    if (suffix === 'к' || suffix === 'k') return Math.floor(n * 1000);
+    if (suffix === 'кк' || suffix === 'kk' || suffix === 'м' || suffix === 'm') return Math.floor(n * 1000000);
+    return Math.floor(n);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.parseMarketHumanQty = parseMarketHumanQty;
+  }
+
+  const oldMarketTrade = typeof marketTrade === 'function' ? marketTrade : null;
+  if (oldMarketTrade && !window.__mooseMarketHumanQtyPatch) {
+    window.__mooseMarketHumanQtyPatch = true;
+    marketTrade = async function marketTrade(action) {
+      const qtyInput = document.getElementById('marketQty');
+      const qty = parseMarketHumanQty(qtyInput?.value || 0);
+      if (qtyInput) qtyInput.value = String(qty);
+      return oldMarketTrade(action);
+    };
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target?.closest?.('[data-market-preset]');
+    if (!btn) return;
+    const input = document.getElementById('marketQty');
+    if (!input) return;
+    const preset = String(btn.getAttribute('data-market-preset') || '');
+    const map = {
+      '1к': 1000,
+      '1k': 1000,
+      '10к': 10000,
+      '10k': 10000,
+      '100к': 100000,
+      '100k': 100000,
+      '1кк': 1000000,
+      '1kk': 1000000
+    };
+    if (map[preset]) {
+      input.value = String(map[preset]);
+      try {
+        lastMarketQty = map[preset];
+        localStorage.setItem('mooseFarmLastMarketQty', String(map[preset]));
+      } catch (_) {}
+    }
+  }, true);
+})();
