@@ -22,6 +22,7 @@
     state = merged;
     try {
       render(merged);
+      refreshActionPanelsNow();
       return true;
     } catch (e) {
       console.warn('[LIVE APPLY]', e);
@@ -48,7 +49,7 @@
 
     applyLiveActionState(data);
     showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost || 0)}💰${data.totalParts ? ` / ${formatNumber(data.totalParts)}🔧` : ''}`);
-    setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
+    scheduleReconcileRefresh(120);
   }
 
   async function bindFinalFarmUpgradeButton(id, count) {
@@ -108,6 +109,17 @@
     return !!(data && data.profile && data.farmInfo && data.market && data.raidUpgrades && data.turret);
   }
 
+  function scheduleReconcileRefresh(delay) {
+    setTimeout(() => { loadMe(true).catch(() => {}); }, Number(delay || 120));
+  }
+
+  function refreshActionPanelsNow() {
+    const active = document.querySelector('.farm-tab-panel.active')?.getAttribute('data-farm-panel') || 'main';
+    if (active === 'buildings' && typeof refreshBuildingsIfVisible === 'function') {
+      refreshBuildingsIfVisible(true);
+    }
+  }
+
   function mergeForRender(data) {
     if (!data || !data.profile) return false;
     const prev = state || {};
@@ -121,7 +133,7 @@
       turret: data.turret || prev.turret || {},
       raid: data.raid || prev.raid || {},
       nextUpgrade: data.nextUpgrade || prev.nextUpgrade || {},
-      nextLicense: Object.prototype.hasOwnProperty.call(data || {}, 'nextLicense') ? data.nextLicense : prev.nextLicense,
+      nextLicense: Object.prototype.hasOwnProperty.call(data || {}, 'nextLicense') ? data.nextLicense : ((Number(data?.profile?.license_level || 0) >= 120) ? null : prev.nextLicense),
       caseStatus: data.caseStatus || prev.caseStatus || {},
       gamus: data.gamus || prev.gamus || {},
       raidInfo: data.raidInfo || prev.raidInfo || {},
@@ -133,6 +145,7 @@
     state = merged;
     try {
       render(merged);
+      refreshActionPanelsNow();
       return true;
     } catch (e) {
       console.warn('[ACTION LIVE FIX render]', e);
@@ -200,6 +213,7 @@
       await loadMe(true);
     } else {
       mergeForRender(data);
+      scheduleReconcileRefresh(120);
     }
 
     showMessage(successMessage);
