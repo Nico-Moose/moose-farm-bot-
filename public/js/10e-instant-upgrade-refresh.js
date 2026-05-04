@@ -121,7 +121,7 @@
       turret: data.turret || prev.turret || {},
       raid: data.raid || prev.raid || {},
       nextUpgrade: data.nextUpgrade || prev.nextUpgrade || {},
-      nextLicense: data.nextLicense || prev.nextLicense || {},
+      nextLicense: Object.prototype.hasOwnProperty.call(data || {}, 'nextLicense') ? data.nextLicense : prev.nextLicense,
       caseStatus: data.caseStatus || prev.caseStatus || {},
       gamus: data.gamus || prev.gamus || {},
       raidInfo: data.raidInfo || prev.raidInfo || {},

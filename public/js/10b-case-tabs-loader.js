@@ -36,6 +36,9 @@
       if (activePanel === 'tops' || activePanel === 'info') {
         refreshTopsIfVisible(true).catch((err) => console.warn('[TOPS]', err));
       }
+      if (activePanel === 'buildings' && typeof refreshBuildingsIfVisible === 'function') {
+        refreshBuildingsIfVisible(true);
+      }
     } catch (error) {
       document.getElementById('profile').textContent = 'Ошибка загрузки профиля';
       console.error(error);
@@ -53,6 +56,9 @@
 
     if (target === 'tops' || target === 'info') {
       refreshTopsIfVisible(true).catch((err) => console.warn('[TOPS]', err));
+    }
+    if (target === 'buildings' && typeof refreshBuildingsIfVisible === 'function') {
+      refreshBuildingsIfVisible(true);
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });

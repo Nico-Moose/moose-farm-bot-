@@ -325,16 +325,18 @@
 
 
   window.refreshBuildingsIfVisible = function refreshBuildingsIfVisible(force) {
-    if (!isFarmTabActive || !isFarmTabActive('buildings')) return false;
+    const active = document.querySelector('.farm-tab-panel.active')?.getAttribute('data-farm-panel');
+    if (!force && active !== 'buildings') return false;
     if (!state?.profile) return false;
     try {
       renderBuildings(state);
       return true;
-    } catch (err) {
-      console.warn('[BUILDINGS REFRESH]', err);
+    } catch (e) {
+      console.warn('[BUILDINGS REFRESH]', e);
       return false;
     }
   };
+
 
   window.hasRenderedBuildings = function hasRenderedBuildings() {
     const el = document.getElementById('buildings');

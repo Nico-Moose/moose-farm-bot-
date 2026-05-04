@@ -186,23 +186,32 @@ function renderQuickStatus(data) {
 function renderLicense(data) {
   const box = document.getElementById('licenseBox');
   if (!box) return;
-  const next = data.nextLicense;
-  if (!next) {
+
+  const profile = data?.profile || {};
+  const currentLevel = Number(profile.license_level || 0);
+  const next = data?.nextLicense || null;
+  const nextLevel = Number(next?.level || 0);
+  const nextCost = Number(next?.cost || 0);
+  const invalidNext = !next || !Number.isFinite(nextLevel) || nextLevel <= currentLevel || nextCost <= 0;
+
+  if (invalidNext) {
     box.innerHTML = '';
     box.style.display = 'none';
+    box.classList.add('hidden');
     return;
   }
+
   box.style.display = '';
-  const p = data.profile || {};
-  const st = resourceStatus(p, next.cost, 0);
+  box.classList.remove('hidden');
+  const st = resourceStatus(profile, nextCost, 0);
   box.innerHTML = `
     <div class="license-card compact-license-card">
       <h2>🎟 Лицензии</h2>
-      <p>Сейчас открыто до: <b>${p.license_level ? p.license_level : 39}</b> уровня</p>
-      <p>Следующая лицензия: <b>${next.level}</b> уровень</p>
-      <p>Цена: <b>${formatNumber(next.cost)}💰</b></p>
+      <p>Сейчас открыто до: <b>${currentLevel || 39}</b> уровня</p>
+      <p>Следующая лицензия: <b>${nextLevel}</b> уровень</p>
+      <p>Цена: <b>${formatNumber(nextCost)}💰</b></p>
       <p class="resource-line">У тебя: <b>${formatNumber(st.coins)}💰</b>${st.coinsOk ? ' ✅' : ` ❌ не хватает ${formatNumber(st.missingCoins)}💰`}</p>
-      <button id="buyLicenseBtn">🎟 Купить лицензию до ${next.level}</button>
+      <button id="buyLicenseBtn">🎟 Купить лицензию до ${nextLevel}</button>
     </div>
   `;
   document.getElementById('buyLicenseBtn')?.addEventListener('click', buyLicense);
