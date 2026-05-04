@@ -6591,16 +6591,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function mqInputText(value) {
     const n = Math.max(0, Math.floor(Number(value || 0)));
-    if (n >= 1_000_000_000) {
-      if (n % 1_000_000 === 0) return `${trimFixed(n / 1_000_000_000, 3)}млрд`;
-      return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-    }
-    if (n >= 1_000_000) {
-      if (n % 1_000 === 0) return `${trimFixed(n / 1_000_000, 3)}кк`;
-      return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-    }
-    if (n >= 1_000 && n % 1_000 === 0) return `${trimFixed(n / 1_000, 3)}к`;
-    return String(n);
+    // В поле рынка всегда показываем точное число, без сокращений "1к/1кк/1млрд".
+    // Так маленькие шаги +/- остаются понятными на больших суммах: 1 070 700, 12 001 000, 1 000 010 000.
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   }
 
   function mqPretty(value) {
@@ -6696,7 +6689,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const minusRow = document.createElement('div');
     minusRow.className = 'market-preset-row market-preset-row-minus market-preset-grid';
-    minusRow.innerHTML = MARKET_STEPS.map((s) => `<button type="button" class="market-preset-btn-eq" data-market-delta="-${s.value}">-${s.label}</button>`).join('');
+    minusRow.innerHTML = MARKET_STEPS.map((s) => `<button type="button" class="market-preset-btn-eq" data-market-delta="-${s.value}">-${s.label}</button>`).join('') +
+      '<button type="button" class="market-preset-btn-eq" data-market-reset="1">0</button>';
 
     actions.parentNode.insertBefore(plusRow, actions);
     actions.parentNode.insertBefore(minusRow, actions);
@@ -6732,6 +6726,13 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.onclick = (e) => {
         e.preventDefault();
         mqSet(input, mqMax(String(btn.getAttribute('data-market-max') || 'sell')));
+      };
+    });
+
+    box.querySelectorAll('[data-market-reset]').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        mqSet(input, 0);
       };
     });
 
