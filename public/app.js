@@ -6321,3 +6321,171 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 })();
+
+/* ==========================================================================
+   PATCH: market input sync + equal preset sizes + clearer UX
+   ========================================================================== */
+(function(){
+  function mqParse(value) {
+    const raw = String(value ?? '').trim().toLowerCase().replace(/\s+/g, '').replace(',', '.');
+    if (!raw) return 0;
+    const m = raw.match(/^(-?\d+(?:\.\d+)?)(кк|kk|к|k|млрд|b|м|m)?$/i);
+    if (!m) return Number(raw) || 0;
+    const n = Number(m[1] || 0);
+    const s = String(m[2] || '').toLowerCase();
+    if (s === 'к' || s === 'k') return Math.round(n * 1_000);
+    if (s === 'кк' || s === 'kk' || s === 'м' || s === 'm') return Math.round(n * 1_000_000);
+    if (s === 'млрд' || s === 'b') return Math.round(n * 1_000_000_000);
+    return Math.round(n);
+  }
+
+  function mqPretty(value) {
+    const n = Math.max(0, Math.round(Number(value || 0)));
+    const fmt = (num) => String(num.toFixed(num < 10 ? 2 : num < 100 ? 1 : 0)).replace(/\.0+$/,'').replace(/(\.\d*[1-9])0$/,'$1');
+    if (n >= 1_000_000_000) return `${fmt(n / 1_000_000_000)}млрд`;
+    if (n >= 1_000_000) return `${fmt(n / 1_000_000)}кк`;
+    if (n >= 1_000) return `${fmt(n / 1_000)}к`;
+    return String(n);
+  }
+
+  function mqGetInput() {
+    const input = document.getElementById('marketQty');
+    if (!input) return 0;
+    const parsed = Math.max(0, mqParse(input.dataset.numericValue || input.value || 0));
+    input.dataset.numericValue = String(parsed);
+    return parsed;
+  }
+
+  function mqSetInput(value, opts = {}) {
+    const input = document.getElementById('marketQty');
+    if (!input) return;
+    const n = Math.max(0, Math.round(Number(value || 0)));
+    input.dataset.numericValue = String(n);
+    input.value = opts.raw ? String(n) : mqPretty(n);
+    try {
+      lastMarketQty = n;
+      localStorage.setItem('mooseFarmLastMarketQty', String(n));
+    } catch (_) {}
+    if (typeof updateMarketCalc === 'function') {
+      try { updateMarketCalc(); } catch (_) {}
+    }
+    // Trigger any old listeners that recalc from input/change events
+    try {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (_) {}
+  }
+
+  function ensureCalcMatchesInput() {
+    const n = mqGetInput();
+    mqSetInput(n);
+  }
+
+  const oldRenderMarket = typeof renderMarket === 'function' ? renderMarket : null;
+  if (oldRenderMarket && !window.__mooseMarketSyncFix) {
+    window.__mooseMarketSyncFix = true;
+    renderMarket = function patchedRenderMarketSync(data) {
+      oldRenderMarket(data);
+
+      const box = document.getElementById('marketBox');
+      const input = document.getElementById('marketQty');
+      if (!box || !input) return;
+
+      const topRow = box.querySelector('.market-preset-row');
+      if (topRow) {
+        topRow.classList.add('market-preset-grid');
+        topRow.querySelectorAll('button').forEach((btn) => btn.classList.add('market-preset-btn-eq'));
+      }
+      const minusRow = box.querySelector('.market-preset-row-minus');
+      if (minusRow) {
+        minusRow.classList.add('market-preset-grid');
+        minusRow.querySelectorAll('button').forEach((btn) => btn.classList.add('market-preset-btn-eq'));
+      }
+
+      const calc = document.getElementById('marketCalc');
+      if (calc && !box.querySelector('.market-calc-hint')) {
+        const hint = document.createElement('div');
+        hint.className = 'market-calc-hint';
+        hint.innerHTML = 'Поле можно менять кнопками <b>+</b>/<b>-</b> или вручную. Калькулятор всегда считает по текущему значению поля.';
+        calc.insertAdjacentElement('beforebegin', hint);
+      }
+
+      mqSetInput(Number(lastMarketQty || input.dataset.numericValue || mqParse(input.value) || 0));
+
+      const syncPretty = () => ensureCalcMatchesInput();
+      input.setAttribute('inputmode', 'text');
+      input.setAttribute('autocomplete', 'off');
+      input.addEventListener('focus', () => {
+        const n = mqGetInput();
+        input.value = mqPretty(n);
+      });
+      input.addEventListener('blur', syncPretty);
+      input.addEventListener('change', syncPretty);
+      input.addEventListener('input', () => {
+        input.dataset.numericValue = String(Math.max(0, mqParse(input.value)));
+        if (typeof updateMarketCalc === 'function') {
+          try { updateMarketCalc(); } catch (_) {}
+        }
+      });
+
+      const addMap = {
+        '1к': 1_000, '1k': 1_000, '1000': 1_000,
+        '10к': 10_000, '10k': 10_000, '10000': 10_000,
+        '100к': 100_000, '100k': 100_000, '100000': 100_000,
+        '1кк': 1_000_000, '1kk': 1_000_000, '1000000': 1_000_000
+      };
+
+      box.querySelectorAll('[data-market-preset]').forEach((btn) => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const preset = String(btn.getAttribute('data-market-preset') || '').toLowerCase();
+          const current = mqGetInput();
+          if (preset === 'buymax' || preset === 'макс купить') {
+            const market = data.market || {};
+            const profile = data.profile || {};
+            const stock = Math.max(0, Number(market.stock || 0));
+            const buyPrice = Math.max(1, Number(market.buyPrice || 20));
+            const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || 0));
+            return mqSetInput(Math.max(0, Math.min(stock, Math.floor(upgradeBalance / buyPrice))));
+          }
+          if (preset === 'sellmax' || preset === 'макс продать') {
+            return mqSetInput(Math.max(0, Number((data.profile || {}).parts || 0)));
+          }
+          if (Object.prototype.hasOwnProperty.call(addMap, preset)) {
+            return mqSetInput(current + addMap[preset]);
+          }
+        };
+      });
+
+      box.querySelectorAll('[data-market-adjust]').forEach((btn) => {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const delta = Number(btn.getAttribute('data-market-adjust') || 0);
+          mqSetInput(Math.max(0, mqGetInput() + delta));
+        };
+      });
+
+      const buyBtn = document.getElementById('marketBuyBtn');
+      const sellBtn = document.getElementById('marketSellBtn');
+      [buyBtn, sellBtn].forEach((btn, idx) => {
+        if (!btn) return;
+        const action = idx === 0 ? 'buy' : 'sell';
+        btn.onclick = async (e) => {
+          e.preventDefault();
+          const qty = mqGetInput();
+          const pretty = mqPretty(qty);
+          mqSetInput(qty, { raw: true });
+          try {
+            await marketTrade(action);
+          } finally {
+            mqSetInput(qty);
+            const input = document.getElementById('marketQty');
+            if (input) input.value = pretty;
+          }
+        };
+      });
+
+      ensureCalcMatchesInput();
+    };
+  }
+})();
