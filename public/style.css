@@ -2261,142 +2261,86 @@ button.is-busy,
   .building-actions-v3 { grid-template-columns: 1fr; }
 }
 
-/* FIX 2026-05-04: clean separate resources strip for buildings */
-.buildings-resources-section {
-  margin-bottom: 18px;
-}
-.buildings-resources-head {
-  padding-bottom: 8px;
-}
-.buildings-resources-head h2 {
-  margin: 0;
-  font-size: 1.15rem;
-}
-.buildings-resources-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  padding-top: 2px;
-}
-.buildings-resource-item {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.08);
-  background: rgba(255,255,255,.035);
-}
-.buildings-resource-item span {
-  opacity: .78;
-  font-weight: 700;
-}
-.buildings-resource-item b {
-  font-size: 1.55rem;
-  line-height: 1;
-}
 
-.buildings-clean-grid {
+/* === PATCH: buildings visual only (match cleaner 3-card layout) === */
+.buildings-grid-s1 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
   align-items: stretch;
 }
-.building-card-clean {
+.building-card-s1 {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 18px;
-  border-radius: 22px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.02));
   border: 1px solid rgba(255,255,255,.08);
-  background: linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
 }
-.building-card-clean.locked,
-.building-card-clean.maxed {
-  opacity: .72;
+.building-card-s1.locked,
+.building-card-s1.blocked {
+  opacity: .78;
 }
-.building-card-clean__head {
+.building-head-s1 {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
-.building-card-clean__head h3 {
+.building-head-s1 h3 {
   margin: 0;
-  font-size: 1.15rem;
-  line-height: 1.15;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
-.building-card-clean__level {
-  flex: 0 0 auto;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(139, 226, 101, .35);
-  background: rgba(139, 226, 101, .14);
-  font-size: .82rem;
-  font-weight: 800;
-}
-.building-card-clean__meta {
+.building-pairs-s1 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-.building-card-clean__meta > div,
-.building-card-clean__effects,
-.building-card-clean__pack {
+.building-pairs-s1 > div {
+  min-width: 0;
+  background: rgba(255,255,255,.045);
   border: 1px solid rgba(255,255,255,.08);
-  background: rgba(255,255,255,.04);
   border-radius: 16px;
-}
-.building-card-clean__meta > div {
-  padding: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.building-card-clean__meta span {
+.building-pairs-s1 span {
   opacity: .72;
 }
-.building-card-clean__meta b {
-  font-size: 1.05rem;
-  line-height: 1.2;
+.building-pairs-s1 b {
+  line-height: 1.22;
+  overflow-wrap: anywhere;
 }
-.building-card-clean__effects {
-  padding: 12px 14px;
+.building-text-lines-s1 {
   display: grid;
   gap: 10px;
-  line-height: 1.45;
 }
-.building-card-clean__pack {
+.building-text-lines-s1 > div {
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
   padding: 12px 14px;
-  font-weight: 700;
+  line-height: 1.35;
 }
-.building-card-clean__actions {
+.building-card-s1 .building-actions-v3 {
   margin-top: auto;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
 }
-.building-card-clean__actions button:only-child {
-  grid-column: 1 / -1;
-}
-
-@media (max-width: 1100px) {
-  .buildings-clean-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .buildings-resources-grid {
+@media (max-width: 1120px) {
+  .buildings-grid-s1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
-
-@media (max-width: 700px) {
-  .buildings-clean-grid,
-  .buildings-resources-grid,
-  .building-card-clean__meta,
-  .building-card-clean__actions {
+@media (max-width: 720px) {
+  .buildings-grid-s1,
+  .building-pairs-s1,
+  .building-card-s1 .building-actions-v3 {
     grid-template-columns: 1fr;
   }
 }
