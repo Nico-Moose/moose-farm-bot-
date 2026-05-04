@@ -1,12 +1,9 @@
 const express = require("express");
 const { requireAdmin } = require("../middleware/requireAdmin");
-const { syncWizebotFarmToProfile } = require("../services/wizebotSyncService");
-const { syncProfileToWizebot } = require("../services/wizebotApiService");
 const { upsertTwitchUser, getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
 const { getStreamStatus, setSetting } = require("../services/streamStatusService");
 const { setMarketStock } = require("../services/farm/marketService");
-const registerAdminBalanceRoutes = require("./admin/registerAdminBalanceRoutes");
-const registerAdminLevelRoutes = require("./admin/registerAdminLevelRoutes");
+const registerAdminSyncRoutes = require("./admin/registerAdminSyncRoutes");
 
 function parseAmount(value) {
   if (typeof value === "number") return Math.trunc(value);
@@ -215,22 +212,6 @@ module.exports = function (db) {
 
   router.use(requireAdmin);
 
-  registerAdminBalanceRoutes(router, {
-    db,
-    parseAmount,
-    getProfileByLogin,
-    updateFarmJsonParts,
-    logAdminEvent,
-  });
-
-  registerAdminLevelRoutes(router, {
-    db,
-    clampInt,
-    getProfileByLogin,
-    updateFarmJsonLevel,
-    logAdminEvent,
-  });
-
 
   // Admin: set one editable player field from profile preview
     router.post('/player/set-field', (req, res) => {
@@ -318,208 +299,170 @@ module.exports = function (db) {
 
 
 
-  async function importLegacyFarmToSite(login, source = 'admin_import_legacy_farm') {
-    login = String(login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
-    if (!login) return { ok: false, error: 'Укажи ник игрока' };
 
-    let profile = getProfileByLogin(db, login);
+  router.post("/give-farm-balance", (req, res) => {
+    const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
+    const amount = parseAmount(req.body.amount);
 
-    // Создаём профиль на сайте, если игрок ещё не заходил через Twitch.
-    if (!profile) {
-      upsertTwitchUser({
-        id: `legacy:${login}`,
-        login,
-        display_name: login,
-        profile_image_url: ''
-      });
-      profile = getProfileByLogin(db, login);
+    if (!login || !Number.isFinite(amount)) {
+      return res.status(400).json({ ok: false, error: "Нужен login и amount" });
     }
 
-    if (!profile) return { ok: false, error: 'Не удалось создать профиль игрока на сайте' };
-
-    saveFarmBackup(profile, 'before_import_legacy_farm');
-
-    // syncWizebotFarmToProfile читает старые WizeBot vars:
-    // farm_, farm_virtual_balance_, farm_upgrade_balance_, farm_total_income_, farm_last_,
-    // farm_license_, farm_protection_level_, farm_raid_power_, farm_defense_building_.
-    const result = await syncWizebotFarmToProfile({ login, profile, allowAnyLogin: true });
-    if (!result.ok) return result;
-
-    const updatedProfile = updateProfile({ ...profile, ...result.profile, twitch_id: profile.twitch_id });
-
-    // Сразу кладём новую farm_v2 модель обратно в WizeBot, как делает команда !мигрферма.
-    let pushBack = null;
-    try {
-      pushBack = await syncProfileToWizebot(updatedProfile);
-    } catch (error) {
-      pushBack = { ok: false, error: error.message || String(error) };
-    }
-
-    const freshProfile = getProfileById(profile.twitch_id);
-    logAdminEvent(db, profile.twitch_id, source, {
-      login,
-      imported: result.imported || null,
-      pushBack
-    });
-
-    return {
-      ok: true,
-      profile: freshProfile,
-      imported: result.imported || null,
-      pushBack
-    };
-  }
-
-  async function syncPlayerFromWizebot(login, source = 'admin_sync_from_wizebot') {
-    login = String(login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
-    if (!login) return { ok: false, error: 'Укажи ник игрока' };
-
-    let profile = getProfileByLogin(db, login);
-
-    // ВАЖНО: импорт из WizeBot должен работать даже если игрок ещё не заходил на сайт.
-    // Создаём локальную карточку игрока с техническим twitch_id.
-    if (!profile) {
-      upsertTwitchUser({
-        id: `wizebot:${login}`,
-        login,
-        display_name: login,
-        profile_image_url: ''
-      });
-      profile = getProfileByLogin(db, login);
-    }
-
-    if (!profile) return { ok: false, error: 'Не удалось создать профиль игрока на сайте' };
-
-    const result = await syncWizebotFarmToProfile({ login, profile, allowAnyLogin: true });
-    if (!result.ok) return result;
-
-    const updatedProfile = updateProfile({ ...profile, ...result.profile, twitch_id: profile.twitch_id });
-
-    // Сразу пушим назад в WizeBot уже собранную новую модель, чтобы !ферма2 / farm_v2 видели те же данные.
-    let pushBack = null;
-    try {
-      pushBack = await syncProfileToWizebot(updatedProfile);
-    } catch (error) {
-      pushBack = { ok: false, error: error.message || String(error) };
-    }
-
-    logAdminEvent(db, profile.twitch_id, source, { login, imported: result.imported || null, pushBack });
-    return { ok: true, profile: getProfileById(profile.twitch_id), imported: result.imported || null, pushBack };
-  }
-
-  async function pushPlayerToWizebot(login, source = 'admin_push_to_wizebot') {
     const profile = getProfileByLogin(db, login);
-    if (!profile) return { ok: false, error: 'Игрок не найден' };
-    const result = await syncProfileToWizebot(profile);
-    logAdminEvent(db, profile.twitch_id, source, { login, result });
-    return { ok: true, profile: getProfileById(profile.twitch_id), result };
-  }
+    if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
 
-  router.get("/players", (req, res) => {
-    res.json({ ok: true, players: listPlayerLogins(req.query.prefix || '') });
+    const next = profile.farm_balance + amount;
+
+    db.prepare(`
+      UPDATE farm_profiles
+      SET farm_balance = ?, updated_at = ?
+      WHERE twitch_id = ?
+    `).run(next, Date.now(), profile.twitch_id);
+
+    logAdminEvent(db, profile.twitch_id, "admin_farm_balance", { amount, next });
+
+    res.json({
+      ok: true,
+      message: `Фермерский баланс изменён на ${amount}. Теперь: ${next}`,
+      profile: getProfileByLogin(db, login)
+    });
   });
 
-  router.get("/player/:nick", (req, res) => {
-    const profile = getProfileByLogin(db, req.params.nick);
+  router.post("/give-upgrade-balance", (req, res) => {
+    const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
+    const amount = parseAmount(req.body.amount);
 
-    if (!profile) {
-      return res.status(404).json({
-        ok: false,
-        error: "Игрок не найден. Он должен хотя бы раз войти на сайт через Twitch."
-      });
+    if (!login || !Number.isFinite(amount)) {
+      return res.status(400).json({ ok: false, error: "Нужен login и amount" });
     }
 
-    res.json({ ok: true, profile });
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
+
+    const next = Math.max(0, profile.upgrade_balance + amount);
+
+    db.prepare(`
+      UPDATE farm_profiles
+      SET upgrade_balance = ?, updated_at = ?
+      WHERE twitch_id = ?
+    `).run(next, Date.now(), profile.twitch_id);
+
+    logAdminEvent(db, profile.twitch_id, "admin_upgrade_balance", { amount, next });
+
+    res.json({
+      ok: true,
+      message: `Бонусный баланс изменён на ${amount}. Теперь: ${next}`,
+      profile: getProfileByLogin(db, login)
+    });
   });
 
+  router.post("/give-parts", (req, res) => {
+    const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
+    const amount = parseAmount(req.body.amount);
 
-  router.post("/import-legacy-farm", async (req, res) => {
-    try {
-      const login = String(req.body?.login || "").trim().toLowerCase().replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
-      if (!login) return res.status(400).json({ ok: false, error: "Укажи ник игрока" });
-
-      const data = await importLegacyFarmToSite(login, 'admin_import_legacy_farm');
-      if (!data.ok) {
-        return res.status(400).json({
-          ok: false,
-          error: data.error || "Не удалось перенести старую ферму в farm_v2"
-        });
-      }
-
-      return res.json({
-        ok: true,
-        message: `Старая !ферма ${login} перенесена на сайт и в farm_v2`,
-        profile: data.profile,
-        imported: data.imported || null,
-        pushBack: data.pushBack || null
-      });
-    } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    if (!login || !Number.isFinite(amount)) {
+      return res.status(400).json({ ok: false, error: "Нужен login и amount" });
     }
+
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
+
+    const next = Math.max(0, profile.parts + amount);
+
+    db.prepare(`
+      UPDATE farm_profiles
+      SET parts = ?, updated_at = ?
+      WHERE twitch_id = ?
+    `).run(next, Date.now(), profile.twitch_id);
+
+    updateFarmJsonParts(db, profile.twitch_id, next);
+    logAdminEvent(db, profile.twitch_id, "admin_parts", { amount, next });
+
+    res.json({
+      ok: true,
+      message: `Запчасти изменены на ${amount}. Теперь: ${next}`,
+      profile: getProfileByLogin(db, login)
+    });
   });
 
-  router.post("/sync-from-wizebot", async (req, res) => {
-    try {
-      const login = String(req.body?.login || "").toLowerCase().replace(/^@/, "");
-      if (!login) return res.status(400).json({ ok: false, error: "Укажи ник игрока" });
+  router.post("/set-level", (req, res) => {
+    const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
+    const level = clampInt(req.body.level, 0, 120);
 
-      const data = await importLegacyFarmToSite(login, 'admin_sync_from_wizebot');
-      if (!data.ok) return res.status(400).json({ ok: false, error: data.error || "Не удалось импортировать игрока из WizeBot" });
-
-      return res.json({
-        ok: true,
-        message: `Старая !ферма ${login} перенесена на сайт и в farm_v2`,
-        profile: data.profile,
-        imported: data.imported || null
-      });
-    } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    if (!login || !Number.isFinite(level)) {
+      return res.status(400).json({ ok: false, error: "Нужен login и level 0-120" });
     }
+
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
+
+    db.prepare(`
+      UPDATE farm_profiles
+      SET level = ?, updated_at = ?
+      WHERE twitch_id = ?
+    `).run(level, Date.now(), profile.twitch_id);
+
+    updateFarmJsonLevel(db, profile.twitch_id, level);
+    logAdminEvent(db, profile.twitch_id, "admin_set_level", { level });
+
+    res.json({
+      ok: true,
+      message: `Уровень фермы установлен: ${level}`,
+      profile: getProfileByLogin(db, login)
+    });
   });
 
-  router.post("/push-to-wizebot", async (req, res) => {
-    try {
-      const login = String(req.body?.login || "").toLowerCase().replace(/^@/, "");
-      if (!login) return res.status(400).json({ ok: false, error: "Укажи ник игрока" });
+  router.post("/set-protection", (req, res) => {
+    const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
+    const level = clampInt(req.body.level, 0, 120);
 
-      const data = await pushPlayerToWizebot(login, 'admin_push_to_wizebot');
-      if (!data.ok) return res.status(400).json({ ok: false, error: data.error || "Не удалось отправить игрока в WizeBot" });
-
-      return res.json({
-        ok: true,
-        message: `Игрок ${login} отправлен в WizeBot`,
-        profile: data.profile,
-        result: data.result || null
-      });
-    } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    if (!login || !Number.isFinite(level)) {
+      return res.status(400).json({ ok: false, error: "Нужен login и level 0-120" });
     }
+
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
+
+    db.prepare(`
+      UPDATE farm_profiles
+      SET protection_level = ?, updated_at = ?
+      WHERE twitch_id = ?
+    `).run(level, Date.now(), profile.twitch_id);
+
+    logAdminEvent(db, profile.twitch_id, "admin_set_protection", { level });
+
+    res.json({
+      ok: true,
+      message: `Защита установлена: ${level}`,
+      profile: getProfileByLogin(db, login)
+    });
   });
 
-  router.post("/sync-harvest-from-wizebot", async (req, res) => {
-    try {
-      const login = String(req.body?.login || "").toLowerCase().replace(/^@/, "");
-      if (!login) return res.status(400).json({ ok: false, error: "Укажи ник игрока" });
+  router.post("/set-raid-power", (req, res) => {
+    const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
+    const level = clampInt(req.body.level, 0, 200);
 
-      const data = await syncPlayerFromWizebot(login, 'admin_sync_harvest_from_wizebot');
-      if (!data.ok) return res.status(400).json({ ok: false, error: data.error || "Не удалось подтянуть урожай из WizeBot" });
-
-      return res.json({
-        ok: true,
-        message: `Урожай игрока ${login} подтянут из WizeBot`,
-        profile: data.profile,
-        imported: data.imported || null
-      });
-    } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    if (!login || !Number.isFinite(level)) {
+      return res.status(400).json({ ok: false, error: "Нужен login и level 0-200" });
     }
+
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
+
+    db.prepare(`
+      UPDATE farm_profiles
+      SET raid_power = ?, updated_at = ?
+      WHERE twitch_id = ?
+    `).run(level, Date.now(), profile.twitch_id);
+
+    logAdminEvent(db, profile.twitch_id, "admin_set_raid_power", { level });
+
+    res.json({
+      ok: true,
+      message: `Рейд-сила установлена: ${level}`,
+      profile: getProfileByLogin(db, login)
+    });
   });
-
-
-
-
-
-
 
   router.post("/reset-raid-cooldown", async (req, res) => {
     const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
