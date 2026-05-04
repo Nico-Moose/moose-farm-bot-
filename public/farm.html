@@ -35,7 +35,11 @@
       <section class="quick-actions-section visual-section main-actions-card">
         <h2>⚡ Основные действия</h2>
         <section class="farm-grid action-grid-top">
-          <button id="collectBtn">🧺 Урожай<br><small>авто через !урожай</small></button>
+          <div id="raidActionWrap" class="raid-action-wrap">
+            <button id="raidActionBtn" type="button" class="compact-action danger-lite" disabled>🏴 Рейд<br><small>загрузка</small></button>
+            <button id="raidHistoryBtn" type="button" class="raid-history-small-btn" disabled>📜 История рейдов</button>
+          </div>
+          <button id="collectBtn" style="display:none">🧺 Урожай<br><small>авто через !урожай</small></button>
           <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
           <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
           <button id="syncWizebotBtn" style="display:none">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
@@ -44,12 +48,20 @@
 
       <section class="extra-section priority-section visual-section">
         <h2>🎁 Кейс / GAMUS / оффсбор</h2>
-        <div id="extrasBox" class="combat-grid">Загрузка...</div>
+        <div id="extrasBox" class="combat-grid">
+          <div class="combat-card placeholder-card"><h3>🎰 Кейс</h3><span class="placeholder-line long"></span><span class="placeholder-line mid"></span><span class="placeholder-line long"></span><span class="placeholder-line short"></span></div>
+          <div class="combat-card placeholder-card"><h3>🧠 GAMUS</h3><span class="placeholder-line long"></span><span class="placeholder-line mid"></span><span class="placeholder-line long"></span><span class="placeholder-line short"></span></div>
+          <div class="combat-card placeholder-card"><h3>🌙 Оффсбор</h3><span class="placeholder-line long"></span><span class="placeholder-line mid"></span><span class="placeholder-line long"></span><span class="placeholder-line short"></span></div>
+        </div>
       </section>
 
       <section class="combat-section priority-section visual-section">
         <h2>⚔️ Рейды и защита</h2>
-        <div id="combatBox" class="combat-grid">Загрузка боевого блока...</div>
+        <div id="combatBox" class="combat-grid">
+          <div class="combat-card placeholder-card"><h3>⚔️ Рейд-сила</h3><span class="placeholder-line short"></span><span class="placeholder-line mid"></span><span class="placeholder-line long"></span><span class="placeholder-line short"></span></div>
+          <div class="combat-card placeholder-card"><h3>🛡 Защита</h3><span class="placeholder-line short"></span><span class="placeholder-line mid"></span><span class="placeholder-line long"></span><span class="placeholder-line short"></span></div>
+          <div class="combat-card placeholder-card"><h3>🔫 Турель</h3><span class="placeholder-line short"></span><span class="placeholder-line mid"></span><span class="placeholder-line long"></span><span class="placeholder-line short"></span></div>
+        </div>
       </section>
 
       <section id="licenseBox" class="license-section"></section>
