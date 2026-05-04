@@ -19,6 +19,7 @@
   function applyLiveActionState(data) {
     if (!data || !data.profile) return false;
     const merged = mergeLiveState(data);
+    patchBuildingLevelsFromResponse(merged, data);
     state = merged;
     try {
       render(merged);
@@ -117,6 +118,24 @@
     const active = document.querySelector('.farm-tab-panel.active')?.getAttribute('data-farm-panel') || 'main';
     if (active === 'buildings' && typeof refreshBuildingsIfVisible === 'function') {
       refreshBuildingsIfVisible(true);
+    }
+  }
+
+  function patchBuildingLevelsFromResponse(merged, data) {
+    const key = String(data?.building || '');
+    if (!key || !merged?.profile?.farm?.buildings) return;
+    if (data?.ok && data?.upgraded && Number.isFinite(Number(data.upgraded))) {
+      const current = Number(merged.profile.farm.buildings[key] || 0);
+      merged.profile.farm.buildings[key] = Math.max(current, current + Number(data.upgraded || 0));
+    }
+    if (data?.ok && data?.level && Number.isFinite(Number(data.level))) {
+      merged.profile.farm.buildings[key] = Math.max(Number(merged.profile.farm.buildings[key] || 0), Number(data.level || 0));
+    }
+    if (Array.isArray(data?.buildings)) {
+      const live = data.buildings.find((item) => String(item?.key || '') === key);
+      if (live && Number.isFinite(Number(live.level))) {
+        merged.profile.farm.buildings[key] = Number(live.level || 0);
+      }
     }
   }
 

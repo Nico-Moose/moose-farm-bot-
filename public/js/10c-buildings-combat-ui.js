@@ -79,6 +79,16 @@
     `;
   }
 
+  function getLiveBuildingMap(data) {
+    const list = Array.isArray(data?.buildings) ? data.buildings : [];
+    const map = Object.create(null);
+    list.forEach((item) => {
+      if (!item?.key) return;
+      map[String(item.key)] = item;
+    });
+    return map;
+  }
+
   renderBuildings = function renderBuildings(data) {
     const el = document.getElementById('buildings');
     if (!el) return;
@@ -87,6 +97,7 @@
     const p = data.profile || {};
     const buildingsConfig = p.configs?.buildings || {};
     const owned = (p.farm && p.farm.buildings) || {};
+    const liveMap = getLiveBuildingMap(data);
     const keys = Object.keys(buildingsConfig).sort((a, b) => buildingSortKey(a) - buildingSortKey(b));
     if (!keys.length) {
       el.innerHTML = '<p>Нет данных зданий. Сделай !синкферма.</p>';
@@ -95,18 +106,22 @@
 
     el.innerHTML = `<div class="buildings-grid-clean">${keys.map((key) => {
       const conf = buildingsConfig[key] || {};
-      const lvl = Number(owned[key] || 0);
-      const isBuilt = lvl > 0;
-      const maxLevel = Number(conf.maxLevel || 0) || 0;
+      const live = liveMap[key] || null;
+      const lvl = Number(live?.level ?? owned[key] ?? 0);
+      const isBuilt = !!(live ? live.isBuilt : (lvl > 0));
+      const maxLevel = Number(live?.maxLevel ?? conf.maxLevel ?? 0) || 0;
       const farmLevel = Number(p.level || 0);
-      const requiredLevel = Number(conf.levelRequired || 0);
+      const requiredLevel = Number(live?.levelRequired ?? conf.levelRequired ?? 0);
       const levelLocked = requiredLevel > 0 && farmLevel < requiredLevel;
-      const nextLevel = lvl + 1;
-      const nextCost = calcBuildingCost(conf, nextLevel);
+      const nextLevel = Number(live?.nextLevel ?? (lvl + 1));
+      const nextCost = live?.upgradeCost ? {
+        coins: Number(live.upgradeCost.coins || 0),
+        parts: Number(live.upgradeCost.parts || 0)
+      } : calcBuildingCost(conf, nextLevel);
       const maxed = isBuilt && maxLevel && lvl >= maxLevel;
       const affordAll = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0));
       const afford10 = calcAffordableLevelsDetailed(conf, lvl, currentCoins(p), Number(p.parts || 0), 10);
-      const status = compactStopReason(p, conf, lvl, requiredLevel, maxed);
+      const status = live?.restriction ? compactStopReason(p, conf, lvl, requiredLevel, maxed) : compactStopReason(p, conf, lvl, requiredLevel, maxed);
       const ready = !levelLocked && !maxed && status === 'можно улучшать';
       const cardState = maxed ? 'maxed' : levelLocked ? 'locked' : ready ? 'ready' : 'blocked';
       const reqText = requiredLevel ? `${requiredLevel} ур. фермы` : 'нет';
