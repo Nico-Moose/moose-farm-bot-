@@ -2453,7 +2453,7 @@ function renderExtras(data) {
       <h3>🎰 Кейс</h3>
       <p>Доступ: <b>${cs.unlocked ? 'да' : 'с 30 уровня фермы'}</b></p>
       <p>Цена: <b>${formatNumber(cs.cost || 0)}💰</b> | множитель: <b>x${Number(cs.finalMultiplier || 1).toFixed(2)}</b></p>
-      <p>Призы согласно коду кейса: <b>${casePrizeRangeLabel(cs.finalMultiplier || 1)}</b></p>
+      <p>Призы: <b>${casePrizeRangeLabel(cs.finalMultiplier || 1)}</b></p>
       <p>Кулдаун: <b>${cs.remainingMs ? formatTime(cs.remainingMs) : 'готово ✅'}</b></p>
       <div class="extra-actions"><button id="openCaseBtn" ${!cs.unlocked || cs.remainingMs ? 'disabled' : ''}>🎰 Открыть кейс</button><button id="showCaseHistoryBtn" class="ghost-action">📜 Последние кейсы</button></div>
     </div>
