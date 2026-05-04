@@ -4713,9 +4713,39 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<span>+10 доступно: <b>${formatNumber(count)} ур.</b></span><span>цена пачки: <b>${formatNumber(cost)}💰 / ${formatNumber(parts)}🔧</b></span>`;
   }
 
+  function renderBuildingsQuickStatus(data) {
+    const panel = document.querySelector('.farm-tab-panel[data-farm-panel="buildings"]');
+    if (!panel) return;
+
+    let box = document.getElementById('buildingsQuickStatus');
+    if (!box) {
+      box = document.createElement('section');
+      box.id = 'buildingsQuickStatus';
+      box.className = 'quick-status';
+      const firstCard = panel.querySelector('.visual-section.tab-page-card');
+      if (firstCard) {
+        panel.insertBefore(box, firstCard);
+      } else {
+        panel.appendChild(box);
+      }
+    }
+
+    const profile = data.profile || {};
+    box.innerHTML = `
+      <div><b>Текущие ресурсы</b></div>
+      <div class="quick-status-grid compact-stats">
+        <span>💰 Голда: <b>${formatNumber(ordinaryCoins(profile))}</b></span>
+        <span>🌾 Ферма: <b>${formatNumber(farmCoins(profile))}</b></span>
+        <span>💎 Бонусные: <b>${formatNumber(bonusCoins(profile))}</b></span>
+        <span>🔧 Запчасти: <b>${formatNumber(profile.parts || 0)}</b></span>
+      </div>
+    `;
+  }
+
   renderBuildings = function renderBuildings(data) {
     const el = document.getElementById('buildings');
     if (!el) return;
+    renderBuildingsQuickStatus(data);
     const p = data.profile || {};
     const buildingsConfig = p.configs?.buildings || {};
     const owned = (p.farm && p.farm.buildings) || {};
