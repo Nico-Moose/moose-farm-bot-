@@ -4707,13 +4707,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function pack10Line(afford10 = {}) {
     const count = Number(afford10.count || 0);
-    if (count <= 0) return '';
-    return `<span>+10 доступно: <b>${formatNumber(count)} ур.</b></span>`;
+    const cost = Number(afford10.cost || 0);
+    const parts = Number(afford10.parts || 0);
+    if (count <= 0) return `<span class="pack-muted">+10 сейчас недоступно</span>`;
+    return `<span>+10 доступно: <b>${formatNumber(count)} ур.</b></span><span>цена пачки: <b>${formatNumber(cost)}💰 / ${formatNumber(parts)}🔧</b></span>`;
   }
 
   function renderBuildingsQuickStatus(data) {
-    const box = document.getElementById('buildingsResourcesSection');
-    if (!box) return;
+    const panel = document.querySelector('.farm-tab-panel[data-farm-panel="buildings"]');
+    if (!panel) return;
+
+    let box = document.getElementById('buildingsQuickStatus');
+    if (!box) {
+      box = document.createElement('section');
+      box.id = 'buildingsQuickStatus';
+      box.className = 'quick-status';
+      const firstCard = panel.querySelector('.visual-section.tab-page-card');
+      if (firstCard) {
+        panel.insertBefore(box, firstCard);
+      } else {
+        panel.appendChild(box);
+      }
+    }
+
     const profile = data.profile || {};
     box.innerHTML = `
       <div><b>Текущие ресурсы</b></div>
@@ -4774,6 +4790,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="building-main-v3">
             <div><span>След. ур.</span><b>${nextLabel}</b></div>
             <div><span>Цена</span><b>${formatNumber(nextCost.coins)}💰</b><b>${formatNumber(nextCost.parts)}🔧</b></div>
+            <div><span>У тебя</span><b>${formatNumber(currentCoins(p))}💰</b><b>${formatNumber(p.parts || 0)}🔧</b></div>
             <div><span>Хватит</span><b>${levelLocked || maxed ? '—' : `${formatNumber(affordAll.count)} ур.`}</b></div>
           </div>
 
@@ -5587,4 +5604,285 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   }, true);
+})();
+
+
+/* ==========================================================================
+   PATCH: readable raid history + slow case roulette + clean raid summaries
+   ========================================================================== */
+(function(){
+  function uiEscapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'": '&#39;' }[ch]));
+  }
+
+  function isTurretRaid(log = {}) {
+    return !!(log.killed_by_turret || log.raid_blocked_by_turret || log.turret_triggered);
+  }
+
+  function raidNetCoins(log = {}) {
+    if (isTurretRaid(log)) {
+      const penalty = Number(log.turret_refund || log.penalty || log.turret_penalty || 0);
+      if (penalty) return -Math.abs(penalty);
+      return -Math.abs(Number(log.stolen || 0));
+    }
+    return Number(log.stolen || 0);
+  }
+
+  function raidNetBonus(log = {}) {
+    if (isTurretRaid(log)) return 0;
+    return Number(log.bonus_stolen || 0) + Number(log.turret_bonus || 0);
+  }
+
+  function signedRaidValue(val, icon) {
+    const num = Number(val || 0);
+    const prefix = num > 0 ? '+' : num < 0 ? '-' : '';
+    return `${prefix}${stageFormat(Math.abs(num))}${icon}`;
+  }
+
+  function raidMiniSummary(log = {}) {
+    const money = signedRaidValue(raidNetCoins(log), '💰');
+    const bonus = raidNetBonus(log);
+    const parts = [money];
+    if (bonus) parts.push('+' + stageFormat(bonus) + '💎');
+    if (isTurretRaid(log)) parts.push('🔫 турель');
+    return parts.join(' · ');
+  }
+
+  function readableRaidRows(log = {}) {
+    const rows = [];
+    const baseIncome = Number(log.base_income || 0);
+    const blocked = Number(log.blocked || 0);
+    const afk = Number(log.punish_mult || 1);
+    const turretChance = Number(log.turret_chance || log.turretChance || 0);
+    const turretPenalty = Number(log.turret_refund || 0);
+    const mainSpent = Number(log.money_from_main || log.main_spent || log.from_main || 0);
+    const farmSpent = Number(log.money_from_farm || log.farm_spent || log.from_farm || 0);
+    const debt = Number(log.debt_after || log.farm_debt || 0);
+    const jammerLevel = Number(log.jammer_level || log.jammerLevel || 0);
+
+    if (baseIncome) rows.push({ label: 'Базовый доход цели', value: `${stageFormat(baseIncome)}💰` });
+    if (blocked) rows.push({ label: 'Щит / защита заблокировали', value: `${stageFormat(blocked)}💰` });
+    rows.push({ label: 'AFK-множитель', value: `x${afk.toFixed(2)}` });
+    if (turretChance) rows.push({ label: 'Шанс турели', value: `${stageFormat(turretChance)}%` });
+    if (isTurretRaid(log)) rows.push({ label: 'Турель списала', value: `${stageFormat(turretPenalty)}💰` });
+    if (jammerLevel) rows.push({ label: 'Глушилка цели', value: `-${stageFormat(jammerLevel * 5)}% к шансу турели` });
+    if (mainSpent) rows.push({ label: 'Снято с обычной голды', value: `${stageFormat(mainSpent)}💰` });
+    if (farmSpent) rows.push({ label: 'Снято с фермы', value: `${stageFormat(farmSpent)}🌾` });
+    if (debt < 0) rows.push({ label: 'Долг после рейда', value: `${stageFormat(debt)}🌾` });
+    return rows;
+  }
+
+  function buildRaidReadableBody(log = {}, opts = {}) {
+    const target = uiEscapeHtml(log.target || 'неизвестно');
+    const attacker = uiEscapeHtml(log.attacker || 'игрок');
+    const date = log.timestamp || log.date ? new Date(log.timestamp || log.date).toLocaleString('ru-RU') : '—';
+    const topCards = [
+      { label: '🎯 Цель', value: target },
+      { label: '⚔️ Сила рейда', value: `${stageFormat(log.strength || 0)}%` },
+      { label: '💰 Итог монет', value: signedRaidValue(raidNetCoins(log), '💰'), highlight: raidNetCoins(log) >= 0 ? 'good' : 'bad' },
+      { label: '💎 Бонусные', value: signedRaidValue(raidNetBonus(log), '💎'), highlight: raidNetBonus(log) > 0 ? 'good' : '' }
+    ];
+    const extraRows = readableRaidRows(log);
+    return `
+      <div class="raid-primary-grid polished-raid-grid">
+        ${topCards.map((item) => `<div class="raid-primary-card ${item.highlight || ''}"><span>${item.label}</span><b>${item.value}</b></div>`).join('')}
+      </div>
+      <div class="raid-secondary-grid polished-raid-meta">
+        <div><span>🕒 Дата</span><b>${date}</b></div>
+        <div><span>⚔️ Атакующий</span><b>${attacker}</b></div>
+        <div><span>🎯 Цель</span><b>${target}</b></div>
+        <div><span>📌 Итог</span><b>${isTurretRaid(log) ? 'рейд отбит турелью' : 'рейд успешен'}</b></div>
+      </div>
+      ${extraRows.length ? `
+      <details class="raid-details-more polished-raid-details" ${opts.openDetails ? 'open' : ''}>
+        <summary>Подробнее</summary>
+        <div class="raid-rows-clean polished-raid-rows">
+          ${extraRows.map((row) => `<div><span>${uiEscapeHtml(row.label)}</span><b>${row.value}</b></div>`).join('')}
+        </div>
+      </details>` : ''}
+    `;
+  }
+
+  function buildRaidHistoryList(logs = [], activeIndex = 0) {
+    return logs.slice(0, 12).map((log, i) => `
+      <button class="raid-history-mini ${i === activeIndex ? 'active' : ''}" data-raid-log-index="${i}" type="button">
+        <b>${i + 1}. ${uiEscapeHtml(log.attacker || '—')} → ${uiEscapeHtml(log.target || '—')}</b>
+        <span>${raidMiniSummary(log)}</span>
+      </button>
+    `).join('');
+  }
+
+  openRaidLogModal = function openRaidLogModal(index = 0) {
+    const logs = latestRaidLogsFromState();
+    const log = logs[index];
+    if (!log) {
+      showMessage('📜 История рейдов пока пустая.');
+      return;
+    }
+    const body = `
+      <div class="raid-history-modal-layout">
+        <div class="raid-history-sidebar">${buildRaidHistoryList(logs, index)}</div>
+        <div class="raid-history-detail">${buildRaidReadableBody(log, { openDetails: true })}</div>
+      </div>
+    `;
+    unifiedModal(raidSummaryTitle(log), `${uiEscapeHtml(log.attacker || '—')} → ${uiEscapeHtml(log.target || '—')}`, body, { wide: true, kind: isTurretRaid(log) ? 'danger' : 'raid' });
+    document.querySelectorAll('[data-raid-log-index]').forEach((btn) => {
+      btn.addEventListener('click', () => openRaidLogModal(Number(btn.dataset.raidLogIndex || 0)));
+    });
+  };
+
+  showRaidDetails = function showRaidDetails(log = {}) {
+    const title = isTurretRaid(log) ? '🔫 Рейд отбит турелью' : '🏴 Рейд выполнен';
+    const subtitle = `${uiEscapeHtml(log.attacker || 'игрок')} → ${uiEscapeHtml(log.target || 'цель')}`;
+    unifiedModal(title, subtitle, buildRaidReadableBody(log, { openDetails: true }), { kind: isTurretRaid(log) ? 'danger' : 'raid', wide: false });
+  };
+
+  doRaid = async function doRaid() {
+    const data = await postJson('/api/farm/raid');
+    if (!data.ok) {
+      const labels = {
+        farm_level_too_low: `рейды доступны с ${data.requiredLevel || 30} уровня фермы`,
+        cooldown: `рейд доступен через ${formatTime(data.remainingMs || 0)}`,
+        no_targets: 'нет подходящих целей для рейда'
+      };
+      showMessage(`❌ Рейд не выполнен: ${labels[data.error] || data.error}`);
+      await loadMe();
+      return;
+    }
+
+    const log = data.log || {};
+    showRaidDetails(log);
+    if (isTurretRaid(log)) {
+      showMessage(`🔫 Турель ${log.target || 'цели'} отбила рейд. Списано ${stageFormat(Math.abs(raidNetCoins(log)))}💰`);
+    } else {
+      showMessage(`🏴‍☠️ Рейд на ${log.target || 'цель'}: ${signedRaidValue(raidNetCoins(log), '💰')}${raidNetBonus(log) ? ' и +' + stageFormat(raidNetBonus(log)) + '💎' : ''}`);
+    }
+    await loadMe();
+    if (document.querySelector('[data-farm-panel="tops"]')?.classList.contains('active')) await loadTops();
+  };
+
+  renderInfo = function renderInfo(data){
+    const infoBox=document.getElementById('infoBox');
+    const topsBox=document.getElementById('topsBox');
+    if(!infoBox) return;
+    const info=data.farmInfo||{};
+    const raidInfo=data.raidInfo||{};
+    const hourly=info.hourly||{};
+    const balances=info.balances||{};
+    const buildings=info.buildings||[];
+    const raidLogs=(raidInfo.logs||[]).slice(0,10);
+    const playerCards = [
+      ['💰 Обычная голда', balances.twitch || 0, 'WizeBot / !money'],
+      ['🌾 Ферма', balances.farm || 0, 'накопления фермы'],
+      ['💎 Бонусные', balances.upgrade || 0, 'ап-баланс'],
+      ['🔧 Запчасти', balances.parts || 0, 'детали'],
+      ['📈 Доход/ч', hourly.total || 0, `пассив ${stageFormat(hourly.passive||0)} · урожай ${stageFormat((hourly.plants||0)+(hourly.animals||0))}`],
+      ['🏴 Рейды 14д', raidInfo.twoWeeks?.count || 0, `${stageFormat(raidInfo.twoWeeks?.stolen||0)}💰 · ${stageFormat(raidInfo.twoWeeks?.bonus||0)}💎`],
+    ];
+    const buildingCells = buildings.length ? buildings.map((b)=>`<div class="info-building-cell"><b>${uiEscapeHtml(b.config?.name || b.key)}</b><span>ур. ${stageFormat(b.level || 0)}</span><small>${buildingCardSummary(b.key, b.config || {}, b.level || 0)}</small></div>`).join('') : '<div class="info-building-cell"><b>Построек нет</b><span>—</span><small>Построй здания во вкладке зданий.</small></div>';
+    const raidRows = raidLogs.length ? raidLogs.map((r,i)=>`
+      <button class="raid-log-row polished-raid-log-row" type="button" data-raid-log-index="${i}">
+        <div class="raid-log-main">
+          <b>${i+1}. ${uiEscapeHtml(r.attacker || '—')} → ${uiEscapeHtml(r.target || '—')}</b>
+          <span>${new Date(r.timestamp||r.date||0).toLocaleString('ru-RU')}</span>
+        </div>
+        <div class="raid-log-meta">
+          <span>${signedRaidValue(raidNetCoins(r), '💰')}</span>
+          <span>${signedRaidValue(raidNetBonus(r), '💎')}</span>
+          <span>${isTurretRaid(r) ? '🔫 турель' : `${stageFormat(r.strength || 0)}%`}</span>
+        </div>
+      </button>`).join('') : '<div class="raid-log-row">Рейдов пока нет</div>';
+    infoBox.innerHTML=`
+      <div class="analytics-grid">${playerCards.map(([label,value,hint])=>`<div class="analytics-card"><span>${label}</span><b>${stageFormat(value)}</b><small>${hint}</small></div>`).join('')}</div>
+      <div class="info-buildings-panel"><h3>🏗 Постройки</h3><div class="info-building-grid">${buildingCells}</div></div>
+      <div class="raid-log-list beautiful-raid-log polished-raid-log-list"><div class="section-inline-title">Последние рейды</div>${raidRows}</div>
+      <button id="refreshTopBtn">🏆 Обновить топы</button>`;
+    document.getElementById('refreshTopBtn')?.addEventListener('click', loadTops);
+    document.querySelectorAll('[data-raid-log-index]').forEach((btn)=>btn.addEventListener('click', ()=>openRaidLogModal(Number(btn.dataset.raidLogIndex||0))));
+    if(topsBox && !topsBox.dataset.loaded) loadTops();
+  };
+
+  const CASE_ROULETTE_DURATION = 12000;
+  let caseSpinTimer = null;
+
+  showCaseOverlay = function showCaseOverlay(prize) {
+    const overlay = document.getElementById('caseOverlay');
+    if (!overlay) return;
+
+    const multiplier = Number(prize?.multiplier || 1) || 1;
+    const winIndex = findCasePrizeIndex(prize);
+    const winBase = CASE_PRIZES_UI_FULL[winIndex] || { type: prize?.type || 'coins', value: prize?.baseValue || casePrizeValue(prize) };
+    const winValue = casePrizeValue(prize) || Math.floor(Number(winBase.value || 0) * multiplier);
+    const items = [];
+    const winnerPos = 38;
+    const totalItems = 54;
+    for (let i = 0; i < totalItems; i++) {
+      const base = i === winnerPos ? winBase : CASE_PRIZES_UI_FULL[(winIndex + 3 + i * 5) % CASE_PRIZES_UI_FULL.length];
+      const extraClass = i === winnerPos ? 'case-pending-win' : '';
+      items.push(caseCellHtml(base, multiplier, extraClass, i === winnerPos ? winValue : null));
+    }
+
+    overlay.innerHTML = `
+      <div class="case-overlay-card case-overlay-card-fixed case-overlay-card-longspin">
+        <h2>🎰 Кейс открывается</h2>
+        <div class="case-roulette case-roulette-fixed">
+          <div class="case-pointer"></div>
+          <div class="case-strip case-strip-fixed">${items.join('')}</div>
+        </div>
+        <div class="case-result case-result-pending">
+          <div class="case-result-status">Рулетка крутится…</div>
+          <small>Финальный приз появится после остановки рулетки</small>
+        </div>
+        <button id="caseOverlayClose">Закрыть</button>
+      </div>
+    `;
+
+    overlay.classList.add('active');
+    const close = () => overlay.classList.remove('active');
+    document.getElementById('caseOverlayClose')?.addEventListener('click', close);
+
+    const revealResult = () => {
+      const resultBox = overlay.querySelector('.case-result');
+      const winCell = overlay.querySelector('.case-pending-win');
+      if (resultBox) {
+        resultBox.classList.remove('case-result-pending');
+        resultBox.innerHTML = `Выигрыш: <b>${casePrizeText({ type: winBase.type, value: winValue })}</b><small>множитель x${multiplier.toFixed(2)} · базовый приз ${formatNumber(winBase.value)}${casePrizeIcon(winBase.type)}</small>`;
+      }
+      winCell?.classList.add('case-win');
+    };
+
+    requestAnimationFrame(() => {
+      const roulette = overlay.querySelector('.case-roulette-fixed');
+      const strip = overlay.querySelector('.case-strip-fixed');
+      const winCell = overlay.querySelector('.case-pending-win');
+      if (!roulette || !strip || !winCell) return;
+      strip.style.transition = 'none';
+      strip.style.transform = 'translateX(0px)';
+      requestAnimationFrame(() => {
+        const offset = winCell.offsetLeft + (winCell.offsetWidth / 2) - (roulette.clientWidth / 2);
+        strip.style.transition = `transform ${CASE_ROULETTE_DURATION}ms cubic-bezier(.06,.82,.12,1)`;
+        strip.style.transform = `translateX(-${Math.max(0, offset)}px)`;
+        if (caseSpinTimer) clearTimeout(caseSpinTimer);
+        caseSpinTimer = setTimeout(revealResult, CASE_ROULETTE_DURATION + 100);
+      });
+    });
+  };
+
+  openCase = async function openCase() {
+    const data = await postJson('/api/farm/case/open');
+    if (!data.ok) {
+      const labels = {
+        farm_level_too_low: `кейс доступен с ${data.requiredLevel || 30} уровня`,
+        cooldown: `кейс будет доступен через ${formatTime(data.remainingMs || 0)}`,
+        not_enough_money: `не хватает монет: сейчас ${stageFormat(data.available || 0)} / нужно ${stageFormat(data.needed || 0)}`
+      };
+      showMessage(`❌ Кейс не открыт: ${labels[data.error] || data.error}`);
+      await loadMe(true);
+      return;
+    }
+
+    showCaseOverlay(data.prize);
+    showMessage(`🎰 Кейс открыт. Рулетка крутится...`);
+    await loadMe(true);
+  };
 })();
