@@ -229,6 +229,7 @@
       }
       const data = await res.json();
       render(data);
+      refreshHistoryIfVisible(true).catch((err) => console.warn('[HISTORY]', err));
       return data;
     } catch (error) {
       document.getElementById('profile').textContent = 'Ошибка загрузки профиля';

@@ -19,11 +19,9 @@
   function applyLiveActionState(data) {
     if (!data || !data.profile) return false;
     const merged = mergeLiveState(data);
-    patchBuildingLevelsFromResponse(merged, data);
     state = merged;
     try {
       render(merged);
-      refreshActionPanelsNow();
       return true;
     } catch (e) {
       console.warn('[LIVE APPLY]', e);
@@ -50,7 +48,7 @@
 
     applyLiveActionState(data);
     showMessage(`⬆️ Улучшено уровней: ${data.upgraded}. Потрачено: ${formatNumber(data.totalCost || 0)}💰${data.totalParts ? ` / ${formatNumber(data.totalParts)}🔧` : ''}`);
-    scheduleReconcileRefresh(120);
+    setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
   }
 
   async function bindFinalFarmUpgradeButton(id, count) {
@@ -110,35 +108,6 @@
     return !!(data && data.profile && data.farmInfo && data.market && data.raidUpgrades && data.turret);
   }
 
-  function scheduleReconcileRefresh(delay) {
-    setTimeout(() => { loadMe(true).catch(() => {}); }, Number(delay || 120));
-  }
-
-  function refreshActionPanelsNow() {
-    const active = document.querySelector('.farm-tab-panel.active')?.getAttribute('data-farm-panel') || 'main';
-    if (active === 'buildings' && typeof refreshBuildingsIfVisible === 'function') {
-      refreshBuildingsIfVisible(true);
-    }
-  }
-
-  function patchBuildingLevelsFromResponse(merged, data) {
-    const key = String(data?.building || '');
-    if (!key || !merged?.profile?.farm?.buildings) return;
-    if (data?.ok && data?.upgraded && Number.isFinite(Number(data.upgraded))) {
-      const current = Number(merged.profile.farm.buildings[key] || 0);
-      merged.profile.farm.buildings[key] = Math.max(current, current + Number(data.upgraded || 0));
-    }
-    if (data?.ok && data?.level && Number.isFinite(Number(data.level))) {
-      merged.profile.farm.buildings[key] = Math.max(Number(merged.profile.farm.buildings[key] || 0), Number(data.level || 0));
-    }
-    if (Array.isArray(data?.buildings)) {
-      const live = data.buildings.find((item) => String(item?.key || '') === key);
-      if (live && Number.isFinite(Number(live.level))) {
-        merged.profile.farm.buildings[key] = Number(live.level || 0);
-      }
-    }
-  }
-
   function mergeForRender(data) {
     if (!data || !data.profile) return false;
     const prev = state || {};
@@ -152,7 +121,7 @@
       turret: data.turret || prev.turret || {},
       raid: data.raid || prev.raid || {},
       nextUpgrade: data.nextUpgrade || prev.nextUpgrade || {},
-      nextLicense: Object.prototype.hasOwnProperty.call(data || {}, 'nextLicense') ? data.nextLicense : ((Number(data?.profile?.license_level || 0) >= 120) ? null : prev.nextLicense),
+      nextLicense: data.nextLicense || prev.nextLicense || {},
       caseStatus: data.caseStatus || prev.caseStatus || {},
       gamus: data.gamus || prev.gamus || {},
       raidInfo: data.raidInfo || prev.raidInfo || {},
@@ -164,7 +133,6 @@
     state = merged;
     try {
       render(merged);
-      refreshActionPanelsNow();
       return true;
     } catch (e) {
       console.warn('[ACTION LIVE FIX render]', e);
@@ -232,10 +200,10 @@
       await loadMe(true);
     } else {
       mergeForRender(data);
-      scheduleReconcileRefresh(120);
     }
 
     showMessage(successMessage);
+    setTimeout(() => { loadMe(true).catch(() => {}); }, 180);
   }
 
   async function runAction(btn, key, runner) {
