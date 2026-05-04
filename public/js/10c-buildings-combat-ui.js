@@ -324,6 +324,17 @@
   }
 
 
+
+  window.refreshBuildingsIfVisible = function refreshBuildingsIfVisible(force) {
+    const panel = document.querySelector('[data-farm-panel="buildings"]');
+    const isActive = !!(panel && panel.classList.contains('active'));
+    const box = document.getElementById('buildings');
+    const resourcesBox = document.getElementById('buildingsResourcesSection');
+    const needsRender = force || !box || box.dataset.loaded !== '1' || !resourcesBox || resourcesBox.dataset.loaded !== '1' || !box.children.length;
+    if (!state || (!isActive && !force) || !needsRender) return;
+    renderBuildings(state);
+  };
+
   window.hasRenderedBuildings = function hasRenderedBuildings() {
     const el = document.getElementById('buildings');
     return !!(el && el.dataset.loaded === '1');
