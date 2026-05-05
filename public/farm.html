@@ -256,7 +256,7 @@
 
       <div id="admin-player-info" class="admin-result"></div>
 
-      <div class="admin-tabs admin-tabs-compact admin-tabs-farmers">
+      <div class="admin-tabs admin-tabs-compact admin-tabs-4">
         <button class="admin-tab active" data-admin-tab="extended">Расширенное</button>
         <button class="admin-tab" data-admin-tab="farmers">Все фермеры</button>
         <button class="admin-tab" data-admin-tab="danger">Опасное</button>
@@ -321,33 +321,25 @@
         </div>
       </div>
 
-
       <div class="admin-tab-panel" data-admin-panel="farmers">
-        <div class="admin-card admin-farmers-card">
-          <div class="admin-farmers-head">
-            <div>
-              <h3>Все фермеры</h3>
-              <p class="admin-muted">Список всех фермеров на сайте. Нажми на карточку, чтобы сразу открыть игрока в редакторе.</p>
+        <div class="admin-card admin-farmers-panel">
+          <h3>Все фермеры</h3>
+          <div class="admin-farmers-toolbar">
+            <div class="admin-farmers-search-wrap">
+              <label>Поиск по нику</label>
+              <input id="admin-farmers-search" placeholder="начни вводить ник фермера" autocomplete="off" />
+              <div id="admin-farmers-suggestions" class="admin-suggestions admin-farmers-suggestions hidden"></div>
             </div>
-            <div class="admin-farmers-tools">
-              <div class="admin-farmers-search-block">
-                <label>
-                  Поиск по нику
-                  <input id="admin-farmers-search" placeholder="начни вводить ник фермера" autocomplete="off" />
-                </label>
-                <div id="admin-farmers-suggestions" class="admin-suggestions admin-farmers-suggestions hidden"></div>
-              </div>
-              <label>
-                Сортировка
-                <select id="admin-farmers-sort">
-                  <option value="level_desc">По уровню фермы</option>
-                  <option value="alpha_asc">По алфавиту</option>
-                </select>
-              </label>
-              <button id="admin-farmers-refresh" type="button">↻ Обновить список</button>
+            <div class="admin-farmers-sort-wrap">
+              <label>Сортировка</label>
+              <select id="admin-farmers-sort">
+                <option value="level">По уровню фермы</option>
+                <option value="alphabet">По алфавиту</option>
+              </select>
             </div>
           </div>
-          <div id="admin-farmers-summary" class="admin-farmers-summary">Загрузка списка фермеров…</div>
+          <button id="admin-farmers-refresh" type="button">↻ Обновить список</button>
+          <div id="admin-farmers-meta" class="admin-farmers-meta">Всего фермеров: 0</div>
           <div id="admin-farmers-list" class="admin-farmers-list"></div>
         </div>
       </div>

@@ -219,29 +219,6 @@ module.exports = function (db) {
     `).all(q, like, like);
   }
 
-
-  function listFarmers(sort = 'level_desc') {
-    const safeSort = String(sort || 'level_desc').trim().toLowerCase();
-    const orderBy = safeSort === 'alpha_asc'
-      ? 'LOWER(u.login) ASC, f.level DESC, f.farm_balance DESC'
-      : 'f.level DESC, LOWER(u.login) ASC';
-
-    return db.prepare(`
-      SELECT
-        u.twitch_id,
-        u.login,
-        u.display_name,
-        f.level,
-        f.farm_balance,
-        f.upgrade_balance,
-        f.twitch_balance,
-        f.parts
-      FROM twitch_users u
-      JOIN farm_profiles f ON f.twitch_id = u.twitch_id
-      ORDER BY ${orderBy}
-    `).all();
-  }
-
   router.get("/me", (req, res) => {
     const login = (
       req.session?.twitchUser?.login ||
@@ -497,10 +474,66 @@ module.exports = function (db) {
     res.json({ ok: true, players: listPlayerLogins(req.query.prefix || '') });
   });
 
-  router.get("/farmers", (req, res) => {
-    const sort = String(req.query.sort || 'level_desc').trim().toLowerCase();
-    const farmers = listFarmers(sort);
-    res.json({ ok: true, farmers, total: farmers.length, sort: sort === 'alpha_asc' ? 'alpha_asc' : 'level_desc' });
+  router.get('/farmers', (req, res) => {
+    try {
+      const prefix = String(req.query.prefix || '').trim().toLowerCase().replace(/^@/, '');
+      const sort = String(req.query.sort || 'level').toLowerCase();
+      const requestedLimit = parseInt(req.query.limit || '200', 10);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 500) : 200;
+      const like = `%${prefix}%`;
+      const rows = db.prepare(`
+        SELECT
+          u.login,
+          u.display_name,
+          f.twitch_id,
+          f.level,
+          f.farm_balance,
+          f.parts
+        FROM twitch_users u
+        JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+        WHERE json_valid(COALESCE(f.farm_json, '{}'))
+          AND json_extract(COALESCE(f.farm_json, '{}'), '$.level') IS NOT NULL
+          AND (? = '' OR LOWER(u.login) LIKE ? OR LOWER(u.display_name) LIKE ?)
+        ORDER BY
+          CASE WHEN ? = 'alphabet' THEN LOWER(u.login) END ASC,
+          CASE WHEN ? != 'alphabet' THEN f.level END DESC,
+          LOWER(u.login) ASC
+      `).all(prefix, like, like, sort, sort);
+
+      const total = rows.length;
+      const farmers = rows.slice(0, limit).map((row, index) => ({
+        login: row.login,
+        display_name: row.display_name || row.login,
+        level: Number(row.level || 0),
+        farm_balance: Number(row.farm_balance || 0),
+        parts: Number(row.parts || 0),
+        position: index + 1,
+        total
+      }));
+
+      res.json({ ok: true, total, farmers });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
+  });
+
+  router.post('/delete-farmer', (req, res) => {
+    try {
+      const login = sanitizeAdminLogin(req.body?.login);
+      if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник фермера' });
+
+      const profile = getProfileByLogin(db, login);
+      if (!profile) return res.status(404).json({ ok: false, error: 'Фермер не найден' });
+
+      saveFarmBackup(profile, 'before_delete_farmer_hard');
+      logAdminEvent(db, profile.twitch_id, 'admin_delete_farmer_hard', { login });
+
+      db.prepare('DELETE FROM farm_profiles WHERE twitch_id = ?').run(profile.twitch_id);
+
+      res.json({ ok: true, message: `Фермер ${login} удалён. Игроку нужно снова покупать ферму.` });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
   });
 
   router.get("/player/:nick", (req, res) => {
@@ -938,34 +971,6 @@ module.exports = function (db) {
       ok: true,
       message: `Постройки удалены у ${login}`,
       profile: getProfileByLogin(db, login)
-    });
-  });
-
-  router.post("/delete-farmer", (req, res) => {
-    const login = sanitizeAdminLogin(req.body?.login);
-    if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник игрока' });
-
-    const profile = getProfileByLogin(db, login);
-    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
-    if (login === 'nico_moose') return res.status(400).json({ ok: false, error: 'Нельзя удалить админа из списка фермеров' });
-
-    saveFarmBackup(profile, 'before_delete_farmer');
-
-    const tx = db.transaction(() => {
-      db.prepare(`DELETE FROM farm_events WHERE twitch_id = ?`).run(profile.twitch_id);
-      db.prepare(`DELETE FROM farm_profiles WHERE twitch_id = ?`).run(profile.twitch_id);
-      db.prepare(`DELETE FROM twitch_users WHERE twitch_id = ?`).run(profile.twitch_id);
-    });
-
-    tx();
-
-    logAdminEvent(db, profile.twitch_id, 'admin_delete_farmer', { login });
-
-    res.json({
-      ok: true,
-      message: `Фермер ${login} удалён из списка`,
-      login,
-      total: listFarmers('level_desc').length
     });
   });
 
