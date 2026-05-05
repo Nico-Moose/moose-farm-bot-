@@ -256,8 +256,9 @@
 
       <div id="admin-player-info" class="admin-result"></div>
 
-      <div class="admin-tabs admin-tabs-compact">
+      <div class="admin-tabs admin-tabs-compact admin-tabs-farmers">
         <button class="admin-tab active" data-admin-tab="extended">Расширенное</button>
+        <button class="admin-tab" data-admin-tab="farmers">Все фермеры</button>
         <button class="admin-tab" data-admin-tab="danger">Опасное</button>
         <button class="admin-tab" data-admin-tab="journal">Журнал</button>
       </div>
@@ -317,6 +318,30 @@
             <button id="admin-set-roulette-tickets">Изменить билеты рулетки</button>
             <button id="admin-run-1to1-check">Запустить 1:1 чеклист</button>
           </div>
+        </div>
+      </div>
+
+
+      <div class="admin-tab-panel" data-admin-panel="farmers">
+        <div class="admin-card admin-farmers-card">
+          <div class="admin-farmers-head">
+            <div>
+              <h3>Все фермеры</h3>
+              <p class="admin-muted">Список всех фермеров на сайте. Нажми на карточку, чтобы сразу открыть игрока в редакторе.</p>
+            </div>
+            <div class="admin-farmers-tools">
+              <label>
+                Сортировка
+                <select id="admin-farmers-sort">
+                  <option value="level_desc">По уровню фермы</option>
+                  <option value="alpha_asc">По алфавиту</option>
+                </select>
+              </label>
+              <button id="admin-farmers-refresh" type="button">↻ Обновить список</button>
+            </div>
+          </div>
+          <div id="admin-farmers-summary" class="admin-farmers-summary">Загрузка списка фермеров…</div>
+          <div id="admin-farmers-list" class="admin-farmers-list"></div>
         </div>
       </div>
 

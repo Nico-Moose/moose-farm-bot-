@@ -186,6 +186,74 @@
     }
   }
 
+
+  function switchAdminTab(tab) {
+    document.querySelectorAll('[data-admin-tab]').forEach((button) => {
+      button.classList.toggle('active', button.getAttribute('data-admin-tab') === tab);
+    });
+    document.querySelectorAll('[data-admin-panel]').forEach((box) => {
+      box.classList.toggle('active', box.getAttribute('data-admin-panel') === tab);
+    });
+  }
+
+  async function fetchFarmers(sort) {
+    const data = await getAdmin('farmers?sort=' + encodeURIComponent(sort || 'level_desc'));
+    return {
+      farmers: data.farmers || [],
+      total: Number(data.total || 0),
+      sort: data.sort || 'level_desc'
+    };
+  }
+
+  function renderFarmersList(state) {
+    const summary = document.getElementById('admin-farmers-summary');
+    const list = document.getElementById('admin-farmers-list');
+    if (!summary || !list) return;
+
+    const farmers = Array.isArray(state?.farmers) ? state.farmers : [];
+    const total = Number(state?.total || farmers.length || 0);
+
+    summary.textContent = total ? `Всего фермеров: ${total}` : 'Фермеров пока нет.';
+
+    if (!farmers.length) {
+      list.innerHTML = '<div class="admin-farmers-empty admin-muted">Список фермеров пуст.</div>';
+      return;
+    }
+
+    list.innerHTML = farmers.map((farmer, index) => {
+      const login = String(farmer.login || '').toLowerCase();
+      const display = farmer.display_name || farmer.login || login;
+      const level = Number(farmer.level || 0);
+      const farmBalance = Number(farmer.farm_balance || 0);
+      const parts = Number(farmer.parts || 0);
+      const position = `${index + 1}/${total}`;
+      return `<article class="admin-farmer-row" data-admin-farmer-open="${login}">
+        <button type="button" class="admin-farmer-main" data-admin-farmer-open="${login}">
+          <span class="admin-farmer-rank">${position}</span>
+          <span class="admin-farmer-meta">
+            <strong>${display}</strong>
+            <small>@${login}</small>
+          </span>
+          <span class="admin-farmer-stats">
+            <span>🌾 ур. ${fmt(level)}</span>
+            <span>🌾 ${fmt(farmBalance)}</span>
+            <span>🔧 ${fmt(parts)}</span>
+          </span>
+        </button>
+        <button type="button" class="admin-farmer-delete" data-admin-farmer-delete="${login}">Удалить фермера</button>
+      </article>`;
+    }).join('');
+  }
+
+  async function refreshFarmersList(message) {
+    const select = document.getElementById('admin-farmers-sort');
+    const sort = String(select?.value || 'level_desc');
+    const state = await fetchFarmers(sort);
+    renderFarmersList(state);
+    if (message) status(message);
+    return state;
+  }
+
   function hideSuggestions() {
     const box = document.getElementById('admin-player-suggestions');
     if (!box) return;
@@ -276,6 +344,53 @@
     });
   }
 
+  function setupFarmersTab() {
+    const panel = document.getElementById('admin-panel');
+    const list = document.getElementById('admin-farmers-list');
+    const sort = document.getElementById('admin-farmers-sort');
+    const refresh = document.getElementById('admin-farmers-refresh');
+    if (!panel || !list || panel.dataset.farmersTabReady === '1') return;
+    panel.dataset.farmersTabReady = '1';
+
+    sort?.addEventListener('change', () => {
+      refreshFarmersList('Список фермеров обновлён').catch((e) => status(e.message, true));
+    });
+
+    refresh?.addEventListener('click', () => {
+      refreshFarmersList('Список фермеров обновлён').catch((e) => status(e.message, true));
+    });
+
+    panel.addEventListener('click', (event) => {
+      const openBtn = event.target.closest('[data-admin-farmer-open]');
+      if (openBtn) {
+        const login = openBtn.getAttribute('data-admin-farmer-open');
+        setLogin(login);
+        switchAdminTab('extended');
+        reloadPlayer('Игрок загружен из списка фермеров').catch((e) => status(e.message, true));
+        return;
+      }
+
+      const deleteBtn = event.target.closest('[data-admin-farmer-delete]');
+      if (deleteBtn) {
+        const login = deleteBtn.getAttribute('data-admin-farmer-delete');
+        if (!login) return;
+        if (!confirm(`Удалить фермера ${login} из списка?`)) return;
+        if (!confirm(`Точно удалить ${login}? Это удалит профиль игрока с сайта.`)) return;
+        postAdmin('delete-farmer', { login })
+          .then(async (data) => {
+            if (currentLogin() === login) {
+              renderUnifiedEditor(null);
+              setLogin('');
+            }
+            await refreshFarmersList(data.message || 'Фермер удалён');
+          })
+          .catch((e) => status(e.message, true));
+      }
+    });
+
+    refreshFarmersList().catch(() => {});
+  }
+
   function patchRenderer() {
     window.renderAdminPlayer = renderUnifiedEditor;
     try { renderAdminPlayer = renderUnifiedEditor; } catch (_) {}
@@ -338,6 +453,7 @@
     patchPlayerSearchUi();
     patchLegacyViewButtons();
     bindUnifiedClicks();
+    setupFarmersTab();
     loadDefaultAdminPlayer();
   }
 
