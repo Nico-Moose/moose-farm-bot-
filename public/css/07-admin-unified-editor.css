@@ -1,6 +1,4 @@
-/* Admin unified editor safe patch. Isolated from farm UI.
-   UI polish only: better grouping, hierarchy and readability. */
-
+/* Admin unified editor safe patch. Isolated from farm UI. */
 .admin-tabs-compact {
   grid-template-columns: repeat(3, minmax(130px, 1fr));
 }
@@ -16,117 +14,27 @@
 .admin-unified-editor {
   margin: 14px 0 18px;
   padding: 18px;
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at top left, rgba(150, 230, 108, 0.10), transparent 34%),
-    linear-gradient(180deg, rgba(37, 42, 53, 0.98), rgba(29, 34, 45, 0.98));
+  border-radius: 24px;
+  background: rgba(30, 34, 44, 0.96);
   border: 1px solid rgba(255,255,255,0.10);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 44px rgba(0,0,0,0.22);
 }
 
-.admin-unified-hero {
-  margin-bottom: 18px;
-  padding: 18px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, rgba(146, 230, 101, 0.12), rgba(255, 224, 89, 0.06));
-  border: 1px solid rgba(176, 245, 115, 0.14);
-}
-
-.admin-unified-identity {
+.admin-unified-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 16px;
 }
 
-.admin-unified-name-wrap h2 {
+.admin-unified-head h2 {
   margin: 0;
-  font-size: clamp(26px, 3vw, 42px);
-  line-height: 1.05;
+  font-size: 28px;
 }
 
-.admin-unified-name-wrap small {
-  display: block;
-  margin-top: 6px;
-  color: rgba(255,255,255,0.68);
-  font-size: 18px;
+.admin-unified-head small {
+  opacity: .7;
   font-weight: 700;
-}
-
-.admin-unified-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.admin-soft-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #edfbe7;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-}
-
-.admin-hero-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.admin-hero-stat {
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(8, 12, 18, 0.35);
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.admin-hero-stat span {
-  display: block;
-  margin-bottom: 8px;
-  color: rgba(255,255,255,0.64);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: .05em;
-}
-
-.admin-hero-stat b {
-  display: block;
-  color: #fff;
-  font-size: 24px;
-  line-height: 1.15;
-}
-
-.admin-unified-toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255,255,255,0.035);
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.admin-toolbar-title b {
-  display: block;
-  margin-bottom: 4px;
-  color: #f4fff0;
-  font-size: 16px;
-}
-
-.admin-toolbar-title span {
-  color: rgba(255,255,255,0.66);
-  font-size: 13px;
 }
 
 .admin-unified-actions {
@@ -139,146 +47,60 @@
 .admin-unified-actions button,
 .admin-field-card button,
 .admin-building-card button {
-  min-height: 38px;
+  min-height: 36px;
   border-radius: 12px;
-  padding: 8px 14px;
-  width: auto;
-}
-
-.admin-editor-section {
-  margin-top: 18px;
-}
-
-.admin-editor-section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.admin-editor-section-head h3 {
-  margin: 0 0 6px;
-  font-size: 24px;
-}
-
-.admin-editor-section-head p {
-  margin: 0;
-  color: rgba(255,255,255,0.64);
-  font-size: 13px;
+  padding: 8px 12px;
 }
 
 .admin-unified-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
 }
 
-.admin-buildings-editor-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr));
-  gap: 14px;
-}
-
-.admin-polished-card,
 .admin-field-card,
 .admin-building-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 170px;
-  padding: 14px;
-  border-radius: 20px;
-  background:
-    linear-gradient(180deg, rgba(8, 14, 22, 0.92), rgba(12, 18, 27, 0.96));
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(15, 17, 23, 0.72);
   border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
-}
-
-.admin-polished-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(161, 235, 105, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 12px 24px rgba(0,0,0,0.18);
-}
-
-.admin-field-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
 }
 
 .admin-field-card label,
 .admin-building-card label {
   display: block;
-  margin: 0;
-  color: #f6fff3;
+  margin-bottom: 8px;
+  color: rgba(255,255,255,.72);
   font-weight: 900;
-  font-size: 16px;
-  line-height: 1.15;
-}
-
-.admin-value-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 10px;
-  min-height: 28px;
-  border-radius: 999px;
-  background: rgba(154, 234, 95, 0.14);
-  border: 1px solid rgba(154, 234, 95, 0.16);
-  color: #dffff0;
-  font-size: 12px;
-  font-weight: 900;
-  white-space: nowrap;
 }
 
 .admin-field-card input,
 .admin-building-card input {
   width: 100%;
-  min-height: 42px;
-  margin: 0;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.11);
-  background: rgba(255,255,255,0.96);
-  color: #0f1418;
-  font-size: 23px;
-  font-weight: 800;
-  padding: 8px 12px;
+  margin-bottom: 10px;
 }
 
-.admin-field-card input:focus,
-.admin-building-card input:focus {
-  outline: none;
-  border-color: rgba(156, 235, 101, 0.55);
-  box-shadow: 0 0 0 4px rgba(156, 235, 101, 0.14);
-}
-
-.admin-card-footer-row {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-}
-
-.admin-card-footer-row small {
+.admin-field-card small,
+.admin-building-card small {
   display: block;
   min-height: 18px;
-  color: rgba(255,255,255,0.70);
-  line-height: 1.25;
+  opacity: .65;
 }
 
-.admin-card-footer-row button {
-  align-self: flex-start;
-}
-
-.admin-buildings-section {
-  margin-top: 22px;
-  padding-top: 18px;
+.admin-unified-section {
+  margin-top: 18px;
+  padding-top: 16px;
   border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+.admin-unified-section h3 {
+  margin: 0 0 12px;
+}
+
+.admin-buildings-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
 }
 
 .admin-danger-grid {
@@ -290,29 +112,21 @@
   color: #111;
 }
 
-@media (max-width: 1240px) {
+@media (max-width: 1100px) {
   .admin-unified-grid,
   .admin-buildings-editor-grid {
-    grid-template-columns: repeat(3, minmax(150px, 1fr));
-  }
-
-  .admin-hero-stats-grid {
-    grid-template-columns: repeat(2, minmax(150px, 1fr));
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 760px) {
   .admin-tabs-compact,
   .admin-danger-grid,
   .admin-unified-grid,
-  .admin-buildings-editor-grid,
-  .admin-hero-stats-grid {
+  .admin-buildings-editor-grid {
     grid-template-columns: 1fr;
   }
 
-  .admin-unified-identity,
-  .admin-unified-toolbar,
-  .admin-editor-section-head,
   .admin-unified-head {
     align-items: stretch;
     flex-direction: column;
@@ -322,17 +136,108 @@
     justify-content: stretch;
   }
 
-  .admin-unified-actions button,
-  .admin-card-footer-row button {
+  .admin-unified-actions button {
     width: 100%;
   }
+}
 
-  .admin-unified-editor {
-    padding: 14px;
-    border-radius: 22px;
-  }
 
-  .admin-unified-hero {
-    padding: 14px;
-  }
+/* Player search restore/polish. Keeps nickname selection visible above the editor. */
+.admin-player-search-polished {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  padding: 16px !important;
+  border-radius: 22px !important;
+  background:
+    linear-gradient(180deg, rgba(35, 40, 51, 0.98), rgba(26, 31, 41, 0.98)) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.24);
+}
+
+.admin-player-search-polished h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.admin-player-search-polished input#admin-login {
+  min-height: 46px;
+  padding: 10px 14px !important;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.13);
+  background: rgba(7, 10, 15, 0.72);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.admin-player-search-polished #admin-load-player {
+  margin-top: 10px;
+  min-height: 44px;
+  border-radius: 14px;
+  font-weight: 900;
+}
+
+.admin-player-search-polished .admin-suggestions {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: calc(100% - 10px);
+  z-index: 50;
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(15, 18, 25, 0.98);
+  border: 1px solid rgba(151, 230, 102, 0.20);
+  box-shadow: 0 20px 48px rgba(0,0,0,0.45);
+}
+
+.admin-player-search-polished .admin-suggestions.hidden {
+  display: none;
+}
+
+.admin-player-search-polished .admin-suggestions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: #f7fff2;
+  text-align: left;
+}
+
+.admin-player-search-polished .admin-suggestions button:hover {
+  background: rgba(145, 226, 109, 0.16);
+  border-color: rgba(145, 226, 109, 0.30);
+}
+
+.admin-player-search-polished .admin-suggestions b,
+.admin-player-search-polished .admin-suggestions small,
+.admin-player-search-polished .admin-suggestions em {
+  display: block;
+}
+
+.admin-player-search-polished .admin-suggestions b {
+  font-size: 15px;
+}
+
+.admin-player-search-polished .admin-suggestions small {
+  margin-top: 3px;
+  color: rgba(255,255,255,0.62);
+  font-size: 12px;
+}
+
+.admin-player-search-polished .admin-suggestions em {
+  color: #dfffbe;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
 }
