@@ -21,7 +21,7 @@ function getProvidedSecret(req) {
 async function fetchLongtextJson(longtextUrl) {
   const url = String(longtextUrl || '').trim();
 
-  if (!url || !/^https:\/\/strm\.lv\/t\/longtexts\//i.test(url)) {
+  if (!url || !/^https?:\/\//i.test(url)) {
     throw new Error('invalid_longtext_url');
   }
 
@@ -43,6 +43,12 @@ async function fetchLongtextJson(longtextUrl) {
     throw new Error('empty_longtext_body');
   }
 
+  // 1. если это уже чистый JSON
+  try {
+    return JSON.parse(trimmed);
+  } catch (_) {}
+
+  // 2. если это HTML-страница с JSON внутри
   const jsonMatch =
     trimmed.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i) ||
     trimmed.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
