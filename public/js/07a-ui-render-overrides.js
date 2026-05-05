@@ -14,10 +14,11 @@ function ensureMainActionButtons(data) {
   }
 
   const raid = data.raid || {};
+  const streamOnline = !!(data.streamOnline || data.profile?.stream_online);
   const raidReady = !raid.remainingMs;
-  raidActionBtn.disabled = !raid.unlocked || !raidReady;
+  raidActionBtn.disabled = !streamOnline || !raid.unlocked || !raidReady;
   raidActionBtn.innerHTML = raid.unlocked
-    ? `🏴 Рейд<br><small>${raidReady ? 'готов к атаке' : 'кд ' + formatTime(raid.remainingMs)}</small>`
+    ? `🏴 Рейд<br><small>${!streamOnline ? 'только когда стрим онлайн' : (raidReady ? 'готов к атаке' : 'кд ' + formatTime(raid.remainingMs))}</small>`
     : '🏴 Рейд<br><small>с 30 уровня</small>';
 
   const upgrade1Btn = document.getElementById('upgrade1Btn');

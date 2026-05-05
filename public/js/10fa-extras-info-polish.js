@@ -7,6 +7,12 @@
   function pEsc(v){ return String(v ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
   function pSigned(v, icon){ const n = Number(v || 0); return `${n > 0 ? '+' : n < 0 ? '-' : ''}${pFmt(Math.abs(n))}${icon}`; }
   function pTurret(log = {}){ return !!(log.killed_by_turret || log.raid_blocked_by_turret || log.turret_triggered); }
+  function streamIsOnline(data = state){ return !!(data?.streamOnline || data?.profile?.stream_online); }
+  function streamErrorLabel(error){
+    if (error === 'stream_offline') return 'доступно только когда стрим онлайн';
+    if (error === 'stream_online') return 'доступно только когда стрим оффлайн';
+    return error;
+  }
   function pRaidMoney(log = {}) {
     if (pTurret(log)) {
       const penalty = pNum(log.turret_refund || log.turret_penalty || log.penalty || log.stolen || 0);
@@ -88,14 +94,16 @@
     const cs = data.caseStatus || {};
     const gamus = data.gamus || {};
     const ranges = gamus.ranges || {};
+    const streamOnline = streamIsOnline(data);
     box.innerHTML = `
       <div class="combat-card polished-extra-card">
         <h3>🎰 Кейс</h3>
-        <p>Доступ: <b>${cs.unlocked ? 'да' : 'с 30 уровня фермы'}</b></p>
+        <p>Доступ: <b>${!streamOnline ? 'только когда стрим онлайн' : (cs.unlocked ? 'да' : 'с 30 уровня фермы')}</b></p>
         <p>Цена: <b>${pFmt(cs.cost || 0)}💰</b> | множитель: <b>x${Number(cs.finalMultiplier || 1).toFixed(2)}</b></p>
         <p>Призы: <b>${pFmt(ranges.minMoney || cs.minMoney || 0)}-${pFmt(ranges.maxMoney || cs.maxMoney || 0)}💎</b> / <b>${pFmt(ranges.minParts || cs.minParts || 0)}-${pFmt(ranges.maxParts || cs.maxParts || 0)}🔧</b></p>
         <p>Кулдаун: <b>${cs.remainingMs ? formatTime(cs.remainingMs) : 'готово ✅'}</b></p>
-        <div class="extra-actions"><button id="openCaseBtn" ${!cs.unlocked || cs.remainingMs ? 'disabled' : ''}>🎰 Открыть кейс</button><button id="showCaseHistoryBtn" class="ghost-action">📜 Последние кейсы</button></div>
+        <div class="extra-actions"><button id="openCaseBtn" ${!streamOnline || !cs.unlocked || cs.remainingMs ? 'disabled' : ''}>🎰 Открыть кейс</button><button id="showCaseHistoryBtn" class="ghost-action">📜 Последние кейсы</button></div>
+        <small>${streamOnline ? 'Кейс доступен во время онлайн-стрима.' : 'Кейс закрыт: стрим сейчас оффлайн.'}</small>
       </div>
       <div class="combat-card">
         <h3>🧠 GAMUS</h3>
@@ -108,7 +116,8 @@
         <h3>🌙 Оффсбор</h3>
         <p>50% от общего дохода в час. Запчасти даёт только завод / 2.</p>
         <p>Баланс сейчас: <b>${pFmt(p.farm_balance || 0)}🌾</b> / <b>${pFmt(p.parts || 0)}🔧</b></p>
-        <button id="offCollectBtn">🌙 Оффсбор</button>
+        <button id="offCollectBtn" ${streamOnline ? 'disabled' : ''}>🌙 Оффсбор</button>
+        <small>${streamOnline ? 'Оффсбор закрыт: стрим сейчас онлайн.' : 'Оффсбор доступен только когда стрим оффлайн.'}</small>
       </div>
     `;
     document.getElementById('openCaseBtn')?.addEventListener('click', openCase);
@@ -120,14 +129,34 @@
     document.getElementById('offCollectBtn')?.addEventListener('click', offCollect);
   };
 
+  const baseDoRaid = typeof doRaid === 'function' ? doRaid : null;
+  doRaid = async function doRaid() {
+    if (!streamIsOnline()) {
+      showMessage('⛔ Рейд доступен только когда стрим онлайн.');
+      await loadMe(true);
+      return;
+    }
+    return baseDoRaid ? baseDoRaid() : undefined;
+  };
+
+  const baseOpenCase = typeof openCase === 'function' ? openCase : null;
+  openCase = async function openCase() {
+    if (!streamIsOnline()) {
+      showMessage('⛔ Кейс доступен только когда стрим онлайн.');
+      await loadMe(true);
+      return;
+    }
+    return baseOpenCase ? baseOpenCase() : undefined;
+  };
+
   offCollect = async function offCollect() {
     if (state?.streamOnline || state?.profile?.stream_online) {
-      showMessage('⛔ Во время стрима оффсбор недоступен.');
+      showMessage('⛔ Оффсбор доступен только когда стрим оффлайн.');
       return;
     }
     const data = await postJson('/api/farm/off-collect');
     if (!data.ok) {
-      showMessage(data.error === 'cooldown' ? `⏳ Оффсбор через ${formatTime(data.remainingMs || 0)}` : `❌ Оффсбор: ${data.error}`);
+      showMessage(data.error === 'cooldown' ? `⏳ Оффсбор через ${formatTime(data.remainingMs || 0)}` : `❌ Оффсбор: ${streamErrorLabel(data.error)}`);
       await loadMe();
       return;
     }

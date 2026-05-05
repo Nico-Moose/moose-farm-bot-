@@ -241,6 +241,28 @@ function fastSyncMeta(profile, req, source) {
   };
 }
 
+async function requireStreamOnlineForAction(profile, actionName) {
+  const streamStatus = await getStreamStatus();
+  if (streamStatus.online) return { ok: true, streamStatus };
+  return {
+    ok: false,
+    error: 'stream_offline',
+    message: `${actionName} доступен только во время онлайн-стрима.`,
+    streamStatus
+  };
+}
+
+async function requireStreamOfflineForAction(profile, actionName) {
+  const streamStatus = await getStreamStatus();
+  if (!streamStatus.online) return { ok: true, streamStatus };
+  return {
+    ok: false,
+    error: 'stream_online',
+    message: `${actionName} доступен только когда стрим оффлайн.`,
+    streamStatus
+  };
+}
+
 function conflictResponse(req, res, stale, profile) {
   return res.status(stale.status || 409).json({
     ok: false,
@@ -588,6 +610,18 @@ router.post('/farm/turret/upgrade', requireAuth, async (req, res) => {
 
 router.post('/farm/raid', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
+  const streamGate = await requireStreamOnlineForAction(profile, 'Рейд');
+  if (!streamGate.ok) {
+    return res.json({
+      ok: false,
+      error: streamGate.error,
+      message: streamGate.message,
+      ...profilePayload(profile),
+      streamStatus: streamGate.streamStatus,
+      streamOnline: false
+    });
+  }
+
   const candidates = listRaidCandidateProfiles();
   const result = performRaid(profile, candidates);
 
@@ -634,6 +668,18 @@ router.post('/farm/raid', requireAuth, async (req, res) => {
 
 router.post('/farm/case/open', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
+  const streamGate = await requireStreamOnlineForAction(profile, 'Кейс');
+  if (!streamGate.ok) {
+    return res.json({
+      ok: false,
+      error: streamGate.error,
+      message: streamGate.message,
+      ...profilePayload(profile),
+      streamStatus: streamGate.streamStatus,
+      streamOnline: false
+    });
+  }
+
   const result = openCase(profile);
   let updatedProfile = updateProfile(result.profile);
 
@@ -687,16 +733,18 @@ router.post('/farm/gamus/claim', requireAuth, async (req, res) => {
 
 router.post('/farm/off-collect', requireAuth, async (req, res) => {
   const profile = getProfile(req.session.twitchUser.id);
-  const streamStatus = await getStreamStatus();
-  if (streamStatus.online) {
+  const streamGate = await requireStreamOfflineForAction(profile, 'Оффсбор');
+  if (!streamGate.ok) {
     return res.json({
       ok: false,
-      error: 'stream_online',
-      message: 'Оффсбор недоступен во время онлайн-стрима.',
-      streamStatus,
-      ...profilePayload(profile)
+      error: streamGate.error,
+      message: streamGate.message,
+      ...profilePayload(profile),
+      streamStatus: streamGate.streamStatus,
+      streamOnline: true
     });
   }
+
   const result = offCollect(profile);
   let updatedProfile = updateProfile(result.profile);
 
