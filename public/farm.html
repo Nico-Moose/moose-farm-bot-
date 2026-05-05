@@ -291,32 +291,11 @@
       <div class="admin-tab-panel active" data-admin-panel="extended">
         <div class="admin-grid">
           <div class="admin-card">
-            <h3>Перенос фермы</h3>
-            <input id="admin-transfer-from" placeholder="старый ник" />
-            <input id="admin-transfer-to" placeholder="новый ник" />
-            <button id="admin-transfer-farm">Перенести ферму</button>
-          </div>
-          <div class="admin-card">
-            <h3>WizeBot / урожай / синк</h3>
-            <button id="admin-sync-from-wizebot">Импортировать игрока из WizeBot</button>
-            <button id="admin-push-to-wizebot">Пушнуть игрока в WizeBot</button>
-            <button id="admin-sync-harvest-from-wizebot">Подтянуть урожай из WizeBot</button>
-          </div>
-          <div class="admin-card">
-            <h3>Рынок / долги / сбросы</h3>
-            <input id="admin-market-stock" placeholder="склад рынка" />
-            <button id="admin-set-market-stock">Установить склад рынка</button>
-            <button id="admin-clear-debt">Списать долг игрока</button>
-
-            <button id="admin-reset-gamus">Сбросить GAMUS игроку</button>
-            <button id="admin-reset-cases">Сбросить историю кейсов игрока</button>
-
-          </div>
-          <div class="admin-card">
-            <h3>Рулетка / тест</h3>
-            <input id="admin-roulette-tickets" placeholder="билеты: +10 или -10" />
-            <button id="admin-set-roulette-tickets">Изменить билеты рулетки</button>
-            <button id="admin-run-1to1-check">Запустить 1:1 чеклист</button>
+            <h3>Ручная миграция через чат</h3>
+            <p class="admin-muted">Кнопки переноса, пуша, подтяжки урожая, склада рынка и тестов убраны. Для разовой ручной миграции используй команду в чате.</p>
+            <div class="admin-inline-hint">
+              <code>Nico_Moose: !сайтмигрферма Nico_Moose</code>
+            </div>
           </div>
         </div>
       </div>
@@ -369,19 +348,9 @@
             <option value="admin_farm_balance">Админ: фермерский баланс</option>
             <option value="admin_upgrade_balance">Админ: бонусный баланс</option>
             <option value="admin_parts">Админ: запчасти</option>
-            <option value="admin_transfer_farm">Админ: перенос фермы</option>
-            <option value="admin_clear_debt">Админ: долги</option>
-            <option value="admin_set_market_stock">Админ: склад</option>
-            <option value="admin_reset_cases">Админ: кейсы</option>
-            <option value="admin_reset_gamus">Админ: GAMUS</option>
-            <option value="admin_delete_turret">Админ: удаление турели</option>
+                                                                        <option value="admin_delete_turret">Админ: удаление турели</option>
             <option value="admin_restore_backup">Админ: восстановление backup</option>
-            <option value="admin_set_roulette_tickets">Админ: билеты рулетки</option>
-            <option value="admin_sync_from_wizebot">Админ: импорт из WizeBot</option>
-            <option value="admin_push_to_wizebot">Админ: пуш в WizeBot</option>
-            <option value="sync_wizebot_harvest">Авто: урожай WizeBot → сайт</option>
-            <option value="admin_1to1_check">Админ: 1:1 чеклист</option>
-              </select>
+                                                                          </select>
             </div>
           </div>
           <button id="admin-load-events" class="admin-journal-load">Показать журнал за 7 дней</button>

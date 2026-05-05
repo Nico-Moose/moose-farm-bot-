@@ -96,10 +96,11 @@
     const q = mqGet(input);
     const buyPrice = Math.max(1, Number(market.buyPrice || 20));
     const sellPrice = Math.max(1, Number(market.sellPrice || 10));
-    const stock = Math.max(0, Number(market.stock || 0));
+    const unlimited = !!market.unlimited;
+    const stock = unlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(market.stock || 0));
     const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || 0));
     const parts = Math.max(0, Number(profile.parts || 0));
-    const maxBuy = Math.max(0, Math.min(stock, Math.floor(upgradeBalance / buyPrice)));
+    const maxBuy = Math.max(0, Math.floor(upgradeBalance / buyPrice));
     const canBuy = q > 0 && q <= maxBuy;
     const canSell = q > 0 && q <= parts;
 
@@ -115,7 +116,8 @@
     const data = mqStateData();
     const market = data.market || {};
     const profile = data.profile || {};
-    const stock = Math.max(0, Number(market.stock || 0));
+    const unlimited = !!market.unlimited;
+    const stock = unlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(market.stock || 0));
     const buyPrice = Math.max(1, Number(market.buyPrice || 20));
     const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || 0));
     const parts = Math.max(0, Number(profile.parts || 0));
@@ -284,7 +286,8 @@
     const data = marketData();
     const market = data.market || {};
     const profile = data.profile || {};
-    const stock = Math.max(0, Number(market.stock || 0));
+    const unlimited = !!market.unlimited;
+    const stock = unlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(market.stock || 0));
     const buyPrice = Math.max(1, Number(market.buyPrice || 20));
     const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || profile.upgradeBalance || 0));
     const parts = Math.max(0, Number(profile.parts || 0));
@@ -301,10 +304,11 @@
     const q = marketGetInput(input);
     const buyPrice = Math.max(1, Number(market.buyPrice || 20));
     const sellPrice = Math.max(1, Number(market.sellPrice || 10));
-    const stock = Math.max(0, Number(market.stock || 0));
+    const unlimited = !!market.unlimited;
+    const stock = unlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(market.stock || 0));
     const upgradeBalance = Math.max(0, Number(profile.upgrade_balance || profile.upgradeBalance || 0));
     const parts = Math.max(0, Number(profile.parts || 0));
-    const maxBuy = Math.max(0, Math.min(stock, Math.floor(upgradeBalance / buyPrice)));
+    const maxBuy = Math.max(0, Math.floor(upgradeBalance / buyPrice));
     const buyBtn = document.getElementById('marketBuyBtn');
     const sellBtn = document.getElementById('marketSellBtn');
     if (buyBtn) buyBtn.disabled = !(q > 0 && q <= maxBuy);
@@ -325,14 +329,16 @@
     if (!box) return;
     const market = data.market || {};
     const profile = data.profile || {};
-    const stock = Math.max(0, Number(market.stock || 0));
+    const unlimited = !!market.unlimited;
+    const stock = unlimited ? Number.MAX_SAFE_INTEGER : Math.max(0, Number(market.stock || 0));
+    const stockLabel = unlimited ? 'безлимит' : `${formatNumber(stock)}🔧`;
     const sellPrice = Math.max(1, Number(market.sellPrice || 10));
     const buyPrice = Math.max(1, Number(market.buyPrice || 20));
     const ordinary = typeof ordinaryCoins === 'function' ? ordinaryCoins(profile) : Number(profile.balance || profile.gold || 0);
     const farm = typeof farmCoins === 'function' ? farmCoins(profile) : Number(profile.farm_balance || profile.farmBalance || 0);
     const bonus = typeof bonusCoins === 'function' ? bonusCoins(profile) : Number(profile.upgrade_balance || profile.upgradeBalance || 0);
     const parts = Math.max(0, Number(profile.parts || 0));
-    const maxBuy = Math.max(0, Math.min(stock, Math.floor(bonus / buyPrice)));
+    const maxBuy = Math.max(0, Math.floor(bonus / buyPrice));
     const qty = Math.max(0, marketParse(localStorage.getItem('mooseFarmLastMarketQty') || lastMarketQty || 1000));
 
     box.innerHTML = `
@@ -346,7 +352,7 @@
         </div>
       </div>
       <div class="market-hero polished-market-hero stage-market-hero">
-        <div class="market-stat"><span>📦 Общий склад</span><b>${formatNumber(stock)}🔧</b><small>один склад для всех игроков</small></div>
+        <div class="market-stat"><span>📦 Рынок</span><b>${stockLabel}</b><small>лимит склада отключён</small></div>
         <div class="market-stat"><span>🔵 Купить</span><b>${marketExact(buyPrice)}💎 / 1🔧</b><small>максимум: ${formatNumber(maxBuy)}🔧</small></div>
         <div class="market-stat"><span>🟢 Продать</span><b>${marketExact(sellPrice)}💎 / 1🔧</b><small>максимум: ${formatNumber(parts)}🔧</small></div>
       </div>
@@ -411,8 +417,8 @@
         quantity_too_large: `слишком большое число, максимум ${marketExact(data.maxQty || 0)}🔧`,
         not_enough_parts: `не хватает запчастей: ${marketExact(data.available || 0)}/${marketExact(data.needed || 0)}🔧`,
         not_enough_upgrade_balance: `не хватает 💎: нужно ${marketExact(data.needed || 0)}, есть ${marketExact(data.available || 0)}`,
-        market_stock_empty: 'общий склад пуст',
-        not_enough_market_stock: 'на общем складе недостаточно 🔧'
+        market_stock_empty: 'покупка временно недоступна',
+        not_enough_market_stock: 'лимит склада отключён, попробуй ещё раз'
       };
       showMessage(`❌ Рынок: ${labels[data.error] || data.error}`);
       marketSetInput(input, qty, false);
@@ -425,7 +431,7 @@
     showActionToast(action === 'buy' ? '🏪 Покупка на рынке' : '🏪 Продажа на рынке', [
       action === 'buy' ? `Куплено: <b>${marketExact(data.qty || qty)}🔧</b>` : `Продано: <b>${marketExact(data.qty || qty)}🔧</b>`,
       action === 'buy' ? `Потрачено: <b>${marketExact(data.totalCost || 0)}💎</b>` : `Получено: <b>${marketExact(data.totalCost || 0)}💎</b>`,
-      `Общий склад: <b>${marketExact(data.market?.stock ?? 0)}🔧</b>`
+      `Рынок: <b>${data.market?.unlimited ? 'безлимит' : marketExact(data.market?.stock ?? 0) + '🔧'}</b>`
     ], { kind: 'market' });
     marketSetInput(input, qty, false);
     await loadMe();

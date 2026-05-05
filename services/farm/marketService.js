@@ -5,6 +5,7 @@ const { getDb } = require('../dbService');
 const SELL_PRICE = 10; // 1 part -> 10 upgrade coins
 const BUY_PRICE = 20;  // 20 upgrade coins -> 1 part
 const DEFAULT_STOCK = 20000;
+const UNLIMITED_STOCK = true;
 const MAX_QTY_INPUT = Number.MAX_SAFE_INTEGER;
 
 const STOCK_KEY = 'global_market_parts_stock';
@@ -57,11 +58,12 @@ function getMarketState() {
   return {
     sellPrice: SELL_PRICE,
     buyPrice: BUY_PRICE,
-    stock: market.partsStock,
+    stock: UNLIMITED_STOCK ? null : market.partsStock,
     totalSold: market.totalSold,
     totalBought: market.totalBought,
     maxQtyInput: MAX_QTY_INPUT,
-    global: true
+    global: true,
+    unlimited: UNLIMITED_STOCK
   };
 }
 
@@ -102,10 +104,8 @@ function buyParts(profile, qty) {
 
   if (qty <= 0) return { ok: false, error: 'invalid_quantity', profile, market: getMarketState() };
   if (qty > MAX_QTY_INPUT) return { ok: false, error: 'quantity_too_large', maxQty: MAX_QTY_INPUT, profile, market: getMarketState() };
-  if (market.partsStock <= 0) return { ok: false, error: 'market_stock_empty', profile, market: getMarketState() };
-
   const maxByMoney = Math.floor(num(profile.upgrade_balance, 0) / BUY_PRICE);
-  const maxCanBuy = Math.min(maxByMoney, market.partsStock);
+  const maxCanBuy = UNLIMITED_STOCK ? maxByMoney : Math.min(maxByMoney, market.partsStock);
   if (maxCanBuy <= 0) {
     return { ok: false, error: maxByMoney <= 0 ? 'not_enough_upgrade_balance' : 'not_enough_market_stock', needed: BUY_PRICE, available: num(profile.upgrade_balance, 0), profile, market: getMarketState() };
   }
@@ -114,12 +114,12 @@ function buyParts(profile, qty) {
   if (requested > maxCanBuy) {
     return {
       ok: false,
-      error: maxByMoney < requested ? 'not_enough_upgrade_balance' : 'not_enough_market_stock',
+      error: 'not_enough_upgrade_balance',
       requested,
       maxCanBuy,
       needed: requested * BUY_PRICE,
       available: num(profile.upgrade_balance, 0),
-      stock: market.partsStock,
+      stock: UNLIMITED_STOCK ? null : market.partsStock,
       profile,
       market: getMarketState()
     };
@@ -133,7 +133,7 @@ function buyParts(profile, qty) {
   profile.farm.resources.parts = profile.parts;
 
   market.totalBought += finalQty;
-  market.partsStock -= finalQty;
+  if (!UNLIMITED_STOCK) market.partsStock -= finalQty;
   saveMarketState(market);
 
   return { ok: true, action: 'buy', requested, qty: finalQty, totalCost: total, totalParts: finalQty, price: BUY_PRICE, limited: false, profile, market: getMarketState() };
