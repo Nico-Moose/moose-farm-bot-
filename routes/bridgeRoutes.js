@@ -19,9 +19,26 @@ function getProvidedSecret(req) {
 }
 
 async function fetchLongtextJson(longtextUrl) {
-  const url = String(longtextUrl || '').trim();
+  let url = String(longtextUrl || '')
+    .trim()
+    .replace(/^"+|"+$/g, '')
+    .replace(/^'+|'+$/g, '');
 
-  if (!url || !/^https?:\/\//i.test(url)) {
+  if (!url) {
+    throw new Error('invalid_longtext_url');
+  }
+
+  // Нормализация возможных форматов longtext
+  if (/^https?:\/\//i.test(url)) {
+    // уже полный URL
+  } else if (/^strm\.lv\/t\/longtexts\//i.test(url)) {
+    url = 'https://' + url;
+  } else if (/^\/t\/longtexts\//i.test(url)) {
+    url = 'https://strm.lv' + url;
+  } else if (/^[a-z0-9]+\/\d+$/i.test(url)) {
+    // если WizeBot вернул только хвост вида hash/id
+    url = 'https://strm.lv/t/longtexts/' + url;
+  } else {
     throw new Error('invalid_longtext_url');
   }
 
@@ -43,12 +60,12 @@ async function fetchLongtextJson(longtextUrl) {
     throw new Error('empty_longtext_body');
   }
 
-  // 1. если это уже чистый JSON
+  // если это уже JSON
   try {
     return JSON.parse(trimmed);
   } catch (_) {}
 
-  // 2. если это HTML-страница с JSON внутри
+  // если это HTML со вставленным JSON
   const jsonMatch =
     trimmed.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i) ||
     trimmed.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
