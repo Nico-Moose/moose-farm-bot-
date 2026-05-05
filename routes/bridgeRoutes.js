@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 
 const { config } = require('../config');
-const { getDb } = require('../db');
-const { upsertTwitchUser, getProfileByLogin, updateProfile, logFarmEvent } = require('../services/userService');
+const { getNextUpgrade, listBuildings } = require('../services/farmGameService');
+const { importPayloadToSqlite, importWizebotPayloadByLogin } = require('../services/wizebotBridgeImportService');
 const { getWizebotStateByLogin } = require('../services/wizebotStateExportService');
+const { upsertTwitchUser, getProfileByLogin, updateProfile, logFarmEvent } = require('../services/userService');
+const { syncWizebotFarmToProfile } = require('../services/wizebotSyncService');
 const { buildFarmV2FromProfile } = require('../services/farmV2Service');
-const { importWizebotPayloadByLogin } = require('../services/wizebotBridgeImportService');
 
 function getProvidedSecret(req) {
   return String(
@@ -116,14 +117,7 @@ function applyFarmV2Push(login, farmV2) {
 
   const updatedProfile = updateProfile(nextProfile);
 
-  try {
-    const db = getDb();
-    db.prepare(`
-      UPDATE users
-      SET balance = ?
-      WHERE twitch_id = ?
-    `).run(twitchBalance, profile.twitch_id);
-  } catch (_) {}
+
 
   logFarmEvent(updatedProfile.twitch_id, 'farm_v2_push_from_wizebot', {
     login,
