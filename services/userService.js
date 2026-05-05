@@ -141,6 +141,12 @@ function getProfileByLogin(login) {
     FROM twitch_users u
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE LOWER(u.login) = ?
+    ORDER BY
+      CASE WHEN u.twitch_id LIKE 'legacy:%' THEN 1 ELSE 0 END ASC,
+      COALESCE(f.last_wizebot_sync_at, 0) DESC,
+      COALESCE(f.updated_at, 0) DESC,
+      COALESCE(f.created_at, 0) DESC
+    LIMIT 1
   `).get(normalizedLogin);
 
   return normalizeProfile(row);
