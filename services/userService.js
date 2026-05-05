@@ -81,6 +81,15 @@ function upsertTwitchUser(user) {
   `).run(user.id, now, now, now);
 }
 
+function hasMeaningfulFarm(profile) {
+  return !!(
+    profile &&
+    profile.farm &&
+    typeof profile.farm === 'object' &&
+    Object.keys(profile.farm).length > 0
+  );
+}
+
 function getProfile(twitchId) {
   const row = getDb().prepare(`
     SELECT
@@ -109,7 +118,41 @@ function getProfile(twitchId) {
     WHERE u.twitch_id = ?
   `).get(twitchId);
 
-  return normalizeProfile(row);
+  const directProfile = normalizeProfile(row);
+  if (!directProfile) return null;
+
+  if (hasMeaningfulFarm(directProfile)) {
+    return directProfile;
+  }
+
+  const login = String(directProfile.login || '').trim().toLowerCase();
+  if (!login) {
+    return directProfile;
+  }
+
+  const loginProfile = getProfileByLogin(login);
+  if (!loginProfile) {
+    return directProfile;
+  }
+
+  const directSyncAt = Number(directProfile.last_wizebot_sync_at || 0);
+  const loginSyncAt = Number(loginProfile.last_wizebot_sync_at || 0);
+
+  if (
+    loginProfile.twitch_id !== directProfile.twitch_id &&
+    hasMeaningfulFarm(loginProfile) &&
+    loginSyncAt >= directSyncAt
+  ) {
+    return {
+      ...loginProfile,
+      twitch_id: directProfile.twitch_id,
+      login: directProfile.login || loginProfile.login,
+      display_name: directProfile.display_name || loginProfile.display_name,
+      avatar_url: directProfile.avatar_url || loginProfile.avatar_url
+    };
+  }
+
+  return directProfile;
 }
 
 function getProfileByLogin(login) {
