@@ -97,6 +97,64 @@ async function setCustomData(key, value) {
   throw err;
 }
 
+
+function numberFromApiPayload(payload, fallback = 0) {
+  if (payload === null || payload === undefined) return Number(fallback || 0) || 0;
+  if (typeof payload === 'number') return Number.isFinite(payload) ? payload : (Number(fallback || 0) || 0);
+  if (typeof payload === 'string') {
+    const n = Number(payload.replace(',', '.'));
+    return Number.isFinite(n) ? n : (Number(fallback || 0) || 0);
+  }
+  if (typeof payload === 'object') {
+    const candidates = [
+      payload.val,
+      payload.value,
+      payload.balance,
+      payload.currency,
+      payload.amount,
+      payload.data?.val,
+      payload.data?.value,
+      payload.data?.balance,
+      payload.data?.currency,
+      payload.data?.amount
+    ];
+    for (const candidate of candidates) {
+      if (candidate === null || candidate === undefined || candidate === '') continue;
+      const n = Number(String(candidate).replace(',', '.'));
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return Number(fallback || 0) || 0;
+}
+
+async function getCurrencyValue(login, fallback = 0) {
+  const viewer = normalizeLogin(login);
+  if (!viewer) return Number(fallback || 0) || 0;
+
+  // WizeBot JS-команда читает обычную голду через call_tag('currency', ['get', login]).
+  // Для админского переноса пробуем API-эквиваленты. Если API недоступен/формат другой — не ломаем импорт,
+  // а оставляем текущее зеркало twitch_balance.
+  const keys = [config.wizebot?.apiKey, config.wizebot?.apiKeyRw].filter(Boolean);
+  const attempts = [];
+
+  for (const key of keys) {
+    attempts.push(`${WIZEBOT_API_BASE}/currency/${key}/get/${encodeURIComponent(viewer)}`);
+    attempts.push(`${WIZEBOT_API_BASE}/currency/${key}/action/get/${encodeURIComponent(viewer)}`);
+  }
+
+  for (const url of attempts) {
+    try {
+      const res = await fetch(url);
+      const data = await parseApiResponse(res);
+      if (res.ok && (data.success !== false)) {
+        return numberFromApiPayload(data, fallback);
+      }
+    } catch (_) {}
+  }
+
+  return Number(fallback || 0) || 0;
+}
+
 async function setCurrencyValue(login, amount) {
   assertWriteApiKey();
   const viewer = normalizeLogin(login);
@@ -241,7 +299,21 @@ async function getWizebotFarmDataByLogin(login, options = {}) {
   const exact = (prefix) => `${prefix}${normalized}`;
   const variants = (prefix) => [exact(prefix)];
 
-  const [farmResult, farmBalanceResult, upgradeBalanceResult, totalIncomeResult, lastCollectResult, licenseResult, protectionResult, raidPowerResult, turretResult] = await Promise.all([
+  const [
+    farmResult,
+    farmBalanceResult,
+    upgradeBalanceResult,
+    totalIncomeResult,
+    lastCollectResult,
+    licenseResult,
+    protectionResult,
+    raidPowerResult,
+    turretResult,
+    partsStockResult,
+    partsSoldTotalResult,
+    partsBoughtTotalResult,
+    twitchCurrencyValue
+  ] = await Promise.all([
     getCustomDataFirst(variants('farm_'), {}),
     getCustomDataFirst(variants('farm_virtual_balance_'), options.currentFarmBalance ?? 0),
     getCustomDataFirst(variants('farm_upgrade_balance_'), options.currentUpgradeBalance ?? 0),
@@ -250,13 +322,29 @@ async function getWizebotFarmDataByLogin(login, options = {}) {
     getCustomDataFirst(variants('farm_license_'), options.currentLicenseLevel ?? 0),
     getCustomDataFirst(variants('farm_protection_level_'), options.currentProtectionLevel ?? 0),
     getCustomDataFirst(variants('farm_raid_power_'), options.currentRaidPower ?? 0),
-    getCustomDataFirst(variants('farm_defense_building_'), options.currentTurret ?? {})
+    getCustomDataFirst(variants('farm_defense_building_'), options.currentTurret ?? {}),
+    getCustomDataFirst(['farm_parts_stock'], options.currentGlobals?.farm_parts_stock ?? 0),
+    getCustomDataFirst(['farm_parts_sold_total'], options.currentGlobals?.farm_parts_sold_total ?? 0),
+    getCustomDataFirst(['farm_parts_bought_total'], options.currentGlobals?.farm_parts_bought_total ?? 0),
+    getCurrencyValue(normalized, options.currentTwitchBalance ?? 0)
   ]);
 
   const farm = farmResult.value && typeof farmResult.value === 'object' ? farmResult.value : {};
+  farm.resources = farm.resources && typeof farm.resources === 'object' ? farm.resources : {};
+  farm.unlocked_at = farm.unlocked_at && typeof farm.unlocked_at === 'object' ? farm.unlocked_at : {};
+  farm.unlocked_at_ani = farm.unlocked_at_ani && typeof farm.unlocked_at_ani === 'object' ? farm.unlocked_at_ani : {};
+  farm.buildings = farm.buildings && typeof farm.buildings === 'object' ? farm.buildings : {};
+
+  const globals = {
+    ...(options.currentGlobals || {}),
+    farm_parts_stock: Number(partsStockResult.value ?? options.currentGlobals?.farm_parts_stock ?? 0),
+    farm_parts_sold_total: Number(partsSoldTotalResult.value ?? options.currentGlobals?.farm_parts_sold_total ?? 0),
+    farm_parts_bought_total: Number(partsBoughtTotalResult.value ?? options.currentGlobals?.farm_parts_bought_total ?? 0)
+  };
 
   return {
     login: normalized,
+    display_name: normalized,
     farm,
     farm_balance: Number(farmBalanceResult.value ?? options.currentFarmBalance ?? 0),
     upgrade_balance: Number(upgradeBalanceResult.value ?? options.currentUpgradeBalance ?? 0),
@@ -266,7 +354,7 @@ async function getWizebotFarmDataByLogin(login, options = {}) {
     protection_level: Number(protectionResult.value ?? options.currentProtectionLevel ?? 0),
     raid_power: Number(raidPowerResult.value ?? options.currentRaidPower ?? 0),
     turret: turretResult.value && typeof turretResult.value === 'object' ? turretResult.value : (options.currentTurret || {}),
-    twitch_balance: Number(options.currentTwitchBalance || 0),
+    twitch_balance: Number(twitchCurrencyValue ?? options.currentTwitchBalance ?? 0),
     configs: options.currentConfigs || {},
     found: {
       farm: !!farmResult.found,
@@ -277,9 +365,12 @@ async function getWizebotFarmDataByLogin(login, options = {}) {
       license_level: !!licenseResult.found,
       protection_level: !!protectionResult.found,
       raid_power: !!raidPowerResult.found,
-      turret: !!turretResult.found
+      turret: !!turretResult.found,
+      parts_stock: !!partsStockResult.found,
+      parts_sold_total: !!partsSoldTotalResult.found,
+      parts_bought_total: !!partsBoughtTotalResult.found
     },
-    globals: options.currentGlobals || {},
+    globals,
     foundKeys: {
       farm: farmResult.key,
       farm_balance: farmBalanceResult.key,
@@ -289,7 +380,10 @@ async function getWizebotFarmDataByLogin(login, options = {}) {
       license_level: licenseResult.key,
       protection_level: protectionResult.key,
       raid_power: raidPowerResult.key,
-      turret: turretResult.key
+      turret: turretResult.key,
+      parts_stock: partsStockResult.key,
+      parts_sold_total: partsSoldTotalResult.key,
+      parts_bought_total: partsBoughtTotalResult.key
     }
   };
 }
@@ -306,6 +400,7 @@ module.exports = {
   getNicoMooseFarmData,
   setCustomData,
   setCurrencyValue,
+  getCurrencyValue,
   buildFarmState,
   isWebMasterProfile,
   syncProfileToWizebot,
