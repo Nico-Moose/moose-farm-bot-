@@ -1,8 +1,7 @@
-/* Safe patch: unified admin player editor with inline player pick.
+/* Safe patch: compact unified admin editor with autoload player pick.
    Only touches admin panel UI and admin endpoints. */
 (function () {
   const DEFAULT_ADMIN_LOGIN = 'nico_moose';
-  let lastProfile = null;
   let autoLoadTimer = null;
   let lastLoadedLogin = '';
 
@@ -45,7 +44,7 @@
     if (typeof setAdminStatus === 'function') setAdminStatus(message, !!error);
   }
 
-  const fields = [
+  const fieldDefinitions = [
     ['level', '🌾 Уровень', '0+'],
     ['farm_balance', '🌾 Ферма', 'можно отрицательное'],
     ['upgrade_balance', '💎 Бонусные', '0+'],
@@ -53,7 +52,6 @@
     ['license_level', '📜 Лицензия', '0+'],
     ['raid_power', '⚔️ Рейд-сила', '0+'],
     ['protection_level', '🛡 Защита', '0+'],
-    ['total_income', '📈 Доход всего', 'число'],
     ['turret_level', '🔫 Турель ур.', '0+'],
     ['turret_chance', '🎯 Турель шанс %', 'число']
   ];
@@ -66,10 +64,9 @@
 
   function buildFieldCard(profile, field, label, hint) {
     const value = fieldValue(profile, field);
-    return `<div class="admin-field-card" data-admin-field-card="${field}">
+    return `<div class="admin-field-card admin-field-card-compact" data-admin-field-card="${field}">
       <label>${label}</label>
       <input type="number" step="1" data-admin-field="${field}" value="${String(value).replace(/"/g, '&quot;')}" />
-      <button type="button" data-admin-save-field="${field}">💾 Сохранить</button>
       <small>${hint} · сейчас ${fmt(value)}</small>
     </div>`;
   }
@@ -82,13 +79,12 @@
   }
 
   function buildBuildingCard(profile, key) {
-    const lvl = Number(profile?.farm?.buildings?.[key] || 0);
+    const level = Number(profile?.farm?.buildings?.[key] || 0);
     const title = profile?.configs?.buildings?.[key]?.name || key;
-    return `<div class="admin-building-card" data-admin-building-card="${key}">
+    return `<div class="admin-building-card admin-building-card-compact" data-admin-building-card="${key}">
       <label>${title}</label>
-      <input type="number" step="1" min="0" data-admin-building="${key}" value="${lvl}" />
-      <button type="button" data-admin-save-building="${key}">💾 Сохранить</button>
-      <small>ключ: ${key} · сейчас ур. ${fmt(lvl)}</small>
+      <input type="number" step="1" min="0" data-admin-building="${key}" value="${level}" />
+      <small>ключ: ${key} · сейчас ур. ${fmt(level)}</small>
     </div>`;
   }
 
@@ -97,16 +93,15 @@
     if (!box) return;
     if (!profile) {
       box.innerHTML = '';
-      lastProfile = null;
       return;
     }
-    lastProfile = profile;
+
     const login = (profile.login || profile.twitch_login || currentLogin() || DEFAULT_ADMIN_LOGIN).toLowerCase();
     lastLoadedLogin = login;
     setLogin(login);
     const buildings = knownBuildings(profile);
 
-    box.innerHTML = `<section class="admin-unified-editor">
+    box.innerHTML = `<section class="admin-unified-editor admin-unified-editor-compact">
       <div class="admin-unified-head">
         <div>
           <h2>${profile.display_name || profile.twitch_login || profile.login || 'unknown'}</h2>
@@ -119,13 +114,22 @@
           <button type="button" id="admin-unified-reset-offcollect">🌙 КД оффсбора</button>
         </div>
       </div>
-      <div class="admin-unified-grid">
-        ${fields.map((f) => buildFieldCard(profile, ...f)).join('')}
+
+      <div class="admin-unified-grid compact-grid-top">
+        ${fieldDefinitions.map((item) => buildFieldCard(profile, ...item)).join('')}
       </div>
+
+      <div class="admin-save-all-row">
+        <button type="button" id="admin-unified-save-all-fields">💾 Сохранить все поля</button>
+      </div>
+
       <div class="admin-unified-section">
         <h3>🏗 Постройки</h3>
-        <div class="admin-buildings-editor-grid">
+        <div class="admin-buildings-editor-grid compact-buildings-grid">
           ${buildings.length ? buildings.map((key) => buildBuildingCard(profile, key)).join('') : '<p class="admin-muted">Построек и конфигов зданий пока нет.</p>'}
+        </div>
+        <div class="admin-save-all-row admin-save-buildings-row">
+          <button type="button" id="admin-unified-save-all-buildings">💾 Сохранить все здания</button>
         </div>
       </div>
     </section>`;
@@ -140,22 +144,29 @@
     return data.profile;
   }
 
-  async function saveField(field) {
+  async function saveAllFields() {
     const login = currentLogin();
-    const input = document.querySelector(`[data-admin-field="${CSS.escape(field)}"]`);
-    const value = input ? input.value : '';
-    const data = await postAdmin('player/set-field', { login, field, value });
-    renderUnifiedEditor(data.profile);
-    status('Поле сохранено: ' + field);
+    if (!login) throw new Error('Укажи ник игрока');
+
+    for (const [field] of fieldDefinitions) {
+      const input = document.querySelector(`[data-admin-field="${CSS.escape(field)}"]`);
+      await postAdmin('player/set-field', { login, field, value: input ? input.value : '' });
+    }
+
+    await reloadPlayer('Все поля игрока сохранены');
   }
 
-  async function saveBuilding(key) {
+  async function saveAllBuildings() {
     const login = currentLogin();
-    const input = document.querySelector(`[data-admin-building="${CSS.escape(key)}"]`);
-    const level = input ? input.value : '0';
-    const data = await postAdmin('player/set-building', { login, building: key, level });
-    renderUnifiedEditor(data.profile);
-    status('Постройка сохранена: ' + key);
+    if (!login) throw new Error('Укажи ник игрока');
+
+    const nodes = Array.from(document.querySelectorAll('[data-admin-building]'));
+    for (const input of nodes) {
+      const key = input.getAttribute('data-admin-building');
+      await postAdmin('player/set-building', { login, building: key, level: input.value || '0' });
+    }
+
+    await reloadPlayer('Все здания игрока сохранены');
   }
 
   async function resetCooldown(path, message) {
@@ -270,10 +281,9 @@
     try { renderAdminPlayer = renderUnifiedEditor; } catch (_) {}
   }
 
-  function patchLoadButton() {
-    const btn = document.getElementById('admin-load-player');
-    if (!btn) return;
-    btn.remove();
+  function patchLegacyViewButtons() {
+    document.getElementById('admin-load-player')?.remove();
+    document.getElementById('admin-view-player-page')?.remove();
   }
 
   async function loadDefaultAdminPlayer() {
@@ -296,71 +306,38 @@
     panel.dataset.unifiedEditorReady = '1';
 
     panel.addEventListener('click', (event) => {
-      const saveFieldBtn = event.target.closest('[data-admin-save-field]');
-      if (saveFieldBtn) {
-        saveField(saveFieldBtn.getAttribute('data-admin-save-field')).catch((e) => status(e.message, true));
+      if (event.target.closest('#admin-unified-refresh')) {
+        reloadPlayer('Игрок обновлён').catch((e) => status(e.message, true));
         return;
       }
-
-      const saveBuildingBtn = event.target.closest('[data-admin-save-building]');
-      if (saveBuildingBtn) {
-        saveBuilding(saveBuildingBtn.getAttribute('data-admin-save-building')).catch((e) => status(e.message, true));
+      if (event.target.closest('#admin-unified-reset-case') || event.target.closest('#admin-reset-case-cooldown')) {
+        resetCooldown('reset-case-cooldown', 'КД кейса сброшен').catch((e) => status(e.message, true));
         return;
       }
-
-      if (event.target.closest('#admin-unified-refresh')) reloadPlayer('Игрок обновлён').catch((e) => status(e.message, true));
-      if (event.target.closest('#admin-unified-reset-case') || event.target.closest('#admin-reset-case-cooldown')) resetCooldown('reset-case-cooldown', 'КД кейса сброшен').catch((e) => status(e.message, true));
-      if (event.target.closest('#admin-unified-reset-raid') || event.target.closest('#admin-reset-raid')) resetCooldown('reset-raid-cooldown', 'КД рейда сброшен').catch((e) => status(e.message, true));
-      if (event.target.closest('#admin-unified-reset-offcollect') || event.target.closest('#admin-reset-offcollect-cooldown')) resetCooldown('reset-offcollect-cooldown', 'КД оффсбора сброшен').catch((e) => status(e.message, true));
-
-      if (event.target.closest('#admin-reset-gamus-all')) {
-        if (!confirm('Сбросить GAMUS всем игрокам?')) return;
-        postAdmin('reset-gamus-all', {}).then((d) => status(d.message)).catch((e) => status(e.message, true));
+      if (event.target.closest('#admin-unified-reset-raid') || event.target.closest('#admin-reset-raid')) {
+        resetCooldown('reset-raid-cooldown', 'КД рейда сброшен').catch((e) => status(e.message, true));
+        return;
       }
-      if (event.target.closest('#admin-reset-case-cooldown-all')) {
-        if (!confirm('Сбросить КД кейса всем игрокам?')) return;
-        postAdmin('reset-case-cooldown-all', {}).then((d) => status(d.message)).catch((e) => status(e.message, true));
+      if (event.target.closest('#admin-unified-reset-offcollect') || event.target.closest('#admin-reset-offcollect-cooldown')) {
+        resetCooldown('reset-offcollect-cooldown', 'КД оффсбора сброшен').catch((e) => status(e.message, true));
+        return;
       }
-      if (event.target.closest('#admin-reset-raid-cooldown-all')) {
-        if (!confirm('Сбросить КД рейда всем игрокам?')) return;
-        postAdmin('reset-raid-cooldown-all', {}).then((d) => status(d.message)).catch((e) => status(e.message, true));
+      if (event.target.closest('#admin-unified-save-all-fields')) {
+        saveAllFields().catch((e) => status(e.message, true));
+        return;
       }
-      if (event.target.closest('#admin-reset-offcollect-cooldown-all')) {
-        if (!confirm('Сбросить КД оффсбора всем игрокам?')) return;
-        postAdmin('reset-offcollect-cooldown-all', {}).then((d) => status(d.message)).catch((e) => status(e.message, true));
+      if (event.target.closest('#admin-unified-save-all-buildings')) {
+        saveAllBuildings().catch((e) => status(e.message, true));
+        return;
       }
     });
-  }
-
-  function patchLegacyProfileViewButtons() {
-    const panel = document.getElementById('admin-panel');
-    if (!panel || panel.dataset.unifiedProfileViewPatch === '1') return;
-    panel.dataset.unifiedProfileViewPatch = '1';
-
-    const reloadAsEditor = (event) => {
-      const btn = event.target.closest('#admin-view-player-page, #admin-card-view-profile');
-      if (!btn) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-      reloadPlayer('Редактор игрока обновлён').catch((e) => status(e.message, true));
-    };
-
-    panel.addEventListener('click', reloadAsEditor, true);
-
-    try {
-      window.adminViewPlayerAsProfile = function adminViewPlayerAsProfileAsEditor() {
-        return reloadPlayer('Редактор игрока обновлён');
-      };
-    } catch (_) {}
   }
 
   function boot() {
     patchRenderer();
     patchPlayerSearchUi();
-    patchLegacyProfileViewButtons();
+    patchLegacyViewButtons();
     bindUnifiedClicks();
-    patchLoadButton();
     loadDefaultAdminPlayer();
   }
 

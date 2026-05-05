@@ -183,71 +183,66 @@
 }
 
 
-/* Safe fix: restore compact admin editor layout from single-window view,
-   but keep cooldown buttons and editable buildings. */
-.admin-edit-profile-card-restored {
-  margin-top: 12px;
+/* Compact editor mode: only one editor view, save-all buttons, editable buildings. */
+.admin-unified-editor-compact .admin-unified-grid {
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
 }
 
-.admin-edit-head-actions {
+.admin-field-card-compact,
+.admin-building-card-compact {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  justify-content: flex-end;
 }
 
-.admin-edit-head-actions button {
-  width: auto;
+.admin-field-card-compact input,
+.admin-building-card-compact input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(12,14,21,.92);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.admin-field-card-compact input:focus,
+.admin-building-card-compact input:focus {
+  outline: none;
+  border-color: rgba(145,226,109,.40);
+  box-shadow: 0 0 0 3px rgba(145,226,109,.12);
+}
+
+.admin-save-all-row {
+  margin-top: 14px;
+}
+
+.admin-save-all-row button {
   min-height: 40px;
-  padding: 8px 14px;
   border-radius: 14px;
+  padding: 8px 18px;
 }
 
-.admin-edit-profile-grid-restored {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+.admin-save-buildings-row {
+  margin-top: 16px;
 }
 
-.admin-edit-profile-field-restored {
-  gap: 8px;
+.compact-buildings-grid {
+  align-items: start;
 }
 
-.admin-edit-profile-field-restored input {
-  min-height: 42px;
-}
-
-.admin-edit-actions-restored {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.admin-edit-actions-restored button {
-  width: auto;
-  min-height: 42px;
-  padding: 10px 16px;
-  border-radius: 14px;
-}
-
-.admin-edit-buildings-restored {
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-}
-
-.admin-edit-building-field {
-  display: grid;
-}
-
-.admin-edit-building-field span {
-  color: rgba(255,255,255,.86);
+@media (max-width: 1100px) {
+  .admin-unified-editor-compact .admin-unified-grid,
+  .admin-unified-editor-compact .admin-buildings-editor-grid {
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
-  .admin-edit-head-actions,
-  .admin-edit-actions-restored {
-    flex-direction: column;
-  }
-
-  .admin-edit-head-actions button,
-  .admin-edit-actions-restored button {
-    width: 100%;
+  .admin-unified-editor-compact .admin-unified-grid,
+  .admin-unified-editor-compact .admin-buildings-editor-grid {
+    grid-template-columns: 1fr;
   }
 }
