@@ -101,6 +101,41 @@ const { enqueueProfileSync, getQueueStats } = require('../services/wizebotSyncQu
 const { getStreamStatus, getStreamStatusSnapshot } = require('../services/streamStatusService');
 const { getCache, setCache, invalidateFarmCache } = require('../services/apiCacheService');
 
+function hasActiveFarm(profile) {
+  return !!(
+    profile &&
+    profile.farm &&
+    typeof profile.farm === 'object' &&
+    Object.keys(profile.farm).length > 0
+  );
+}
+
+function emptyFarmProfile(req) {
+  const user = req?.session?.twitchUser || {};
+  return {
+    twitch_id: user.id || null,
+    login: user.login || '',
+    display_name: user.display_name || user.login || '',
+    avatar_url: user.avatarUrl || '',
+    level: 0,
+    farm_balance: 0,
+    twitch_balance: 0,
+    upgrade_balance: 0,
+    total_income: 0,
+    parts: 0,
+    last_collect_at: null,
+    created_at: Date.now(),
+    updated_at: Date.now(),
+    farm: null,
+    configs: {},
+    license_level: 0,
+    protection_level: 0,
+    raid_power: 0,
+    turret: {},
+    last_wizebot_sync_at: null
+  };
+}
+
 function requireAuth(req, res, next) {
   if (!req.session.twitchUser) {
     return res.status(401).json({ ok: false, error: 'not_logged_in' });
@@ -123,6 +158,19 @@ function farmActionGuard(req, res, next) {
       ok: false,
       error: 'action_in_progress',
       message: 'Действие уже выполняется. Подожди завершения предыдущего клика.'
+    });
+  }
+
+  const allowWithoutFarm = req.path === '/sync-wizebot';
+  const profile = getProfile(userId);
+  req.farmProfile = profile;
+
+  if (!allowWithoutFarm && !hasActiveFarm(profile)) {
+    return res.status(400).json({
+      ok: false,
+      error: 'farm_not_found',
+      message: 'Ферма не активна. Купи ферму заново.',
+      ...profilePayload(profile)
     });
   }
 
@@ -190,8 +238,35 @@ async function pushProfileToWizebotForTest(req, profile) {
 }
 
 function profilePayload(profile) {
+  const activeFarm = hasActiveFarm(profile);
+
+  if (!activeFarm) {
+    const safeProfile = profile && typeof profile === 'object' ? profile : emptyFarmProfile();
+    const streamStatus = getStreamStatusSnapshot();
+    return {
+      profile: safeProfile,
+      hasFarm: false,
+      farmActive: false,
+      nextUpgrade: null,
+      nextLicense: null,
+      market: { listings: [], history: [], globals: {} },
+      raidUpgrades: { raidPower: 0, protectionLevel: 0, nextRaidPowerCost: 0, nextProtectionCost: 0 },
+      turret: { level: 0, chance: 0, nextCost: 0, nextChance: 0 },
+      raid: { unlocked: false, remainingMs: 0, cooldownMs: 0 },
+      caseStatus: { cooldownMs: 0, ready: false },
+      gamus: { ready: false, cooldownMs: 0 },
+      farmInfo: { hourly: { total: 0, parts: 0, bonus: 0 } },
+      raidInfo: { items: [] },
+      streamStatus,
+      streamOnline: !!streamStatus.online,
+      harvestManagedByWizebot: !!config.harvestManagedByWizebot
+    };
+  }
+
   return {
     profile,
+    hasFarm: true,
+    farmActive: true,
     nextUpgrade: getNextUpgrade(profile),
     nextLicense: getNextLicense(profile),
     market: getMarketState(profile),

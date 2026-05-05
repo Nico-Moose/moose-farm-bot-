@@ -1,6 +1,8 @@
 const { num } = require('./numberUtils');
 
 function ensureFarmShape(profile) {
+  profile = profile && typeof profile === 'object' ? profile : {};
+
   profile.level = num(profile.level);
   profile.farm_balance = num(profile.farm_balance);
   profile.upgrade_balance = num(profile.upgrade_balance);

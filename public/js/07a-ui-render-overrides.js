@@ -15,21 +15,28 @@ function ensureMainActionButtons(data) {
 
   const raid = data.raid || {};
   const streamOnline = !!(data.streamOnline || data.profile?.stream_online);
+  const farmActive = !!(data && data.hasFarm);
   const raidReady = !raid.remainingMs;
-  raidActionBtn.disabled = !streamOnline || !raid.unlocked || !raidReady;
-  raidActionBtn.innerHTML = raid.unlocked
-    ? `🏴 Рейд<br><small>${!streamOnline ? 'только когда стрим онлайн' : (raidReady ? 'готов к атаке' : 'кд ' + formatTime(raid.remainingMs))}</small>`
-    : '🏴 Рейд<br><small>с 30 уровня</small>';
+  raidActionBtn.disabled = !farmActive || !streamOnline || !raid.unlocked || !raidReady;
+  raidActionBtn.innerHTML = !farmActive
+    ? '🏴 Рейд<br><small>ферма не активна</small>'
+    : (raid.unlocked
+      ? `🏴 Рейд<br><small>${!streamOnline ? 'только когда стрим онлайн' : (raidReady ? 'готов к атаке' : 'кд ' + formatTime(raid.remainingMs))}</small>`
+      : '🏴 Рейд<br><small>с 30 уровня</small>');
 
   const upgrade1Btn = document.getElementById('upgrade1Btn');
   const upgrade10Btn = document.getElementById('upgrade10Btn');
   if (upgrade1Btn) {
     upgrade1Btn.classList.add('compact-action');
-    upgrade1Btn.innerHTML = `⬆️ Улучшить ферму +1<br><small id="upgrade1Text">${data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум'}</small>`;
+    upgrade1Btn.disabled = !farmActive;
+    upgrade1Btn.innerHTML = `⬆️ Улучшить ферму +1<br><small id="upgrade1Text">${farmActive ? (data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум') : 'ферма не активна'}</small>`;
   }
   if (upgrade10Btn) {
     upgrade10Btn.classList.add('compact-action');
-    upgrade10Btn.innerHTML = '🚀 Улучшить ферму +10<br><small>до 10 уровней</small>';
+    upgrade10Btn.disabled = !farmActive;
+    upgrade10Btn.innerHTML = farmActive
+      ? '🚀 Улучшить ферму +10<br><small>до 10 уровней</small>'
+      : '🚀 Улучшить ферму +10<br><small>ферма не активна</small>';
   }
 }
 
@@ -37,6 +44,7 @@ function render(data) {
   state = data;
   const el = document.getElementById('profile');
   const p = data.profile || {};
+  const farmActive = !!(data && data.hasFarm);
   const hourly = data.farmInfo?.hourly || {};
   const syncText = p.last_wizebot_sync_at ? new Date(Number(p.last_wizebot_sync_at)).toLocaleString('ru-RU') : 'ещё не было';
   const avatar = data.user.avatarUrl ? `<img class="profile-avatar-big" src="${data.user.avatarUrl}" alt="avatar">` : '<div class="profile-avatar-big profile-avatar-fallback">🌾</div>';
@@ -47,7 +55,7 @@ function render(data) {
         <div>
           <div class="profile-kicker">Игрок</div>
           <div class="profile-name-final">${data.user.displayName}</div>
-          <div class="profile-status-pill">${data.nextUpgrade ? '✅ Ферма активна' : '✅ Максимальный уровень'}</div>
+          <div class="profile-status-pill">${farmActive ? (data.nextUpgrade ? '✅ Ферма активна' : '✅ Максимальный уровень') : '⚪ Ферма не активна'}</div>
         </div>
       </div>
       <div class="profile-stats-final stats-2row-grid">
@@ -80,14 +88,15 @@ function renderQuickStatus(data) {
   let box = document.getElementById('quickStatus');
   const profile = data.profile;
   const next = data.nextUpgrade;
+  const farmActive = !!(data && data.hasFarm);
   if (!box) {
     box = document.createElement('section');
     box.id = 'quickStatus';
     box.className = 'quick-status';
     document.getElementById('profile')?.insertAdjacentElement('afterend', box);
   }
-  let upgradeText = '✅ Ферма уже на максимальном уровне';
-  if (next) {
+  let upgradeText = farmActive ? '✅ Ферма уже на максимальном уровне' : 'Ферма удалена или не активна. Купи ферму заново.';
+  if (farmActive && next) {
     const st = resourceStatus(profile, next.cost, next.parts);
     const possible = (st.coinsOk && st.partsOk) ? 'Ресурсов хватает для следующего уровня.' : `Не хватает: ${st.missingCoins ? formatNumber(st.missingCoins) + '💰 ' : ''}${st.missingParts ? formatNumber(st.missingParts) + '🔧' : ''}`;
     upgradeText = `⬆️ Следующий ап: ${formatNumber(next.cost)}💰${next.parts ? ' / ' + formatNumber(next.parts) + '🔧' : ''}. ${possible}`;
@@ -115,6 +124,7 @@ function renderLicense(data) {
   }
   box.style.display = '';
   const p = data.profile || {};
+  const farmActive = !!(data && data.hasFarm);
   const st = resourceStatus(p, next.cost, 0);
   box.innerHTML = `
     <div class="license-card compact-license-card">
@@ -192,6 +202,7 @@ function renderBuildings(data) {
   const el = document.getElementById('buildings');
   if (!el) return;
   const p = data.profile || {};
+  const farmActive = !!(data && data.hasFarm);
   const buildingsConfig = p.configs?.buildings || {};
   const owned = (p.farm && p.farm.buildings) || {};
   const keys = Object.keys(buildingsConfig);
@@ -252,6 +263,7 @@ function renderCombat(data) {
   const box = document.getElementById('combatBox');
   if (!box) return;
   const p = data.profile || {};
+  const farmActive = !!(data && data.hasFarm);
   const raidPower = data.raidUpgrades?.raidPower || {};
   const protection = data.raidUpgrades?.protection || {};
   const turret = data.turret || {};
@@ -295,6 +307,7 @@ function renderExtras(data) {
   const box = document.getElementById('extrasBox');
   if (!box) return;
   const p = data.profile || {};
+  const farmActive = !!(data && data.hasFarm);
   const cs = data.caseStatus || {};
   const gamus = data.gamus || {};
   const ranges = gamus.ranges || {};
