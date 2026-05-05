@@ -5,23 +5,14 @@ function normalizeLogin(login) {
 }
 
 function hasMeaningfulLegacyWizebotData(wizebotData) {
-  const farm = wizebotData?.farm || {};
-  const resources = farm.resources || {};
-  const buildings = farm.buildings || {};
   const found = wizebotData?.found || {};
 
-  if (found.farm || found.farm_balance || found.upgrade_balance || found.total_income || found.last_collect_at || found.license_level || found.protection_level || found.raid_power || found.turret) {
+  // ВАЖНО: не считаем fallback-значения сайта успехом импорта из legacy WizeBot vars.
+  // Для старой !ферма нужен реальный след хотя бы по одному ключевому legacy-ключу,
+  // иначе должен включаться запасной WizeBot-side мигратор.
+  if (found.farm || found.farm_balance || found.upgrade_balance) {
     return true;
   }
-
-  if (Number(farm.level || 0) > 0) return true;
-  if (Number(resources.parts || 0) > 0) return true;
-  if (Object.keys(buildings).length > 0) return true;
-  if (Number(wizebotData?.farm_balance || 0) !== 0) return true;
-  if (Number(wizebotData?.upgrade_balance || 0) !== 0) return true;
-  if (Number(wizebotData?.license_level || 0) !== 0) return true;
-  if (Number(wizebotData?.protection_level || 0) !== 0) return true;
-  if (Number(wizebotData?.raid_power || 0) !== 0) return true;
 
   return false;
 }

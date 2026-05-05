@@ -215,15 +215,9 @@ async function syncProfileToWizebot(profile) {
   farmV2.farm.raidLogs = Array.isArray(profile?.farm?.raidLogs) ? profile.farm.raidLogs : (Array.isArray(farmV2.farm.raidLogs) ? farmV2.farm.raidLogs : []);
 
   const rawTasks = [
-    ['farm_' + state.login, state.farm],
-    ['farm_virtual_balance_' + state.login, String(state.farm_balance)],
-    ['farm_upgrade_balance_' + state.login, String(state.upgrade_balance)],
-    ['farm_total_income_' + state.login, String(state.total_income)],
-    ['farm_last_' + state.login, String(state.last_collect_at)],
-    ['farm_license_' + state.login, String(state.license_level)],
-    ['farm_protection_level_' + state.login, String(state.protection_level)],
-    ['farm_raid_power_' + state.login, String(state.raid_power)],
-    ['farm_defense_building_' + state.login, state.turret],
+    // ВАЖНО: сайт больше не должен перезаписывать legacy vars старой !ферма.
+    // Иначе ручная миграция и чтение старой фермы начинают видеть не исходные WizeBot-данные,
+    // а значения, которые сайт сам же и записал назад.
     ['farm_v2_' + state.login, farmV2],
     ['farm_v2_migrated_' + state.login, '1'],
     ['farm_v2_migrated_at_' + state.login, String(syncedAt)]
