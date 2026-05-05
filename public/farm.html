@@ -30,6 +30,8 @@
     </nav>
 
     <section class="farm-tab-panel active" data-farm-panel="main">
+      <div class="main-dashboard-layout">
+        <div class="main-dashboard-primary">
       <div id="profile" class="profile-shell">
         <div class="profile-card-final profile-card-skeleton" aria-hidden="true">
           <div class="profile-main-left">
@@ -97,6 +99,28 @@
       </section>
 
       <section id="licenseBox" class="license-section"></section>
+        </div>
+
+        <aside class="main-dashboard-side">
+          <section class="main-twitch-chat-card visual-section" aria-label="Чат Twitch канала">
+            <div class="main-twitch-chat-head">
+              <div>
+                <h2>💬 Чат Twitch</h2>
+                <p>Nico_Moose</p>
+              </div>
+              <a class="main-twitch-chat-link" href="https://www.twitch.tv/popout/Nico_Moose/chat?popout=" target="_blank" rel="noopener noreferrer">↗ Открыть</a>
+            </div>
+            <div class="main-twitch-chat-frame">
+              <div id="mainTwitchChatEmbed" class="main-twitch-chat-embed" data-channel="Nico_Moose">
+                <div class="main-twitch-chat-placeholder" aria-hidden="true">
+                  <div class="main-twitch-chat-placeholder-top"></div>
+                  <div class="main-twitch-chat-placeholder-body"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
     </section>
 
     <section class="farm-tab-panel" data-farm-panel="buildings">
@@ -209,6 +233,7 @@
   <script src="/js/10g-market-qty-presets.js"></script>
   <script src="/js/10h-market-exact-ui.js"></script>
   <script src="/js/10i-admin-journal.js"></script>
+  <script src="/js/10j-main-twitch-chat.js"></script>
   <script src="/app.js"></script>
   <script src="/js/11-performance-boost.js"></script>
   <script src="/js/10k-admin-unified-editor.js"></script>
@@ -226,6 +251,7 @@
         <h3>Игрок</h3>
         <input id="admin-login" placeholder="начни вводить ник" autocomplete="off" />
         <div id="admin-player-suggestions" class="admin-suggestions hidden"></div>
+        <button id="admin-load-player">Посмотреть игрока</button>
       </div>
 
       <div id="admin-player-info" class="admin-result"></div>
@@ -234,9 +260,6 @@
         <button class="admin-tab active" data-admin-tab="extended">Расширенное</button>
         <button class="admin-tab" data-admin-tab="danger">Опасное</button>
         <button class="admin-tab" data-admin-tab="journal">Журнал</button>
-      </div>
-
-        </div>
       </div>
 
       <div class="admin-tab-panel" data-admin-panel="danger">
