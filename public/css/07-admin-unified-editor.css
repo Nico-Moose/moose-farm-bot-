@@ -386,3 +386,130 @@
     justify-content: flex-start;
   }
 }
+
+.admin-farmers-tools {
+  align-items: flex-end;
+}
+
+.admin-farmers-search-block {
+  min-width: min(100%, 360px);
+  flex: 1 1 320px;
+  position: relative;
+}
+
+.admin-farmers-search-block label {
+  display: grid;
+  gap: 8px;
+  font-weight: 800;
+  color: rgba(255,255,255,.86);
+}
+
+#admin-farmers-search {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(145,226,109,.22);
+  background: rgba(12,14,21,.92);
+  color: #f4f7ff;
+  padding: 10px 14px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#admin-farmers-search:focus {
+  outline: none;
+  border-color: rgba(145,226,109,.45);
+  box-shadow: 0 0 0 3px rgba(145,226,109,.14);
+}
+
+.admin-farmers-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(14,18,28,.98);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 16px 30px rgba(0,0,0,.28);
+}
+
+.admin-farmers-suggestions.hidden {
+  display: none;
+}
+
+.admin-farmers-suggestions button {
+  width: 100%;
+  text-align: left;
+  min-height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(34,39,53,.96), rgba(24,28,38,.96));
+  border: 1px solid rgba(255,255,255,.08);
+  color: #f6f8ff;
+}
+
+.admin-farmers-suggestions button:hover {
+  background: linear-gradient(180deg, rgba(94,120,54,.28), rgba(47,59,33,.28));
+}
+
+.admin-farmers-suggestions b,
+.admin-farmers-suggestions small {
+  display: block;
+}
+
+.admin-farmers-suggestions b {
+  color: #f3ffcb;
+}
+
+.admin-farmers-suggestions small {
+  margin-top: 4px;
+  color: rgba(227,236,255,.72);
+}
+
+.admin-farmer-row {
+  align-items: stretch;
+}
+
+.admin-farmer-main {
+  background: linear-gradient(180deg, rgba(41,45,58,.95), rgba(29,33,44,.95));
+  border: 1px solid rgba(255,255,255,.07);
+}
+
+.admin-farmer-main:hover {
+  background: linear-gradient(180deg, rgba(56,63,80,.98), rgba(35,40,54,.98));
+  border-color: rgba(145,226,109,.18);
+}
+
+.admin-farmer-rank {
+  color: #ffd96b;
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+
+.admin-farmer-meta strong {
+  color: #f4f7ff;
+  font-size: 18px;
+  letter-spacing: .01em;
+}
+
+.admin-farmer-meta small {
+  color: rgba(164,192,255,.72);
+  font-weight: 700;
+}
+
+.admin-farmer-stats span {
+  color: #eef2ff;
+  font-weight: 800;
+}
+
+.admin-farmer-delete {
+  background: linear-gradient(180deg, rgba(108,56,64,.92), rgba(82,42,49,.92));
+  color: #ffe8eb;
+  border: 1px solid rgba(255,255,255,.06);
+}
+
+.admin-farmer-delete:hover {
+  background: linear-gradient(180deg, rgba(132,64,75,.95), rgba(97,46,56,.95));
+}

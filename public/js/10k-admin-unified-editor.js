@@ -4,6 +4,7 @@
   const DEFAULT_ADMIN_LOGIN = 'nico_moose';
   let autoLoadTimer = null;
   let lastLoadedLogin = '';
+  let farmersState = { farmers: [], total: 0, sort: 'level_desc', query: '' };
 
   function fmt(value) {
     if (typeof stageFormat === 'function') return stageFormat(value || 0);
@@ -205,18 +206,51 @@
     };
   }
 
+  function filteredFarmers(state) {
+    const farmers = Array.isArray(state?.farmers) ? state.farmers : [];
+    const query = String(state?.query || '').trim().toLowerCase();
+    if (!query) return farmers;
+    return farmers.filter((farmer) => {
+      const login = String(farmer.login || '').toLowerCase();
+      const display = String(farmer.display_name || '').toLowerCase();
+      return login.includes(query) || display.includes(query);
+    });
+  }
+
+  function renderFarmersSuggestions(state) {
+    const box = document.getElementById('admin-farmers-suggestions');
+    if (!box) return;
+    const query = String(state?.query || '').trim().toLowerCase();
+    const matches = filteredFarmers(state).slice(0, 8);
+    if (!query || !matches.length) {
+      box.innerHTML = '';
+      box.classList.add('hidden');
+      return;
+    }
+
+    box.innerHTML = matches.map((farmer) => {
+      const login = String(farmer.login || '').toLowerCase();
+      const display = farmer.display_name || login;
+      const level = Number(farmer.level || 0);
+      return `<button type="button" data-admin-farmer-pick="${login}"><b>${display}</b><small>@${login} · ур. ${fmt(level)}</small></button>`;
+    }).join('');
+    box.classList.remove('hidden');
+  }
+
   function renderFarmersList(state) {
     const summary = document.getElementById('admin-farmers-summary');
     const list = document.getElementById('admin-farmers-list');
     if (!summary || !list) return;
 
-    const farmers = Array.isArray(state?.farmers) ? state.farmers : [];
-    const total = Number(state?.total || farmers.length || 0);
+    const farmers = filteredFarmers(state);
+    const total = Number(state?.total || 0);
+    const query = String(state?.query || '').trim();
 
-    summary.textContent = total ? `Всего фермеров: ${total}` : 'Фермеров пока нет.';
+    summary.textContent = total ? `Всего фермеров: ${total}${query ? ` · найдено: ${farmers.length}` : ''}` : 'Фермеров пока нет.';
+    renderFarmersSuggestions(state);
 
     if (!farmers.length) {
-      list.innerHTML = '<div class="admin-farmers-empty admin-muted">Список фермеров пуст.</div>';
+      list.innerHTML = '<div class="admin-farmers-empty admin-muted">По текущему поиску фермеров не найдено.</div>';
       return;
     }
 
@@ -226,7 +260,7 @@
       const level = Number(farmer.level || 0);
       const farmBalance = Number(farmer.farm_balance || 0);
       const parts = Number(farmer.parts || 0);
-      const position = `${index + 1}/${total}`;
+      const position = `${index + 1}/${farmers.length}`;
       return `<article class="admin-farmer-row" data-admin-farmer-open="${login}">
         <button type="button" class="admin-farmer-main" data-admin-farmer-open="${login}">
           <span class="admin-farmer-rank">${position}</span>
@@ -247,11 +281,18 @@
 
   async function refreshFarmersList(message) {
     const select = document.getElementById('admin-farmers-sort');
+    const search = document.getElementById('admin-farmers-search');
     const sort = String(select?.value || 'level_desc');
     const state = await fetchFarmers(sort);
-    renderFarmersList(state);
+    farmersState = {
+      farmers: state.farmers || [],
+      total: Number(state.total || 0),
+      sort: state.sort || sort,
+      query: String(search?.value || '').trim().toLowerCase()
+    };
+    renderFarmersList(farmersState);
     if (message) status(message);
-    return state;
+    return farmersState;
   }
 
   function hideSuggestions() {
@@ -349,6 +390,8 @@
     const list = document.getElementById('admin-farmers-list');
     const sort = document.getElementById('admin-farmers-sort');
     const refresh = document.getElementById('admin-farmers-refresh');
+    const search = document.getElementById('admin-farmers-search');
+    const suggestions = document.getElementById('admin-farmers-suggestions');
     if (!panel || !list || panel.dataset.farmersTabReady === '1') return;
     panel.dataset.farmersTabReady = '1';
 
@@ -360,11 +403,36 @@
       refreshFarmersList('Список фермеров обновлён').catch((e) => status(e.message, true));
     });
 
+    search?.addEventListener('input', () => {
+      farmersState.query = String(search.value || '').trim().toLowerCase();
+      renderFarmersList(farmersState);
+    });
+
+    search?.addEventListener('focus', () => {
+      renderFarmersSuggestions(farmersState);
+    });
+
     panel.addEventListener('click', (event) => {
+      const pickBtn = event.target.closest('[data-admin-farmer-pick]');
+      if (pickBtn) {
+        const login = pickBtn.getAttribute('data-admin-farmer-pick');
+        if (!login) return;
+        setLogin(login);
+        if (search) search.value = login;
+        farmersState.query = login;
+        renderFarmersSuggestions({ ...farmersState, query: '' });
+        switchAdminTab('extended');
+        reloadPlayer('Игрок загружен из списка фермеров').catch((e) => status(e.message, true));
+        return;
+      }
+
       const openBtn = event.target.closest('[data-admin-farmer-open]');
       if (openBtn) {
         const login = openBtn.getAttribute('data-admin-farmer-open');
         setLogin(login);
+        if (search) search.value = login;
+        farmersState.query = login;
+        renderFarmersSuggestions({ ...farmersState, query: '' });
         switchAdminTab('extended');
         reloadPlayer('Игрок загружен из списка фермеров').catch((e) => status(e.message, true));
         return;
@@ -382,9 +450,18 @@
               renderUnifiedEditor(null);
               setLogin('');
             }
+            if (search && String(search.value || '').trim().toLowerCase() === login) {
+              search.value = '';
+              farmersState.query = '';
+            }
             await refreshFarmersList(data.message || 'Фермер удалён');
           })
           .catch((e) => status(e.message, true));
+        return;
+      }
+
+      if (suggestions && event.target !== search && !suggestions.contains(event.target)) {
+        suggestions.classList.add('hidden');
       }
     });
 
