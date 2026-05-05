@@ -1,4 +1,10 @@
-const API_KEY = process.env.WIZEBOT_API_KEY || 'PASTE_YOUR_WIZEBOT_API_KEY_HERE';
+require('dotenv').config();
+
+const API_KEY =
+  process.env.WIZEBOT_API_KEY ||
+  process.env.WIZEBOT_API_KEY_RW ||
+  'PASTE_YOUR_WIZEBOT_API_KEY_HERE';
+
 const LOGIN = 'fenriss1';
 
 async function getJson(url) {
