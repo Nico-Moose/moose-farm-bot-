@@ -56,20 +56,42 @@
     ['turret_chance', '🎯 Турель шанс %', 'число']
   ];
 
+  const fieldGroups = [
+    {
+      title: 'Основные параметры',
+      subtitle: 'Баланс, уровень, лицензия и базовые ресурсы игрока.',
+      fields: ['level', 'farm_balance', 'upgrade_balance', 'parts', 'license_level']
+    },
+    {
+      title: 'Бой и турель',
+      subtitle: 'Боевые значения, защита, общий доход и параметры турели.',
+      fields: ['raid_power', 'protection_level', 'total_income', 'turret_level', 'turret_chance']
+    }
+  ];
+
   function fieldValue(profile, field) {
     if (field === 'turret_level') return Number(profile?.turret?.level || 0);
     if (field === 'turret_chance') return Number(profile?.turret?.chance || 0);
     return Number(profile?.[field] || 0);
   }
 
+  function getFieldMeta(field) {
+    return fields.find((item) => item[0] === field) || [field, field, ''];
+  }
+
   function buildFieldCard(profile, field, label, hint) {
     const value = fieldValue(profile, field);
-    return `<div class="admin-field-card" data-admin-field-card="${field}">
-      <label>${label}</label>
+    return `<article class="admin-field-card admin-polished-card" data-admin-field-card="${field}">
+      <div class="admin-field-card-head">
+        <label>${label}</label>
+        <span class="admin-value-pill">${fmt(value)}</span>
+      </div>
       <input type="number" step="1" data-admin-field="${field}" value="${String(value).replace(/"/g, '&quot;')}" />
-      <button type="button" data-admin-save-field="${field}">💾 Сохранить</button>
-      <small>${hint} · сейчас ${fmt(value)}</small>
-    </div>`;
+      <div class="admin-card-footer-row">
+        <small>${hint}</small>
+        <button type="button" data-admin-save-field="${field}">💾 Сохранить</button>
+      </div>
+    </article>`;
   }
 
   function knownBuildings(profile) {
@@ -82,12 +104,44 @@
   function buildBuildingCard(profile, key) {
     const lvl = Number(profile?.farm?.buildings?.[key] || 0);
     const title = profile?.configs?.buildings?.[key]?.name || key;
-    return `<div class="admin-building-card" data-admin-building-card="${key}">
-      <label>${title}</label>
+    return `<article class="admin-building-card admin-polished-card" data-admin-building-card="${key}">
+      <div class="admin-field-card-head">
+        <label>${title}</label>
+        <span class="admin-value-pill">ур. ${fmt(lvl)}</span>
+      </div>
       <input type="number" step="1" min="0" data-admin-building="${key}" value="${lvl}" />
-      <button type="button" data-admin-save-building="${key}">💾 Сохранить</button>
-      <small>ключ: ${key} · сейчас ур. ${fmt(lvl)}</small>
-    </div>`;
+      <div class="admin-card-footer-row">
+        <small>ключ: ${key}</small>
+        <button type="button" data-admin-save-building="${key}">💾 Сохранить</button>
+      </div>
+    </article>`;
+  }
+
+  function buildHeroStats(profile) {
+    const items = [
+      ['Уровень', fieldValue(profile, 'level')],
+      ['Ферма', fieldValue(profile, 'farm_balance')],
+      ['Бонусные', fieldValue(profile, 'upgrade_balance')],
+      ['Запчасти', fieldValue(profile, 'parts')]
+    ];
+    return items.map(([label, value]) => `<div class="admin-hero-stat"><span>${label}</span><b>${fmt(value)}</b></div>`).join('');
+  }
+
+  function buildFieldGroup(profile, group) {
+    return `<section class="admin-editor-section">
+      <div class="admin-editor-section-head">
+        <div>
+          <h3>${group.title}</h3>
+          <p>${group.subtitle}</p>
+        </div>
+      </div>
+      <div class="admin-unified-grid">
+        ${group.fields.map((field) => {
+          const [, label, hint] = getFieldMeta(field);
+          return buildFieldCard(profile, field, label, hint);
+        }).join('')}
+      </div>
+    </section>`;
   }
 
   function renderUnifiedEditor(profile) {
@@ -104,10 +158,26 @@
     const buildings = knownBuildings(profile);
 
     box.innerHTML = `<section class="admin-unified-editor">
-      <div class="admin-unified-head">
-        <div>
-          <h2>${profile.display_name || profile.twitch_login || profile.login || 'unknown'}</h2>
-          <small>@${login}</small>
+      <div class="admin-unified-hero">
+        <div class="admin-unified-identity">
+          <div class="admin-unified-name-wrap">
+            <h2>${profile.display_name || profile.twitch_login || profile.login || 'unknown'}</h2>
+            <small>@${login}</small>
+          </div>
+          <div class="admin-unified-badges">
+            <span class="admin-soft-badge">Профиль игрока</span>
+            <span class="admin-soft-badge">Редактирование</span>
+          </div>
+        </div>
+        <div class="admin-hero-stats-grid">
+          ${buildHeroStats(profile)}
+        </div>
+      </div>
+
+      <div class="admin-unified-toolbar">
+        <div class="admin-toolbar-title">
+          <b>Быстрые действия</b>
+          <span>Обновление и точечные сбросы только для выбранного игрока.</span>
         </div>
         <div class="admin-unified-actions">
           <button type="button" id="admin-unified-refresh">↻ Обновить</button>
@@ -116,15 +186,20 @@
           <button type="button" id="admin-unified-reset-offcollect">🌙 КД оффсбора</button>
         </div>
       </div>
-      <div class="admin-unified-grid">
-        ${fields.map((f) => buildFieldCard(profile, ...f)).join('')}
-      </div>
-      <div class="admin-unified-section">
-        <h3>🏗 Постройки</h3>
+
+      ${fieldGroups.map((group) => buildFieldGroup(profile, group)).join('')}
+
+      <section class="admin-editor-section admin-buildings-section">
+        <div class="admin-editor-section-head">
+          <div>
+            <h3>🏗 Постройки</h3>
+            <p>Редактирование уровней зданий игрока по одному, без зацепа остальной логики.</p>
+          </div>
+        </div>
         <div class="admin-buildings-editor-grid">
           ${buildings.length ? buildings.map((key) => buildBuildingCard(profile, key)).join('') : '<p class="admin-muted">Построек и конфигов зданий пока нет.</p>'}
         </div>
-      </div>
+      </section>
     </section>`;
   }
 
@@ -183,7 +258,7 @@
 
       if (event.target.closest('#admin-unified-refresh')) reloadPlayer('Игрок обновлён').catch((e) => status(e.message, true));
       if (event.target.closest('#admin-unified-reset-case') || event.target.closest('#admin-reset-case-cooldown')) resetCooldown('reset-case-cooldown', 'КД кейса сброшен').catch((e) => status(e.message, true));
-      if (event.target.closest('#admin-unified-reset-raid')) resetCooldown('reset-raid-cooldown', 'КД рейда сброшен').catch((e) => status(e.message, true));
+      if (event.target.closest('#admin-unified-reset-raid') || event.target.closest('#admin-reset-raid')) resetCooldown('reset-raid-cooldown', 'КД рейда сброшен').catch((e) => status(e.message, true));
       if (event.target.closest('#admin-unified-reset-offcollect') || event.target.closest('#admin-reset-offcollect-cooldown')) resetCooldown('reset-offcollect-cooldown', 'КД оффсбора сброшен').catch((e) => status(e.message, true));
 
       if (event.target.closest('#admin-reset-gamus-all')) {
