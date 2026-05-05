@@ -189,3 +189,35 @@
     height: 500px;
   }
 }
+
+
+/* Safe fix: keep Twitch chat interactive while scrolling.
+   The site has sticky/floating UI layers (tabs, message panel, scroll button).
+   Raise the chat sidebar above them so Twitch input and controls stay clickable. */
+.main-dashboard-side {
+  position: relative;
+  z-index: 60;
+}
+
+.main-twitch-chat-card {
+  z-index: 60;
+  isolation: isolate;
+}
+
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure sticky site-wide status/message bars never steal clicks from the chat area. */
+#message.message-panel {
+  z-index: 30;
+}
+
+@media (min-width: 1450px) {
+  .main-twitch-chat-card {
+    z-index: 60;
+  }
+}
