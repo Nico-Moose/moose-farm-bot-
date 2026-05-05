@@ -110,6 +110,7 @@ function applyFarmV2Push(login, farmV2) {
   const progression = farmV2.progression || {};
   const farm = farmV2.farm || {};
   const defense = farmV2.defense || {};
+  const incomingConfigs = farmV2.configs && typeof farmV2.configs === 'object' ? farmV2.configs : null;
 
   const hasIncomingTwitchBalance = Object.prototype.hasOwnProperty.call(balances, 'twitch_balance');
   const twitchBalance = hasIncomingTwitchBalance
@@ -128,6 +129,7 @@ function applyFarmV2Push(login, farmV2) {
     protection_level: Number(progression.protection_level || 0),
     raid_power: Number(progression.raid_power || 0),
     farm,
+    configs: incomingConfigs || profile.configs || {},
     turret: defense.turret || {},
     last_wizebot_sync_at: Date.now(),
     twitch_balance: twitchBalance,
