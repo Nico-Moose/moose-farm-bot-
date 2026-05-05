@@ -35,7 +35,11 @@
       <section class="quick-actions-section visual-section main-actions-card">
         <h2>⚡ Основные действия</h2>
         <section class="farm-grid action-grid-top">
-          <button id="collectBtn">🧺 Урожай<br><small>авто через !урожай</small></button>
+          <button id="collectBtn" hidden class="is-prehidden">🧺 Урожай<br><small>авто через !урожай</small></button>
+          <div id="raidActionWrap" class="raid-action-wrap">
+            <button id="raidActionBtn" class="compact-action danger-lite" type="button">🏴 Рейд<br><small>загрузка...</small></button>
+            <button id="raidHistoryBtn" class="raid-history-small-btn" type="button" disabled>📜 Истории нет</button>
+          </div>
           <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
           <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
           <button id="syncWizebotBtn" style="display:none">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
@@ -44,12 +48,56 @@
 
       <section class="extra-section priority-section visual-section">
         <h2>🎁 Кейс / GAMUS / оффсбор</h2>
-        <div id="extrasBox" class="combat-grid">Загрузка...</div>
+        <div id="extrasBox" class="combat-grid cls-placeholder-grid">
+          <div class="cls-placeholder-card">
+            <div class="cls-placeholder-line title"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line long"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line short"></div>
+          </div>
+          <div class="cls-placeholder-card">
+            <div class="cls-placeholder-line title"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line long"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line short"></div>
+          </div>
+          <div class="cls-placeholder-card">
+            <div class="cls-placeholder-line title"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line long"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line short"></div>
+          </div>
+        </div>
       </section>
 
       <section class="combat-section priority-section visual-section">
         <h2>⚔️ Рейды и защита</h2>
-        <div id="combatBox" class="combat-grid">Загрузка боевого блока...</div>
+        <div id="combatBox" class="combat-grid cls-placeholder-grid">
+          <div class="cls-placeholder-card compact">
+            <div class="cls-placeholder-line title"></div>
+            <div class="cls-placeholder-line short"></div>
+            <div class="cls-placeholder-line short"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line mid"></div>
+          </div>
+          <div class="cls-placeholder-card compact">
+            <div class="cls-placeholder-line title"></div>
+            <div class="cls-placeholder-line short"></div>
+            <div class="cls-placeholder-line short"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line mid"></div>
+          </div>
+          <div class="cls-placeholder-card compact">
+            <div class="cls-placeholder-line title"></div>
+            <div class="cls-placeholder-line short"></div>
+            <div class="cls-placeholder-line short"></div>
+            <div class="cls-placeholder-line mid"></div>
+            <div class="cls-placeholder-line mid"></div>
+          </div>
+        </div>
       </section>
 
       <section id="licenseBox" class="license-section"></section>
