@@ -30,16 +30,48 @@
     </nav>
 
     <section class="farm-tab-panel active" data-farm-panel="main">
-      <div id="profile" class="profile-shell">Загрузка...</div>
+      <div id="profile" class="profile-shell">
+        <div class="profile-card-final profile-card-skeleton" aria-hidden="true">
+          <div class="profile-main-left">
+            <div class="profile-avatar-big profile-skeleton-box"></div>
+            <div class="profile-skeleton-copy">
+              <div class="profile-kicker skeleton-line skeleton-line-xs"></div>
+              <div class="profile-name-final skeleton-line skeleton-line-lg"></div>
+              <div class="profile-status-pill skeleton-pill"></div>
+            </div>
+          </div>
+          <div class="profile-stats-final">
+            <div class="stat-tile accent skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile gold skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile skeleton-stat"><span></span><b></b></div>
+            <div class="stat-tile wide skeleton-stat"><span></span><b></b></div>
+          </div>
+        </div>
+      </div>
+
+      <section id="quickStatus" class="quick-status quick-status-skeleton" aria-hidden="true">
+        <div><b class="skeleton-line skeleton-line-sm"></b></div>
+        <div class="quick-status-grid">
+          <span class="skeleton-line skeleton-line-md"></span>
+          <span class="skeleton-line skeleton-line-md"></span>
+          <span class="skeleton-line skeleton-line-md"></span>
+          <span class="skeleton-line skeleton-line-md"></span>
+          <span class="skeleton-line skeleton-line-md"></span>
+        </div>
+        <div class="quick-status-upgrade"><span class="skeleton-line skeleton-line-lg"></span></div>
+      </section>
 
       <section class="quick-actions-section visual-section main-actions-card">
         <h2>⚡ Основные действия</h2>
         <section class="farm-grid action-grid-top">
-          <button id="collectBtn" hidden class="is-prehidden">🧺 Урожай<br><small>авто через !урожай</small></button>
-          <div id="raidActionWrap" class="raid-action-wrap">
-            <button id="raidActionBtn" class="compact-action danger-lite" type="button">🏴 Рейд<br><small>загрузка...</small></button>
-            <button id="raidHistoryBtn" class="raid-history-small-btn" type="button" disabled>📜 Истории нет</button>
-          </div>
+          <button id="collectBtn">🧺 Урожай<br><small>авто через !урожай</small></button>
           <button id="upgrade1Btn">⬆️ Улучшить +1<br><small id="upgrade1Text">загрузка</small></button>
           <button id="upgrade10Btn">⬆️ Улучшить +10<br><small>до 10 уровней</small></button>
           <button id="syncWizebotBtn" style="display:none">🔄 Sync WizeBot<br><small>через !синкферма</small></button>
@@ -48,55 +80,19 @@
 
       <section class="extra-section priority-section visual-section">
         <h2>🎁 Кейс / GAMUS / оффсбор</h2>
-        <div id="extrasBox" class="combat-grid cls-placeholder-grid">
-          <div class="cls-placeholder-card">
-            <div class="cls-placeholder-line title"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line long"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line short"></div>
-          </div>
-          <div class="cls-placeholder-card">
-            <div class="cls-placeholder-line title"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line long"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line short"></div>
-          </div>
-          <div class="cls-placeholder-card">
-            <div class="cls-placeholder-line title"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line long"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line short"></div>
-          </div>
+        <div id="extrasBox" class="combat-grid combat-grid-skeleton" aria-hidden="true">
+          <article class="combat-card skeleton-card"><h3></h3><div class="skeleton-lines"><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-sm"></span></div><button class="skeleton-button" type="button" disabled></button></article>
+          <article class="combat-card skeleton-card"><h3></h3><div class="skeleton-lines"><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-sm"></span></div><button class="skeleton-button" type="button" disabled></button></article>
+          <article class="combat-card skeleton-card"><h3></h3><div class="skeleton-lines"><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-sm"></span></div><button class="skeleton-button" type="button" disabled></button></article>
         </div>
       </section>
 
       <section class="combat-section priority-section visual-section">
         <h2>⚔️ Рейды и защита</h2>
-        <div id="combatBox" class="combat-grid cls-placeholder-grid">
-          <div class="cls-placeholder-card compact">
-            <div class="cls-placeholder-line title"></div>
-            <div class="cls-placeholder-line short"></div>
-            <div class="cls-placeholder-line short"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line mid"></div>
-          </div>
-          <div class="cls-placeholder-card compact">
-            <div class="cls-placeholder-line title"></div>
-            <div class="cls-placeholder-line short"></div>
-            <div class="cls-placeholder-line short"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line mid"></div>
-          </div>
-          <div class="cls-placeholder-card compact">
-            <div class="cls-placeholder-line title"></div>
-            <div class="cls-placeholder-line short"></div>
-            <div class="cls-placeholder-line short"></div>
-            <div class="cls-placeholder-line mid"></div>
-            <div class="cls-placeholder-line mid"></div>
-          </div>
+        <div id="combatBox" class="combat-grid combat-grid-skeleton" aria-hidden="true">
+          <article class="combat-card skeleton-card"><h3></h3><div class="skeleton-lines"><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-sm"></span></div><div class="skeleton-actions"><span class="skeleton-chip"></span><span class="skeleton-chip"></span></div></article>
+          <article class="combat-card skeleton-card"><h3></h3><div class="skeleton-lines"><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-sm"></span></div><div class="skeleton-actions"><span class="skeleton-chip"></span><span class="skeleton-chip"></span></div></article>
+          <article class="combat-card skeleton-card"><h3></h3><div class="skeleton-lines"><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-md"></span><span class="skeleton-line skeleton-line-sm"></span><span class="skeleton-line skeleton-line-sm"></span></div><button class="skeleton-button" type="button" disabled></button></article>
         </div>
       </section>
 
