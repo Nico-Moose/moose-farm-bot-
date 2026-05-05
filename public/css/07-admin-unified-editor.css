@@ -142,102 +142,42 @@
 }
 
 
-/* Player search restore/polish. Keeps nickname selection visible above the editor. */
-.admin-player-search-polished {
-  position: sticky;
-  top: 0;
-  z-index: 7;
-  padding: 16px !important;
-  border-radius: 22px !important;
-  background:
-    linear-gradient(180deg, rgba(35, 40, 51, 0.98), rgba(26, 31, 41, 0.98)) !important;
-  border: 1px solid rgba(255,255,255,0.10) !important;
-  box-shadow: 0 14px 32px rgba(0,0,0,0.24);
+/* Safe UX patch: player is loaded immediately after nickname selection. */
+.admin-player-search-autoload #admin-load-player {
+  display: none !important;
 }
 
-.admin-player-search-polished h3 {
-  margin: 0 0 10px;
-  font-size: 18px;
-}
-
-.admin-player-search-polished input#admin-login {
-  min-height: 46px;
-  padding: 10px 14px !important;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.13);
-  background: rgba(7, 10, 15, 0.72);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.admin-player-search-polished #admin-load-player {
+.admin-player-search-autoload .admin-suggestions {
   margin-top: 10px;
-  min-height: 44px;
-  border-radius: 14px;
-  font-weight: 900;
-}
-
-.admin-player-search-polished .admin-suggestions {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  top: calc(100% - 10px);
-  z-index: 50;
   display: grid;
   gap: 8px;
-  max-height: 320px;
-  overflow: auto;
-  padding: 10px;
-  border-radius: 16px;
-  background: rgba(15, 18, 25, 0.98);
-  border: 1px solid rgba(151, 230, 102, 0.20);
-  box-shadow: 0 20px 48px rgba(0,0,0,0.45);
 }
 
-.admin-player-search-polished .admin-suggestions.hidden {
+.admin-player-search-autoload .admin-suggestions.hidden {
   display: none;
 }
 
-.admin-player-search-polished .admin-suggestions button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.admin-player-search-autoload .admin-suggestions button {
   width: 100%;
-  min-height: 52px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.055);
-  border: 1px solid rgba(255,255,255,0.07);
-  color: #f7fff2;
   text-align: left;
+  min-height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #fff;
 }
 
-.admin-player-search-polished .admin-suggestions button:hover {
-  background: rgba(145, 226, 109, 0.16);
-  border-color: rgba(145, 226, 109, 0.30);
+.admin-player-search-autoload .admin-suggestions button:hover {
+  background: rgba(145,226,109,.14);
 }
 
-.admin-player-search-polished .admin-suggestions b,
-.admin-player-search-polished .admin-suggestions small,
-.admin-player-search-polished .admin-suggestions em {
+.admin-player-search-autoload .admin-suggestions b,
+.admin-player-search-autoload .admin-suggestions small {
   display: block;
 }
 
-.admin-player-search-polished .admin-suggestions b {
-  font-size: 15px;
-}
-
-.admin-player-search-polished .admin-suggestions small {
-  margin-top: 3px;
-  color: rgba(255,255,255,0.62);
+.admin-player-search-autoload .admin-suggestions small {
+  color: rgba(255,255,255,.62);
   font-size: 12px;
-}
-
-.admin-player-search-polished .admin-suggestions em {
-  color: #dfffbe;
-  font-style: normal;
-  font-weight: 900;
-  white-space: nowrap;
+  margin-top: 4px;
 }

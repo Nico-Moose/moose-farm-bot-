@@ -1,8 +1,10 @@
-/* Safe patch: unified admin player editor.
+/* Safe patch: unified admin player editor with inline player pick.
    Only touches admin panel UI and admin endpoints. */
 (function () {
   const DEFAULT_ADMIN_LOGIN = 'nico_moose';
   let lastProfile = null;
+  let autoLoadTimer = null;
+  let lastLoadedLogin = '';
 
   function fmt(value) {
     if (typeof stageFormat === 'function') return stageFormat(value || 0);
@@ -100,6 +102,7 @@
     }
     lastProfile = profile;
     const login = (profile.login || profile.twitch_login || currentLogin() || DEFAULT_ADMIN_LOGIN).toLowerCase();
+    lastLoadedLogin = login;
     setLogin(login);
     const buildings = knownBuildings(profile);
 
@@ -172,7 +175,14 @@
     }
   }
 
-  function renderPlayerSuggestions(box, players) {
+  function hideSuggestions() {
+    const box = document.getElementById('admin-player-suggestions');
+    if (!box) return;
+    box.classList.add('hidden');
+  }
+
+  function renderPlayerSuggestions(players) {
+    const box = document.getElementById('admin-player-suggestions');
     if (!box) return;
     if (!players.length) {
       box.classList.add('hidden');
@@ -184,72 +194,100 @@
       const login = String(p.login || p.twitch_login || '').toLowerCase();
       const display = p.display_name || p.twitch_login || p.login || login;
       const level = Number(p.level || 0);
-      const farm = Number(p.farm_balance || p.balance || 0);
-      return `<button type="button" data-admin-unified-suggest="${login}">
-        <span>
-          <b>${login}</b>
-          <small>${display}</small>
-        </span>
-        <em>ур. ${level} · ${fmt(farm)}</em>
-      </button>`;
+      return `<button type="button" data-admin-unified-suggest="${login}"><b>${login}</b><small>${display} · ур. ${level}</small></button>`;
     }).join('');
-
     box.classList.remove('hidden');
+  }
+
+  function queueAutoLoad(login) {
+    const normalized = String(login || '').trim().toLowerCase().replace(/^@/, '');
+    if (!normalized || normalized === lastLoadedLogin) return;
+    clearTimeout(autoLoadTimer);
+    autoLoadTimer = setTimeout(() => {
+      setLogin(normalized);
+      reloadPlayer('Игрок загружен').catch((e) => status(e.message, true));
+    }, 120);
   }
 
   function patchPlayerSearchUi() {
     const search = document.querySelector('.admin-player-search');
     const input = document.getElementById('admin-login');
     const box = document.getElementById('admin-player-suggestions');
-    const btn = document.getElementById('admin-load-player');
-    if (!search || !input || !box || search.dataset.unifiedSearchUiReady === '1') return;
-    search.dataset.unifiedSearchUiReady = '1';
-
-    search.classList.add('admin-player-search-polished');
-    input.placeholder = 'введи ник игрока или выбери из списка';
-    if (btn) btn.textContent = 'Загрузить игрока';
-
-    let timer = null;
+    if (!search || !input || !box || search.dataset.unifiedSearchReady === '1') return;
+    search.dataset.unifiedSearchReady = '1';
+    search.classList.add('admin-player-search-autoload');
 
     async function updateSuggestions(force) {
-      const prefix = input.value.trim().toLowerCase().replace(/^@/, '');
+      const prefix = currentLogin();
       if (!force && prefix.length < 1) {
-        box.classList.add('hidden');
+        hideSuggestions();
         box.innerHTML = '';
         return;
       }
       const players = await fetchAdminPlayers(prefix);
-      renderPlayerSuggestions(box, players);
+      renderPlayerSuggestions(players);
+
+      if (players.length === 1) {
+        const exactLogin = String(players[0].login || players[0].twitch_login || '').toLowerCase();
+        if (exactLogin && exactLogin === prefix) {
+          hideSuggestions();
+          queueAutoLoad(exactLogin);
+        }
+      }
     }
 
     input.addEventListener('input', () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => updateSuggestions(false), 120);
+      clearTimeout(autoLoadTimer);
+      setTimeout(() => updateSuggestions(false), 100);
     });
 
-    input.addEventListener('focus', () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => updateSuggestions(true), 50);
+    input.addEventListener('focus', () => updateSuggestions(true).catch(() => {}));
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        hideSuggestions();
+        queueAutoLoad(currentLogin());
+      }
     });
 
     box.addEventListener('click', (event) => {
-      const suggest = event.target.closest('[data-admin-unified-suggest], [data-admin-suggest]');
-      if (!suggest) return;
-      const login = suggest.getAttribute('data-admin-unified-suggest') || suggest.getAttribute('data-admin-suggest');
+      const btn = event.target.closest('[data-admin-unified-suggest], [data-admin-suggest]');
+      if (!btn) return;
+      const login = btn.getAttribute('data-admin-unified-suggest') || btn.getAttribute('data-admin-suggest');
       setLogin(login);
-      box.classList.add('hidden');
-      reloadPlayer('Игрок загружен').catch((e) => status(e.message, true));
-    });
-
-    btn?.addEventListener('click', () => {
-      box.classList.add('hidden');
-      reloadPlayer('Игрок загружен').catch((e) => status(e.message, true));
+      hideSuggestions();
+      queueAutoLoad(login);
     });
 
     document.addEventListener('click', (event) => {
-      if (event.target === input || box.contains(event.target) || search.contains(event.target)) return;
-      box.classList.add('hidden');
+      if (event.target === input || search.contains(event.target)) return;
+      hideSuggestions();
     });
+  }
+
+  function patchRenderer() {
+    window.renderAdminPlayer = renderUnifiedEditor;
+    try { renderAdminPlayer = renderUnifiedEditor; } catch (_) {}
+  }
+
+  function patchLoadButton() {
+    const btn = document.getElementById('admin-load-player');
+    if (!btn) return;
+    btn.remove();
+  }
+
+  async function loadDefaultAdminPlayer() {
+    const input = document.getElementById('admin-login');
+    if (!input || input.dataset.defaultLoaded === '1') return;
+    input.dataset.defaultLoaded = '1';
+    try {
+      const me = await getAdmin('me');
+      setLogin(me.login || DEFAULT_ADMIN_LOGIN);
+      await reloadPlayer('Профиль админа загружен');
+    } catch (e) {
+      setLogin(DEFAULT_ADMIN_LOGIN);
+      reloadPlayer().catch(() => {});
+    }
   }
 
   function bindUnifiedClicks() {
@@ -272,7 +310,7 @@
 
       if (event.target.closest('#admin-unified-refresh')) reloadPlayer('Игрок обновлён').catch((e) => status(e.message, true));
       if (event.target.closest('#admin-unified-reset-case') || event.target.closest('#admin-reset-case-cooldown')) resetCooldown('reset-case-cooldown', 'КД кейса сброшен').catch((e) => status(e.message, true));
-      if (event.target.closest('#admin-unified-reset-raid')) resetCooldown('reset-raid-cooldown', 'КД рейда сброшен').catch((e) => status(e.message, true));
+      if (event.target.closest('#admin-unified-reset-raid') || event.target.closest('#admin-reset-raid')) resetCooldown('reset-raid-cooldown', 'КД рейда сброшен').catch((e) => status(e.message, true));
       if (event.target.closest('#admin-unified-reset-offcollect') || event.target.closest('#admin-reset-offcollect-cooldown')) resetCooldown('reset-offcollect-cooldown', 'КД оффсбора сброшен').catch((e) => status(e.message, true));
 
       if (event.target.closest('#admin-reset-gamus-all')) {
@@ -292,32 +330,6 @@
         postAdmin('reset-offcollect-cooldown-all', {}).then((d) => status(d.message)).catch((e) => status(e.message, true));
       }
     });
-  }
-
-  function patchRenderer() {
-    window.renderAdminPlayer = renderUnifiedEditor;
-    try { renderAdminPlayer = renderUnifiedEditor; } catch (_) {}
-  }
-
-  function patchLoadButton() {
-    const btn = document.getElementById('admin-load-player');
-    if (!btn || btn.dataset.unifiedLoadReady === '1') return;
-    btn.dataset.unifiedLoadReady = '1';
-    btn.addEventListener('click', () => setTimeout(() => reloadPlayer().catch((e) => status(e.message, true)), 0));
-  }
-
-  async function loadDefaultAdminPlayer() {
-    const input = document.getElementById('admin-login');
-    if (!input || input.dataset.defaultLoaded === '1') return;
-    input.dataset.defaultLoaded = '1';
-    try {
-      const me = await getAdmin('me');
-      setLogin(me.login || DEFAULT_ADMIN_LOGIN);
-      await reloadPlayer('Профиль админа загружен');
-    } catch (e) {
-      setLogin(DEFAULT_ADMIN_LOGIN);
-      reloadPlayer().catch(() => {});
-    }
   }
 
   function boot() {
