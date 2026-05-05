@@ -181,3 +181,73 @@
   font-size: 12px;
   margin-top: 4px;
 }
+
+
+/* Safe fix: restore compact admin editor layout from single-window view,
+   but keep cooldown buttons and editable buildings. */
+.admin-edit-profile-card-restored {
+  margin-top: 12px;
+}
+
+.admin-edit-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.admin-edit-head-actions button {
+  width: auto;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 14px;
+}
+
+.admin-edit-profile-grid-restored {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.admin-edit-profile-field-restored {
+  gap: 8px;
+}
+
+.admin-edit-profile-field-restored input {
+  min-height: 42px;
+}
+
+.admin-edit-actions-restored {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-edit-actions-restored button {
+  width: auto;
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 14px;
+}
+
+.admin-edit-buildings-restored {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.admin-edit-building-field {
+  display: grid;
+}
+
+.admin-edit-building-field span {
+  color: rgba(255,255,255,.86);
+}
+
+@media (max-width: 760px) {
+  .admin-edit-head-actions,
+  .admin-edit-actions-restored {
+    flex-direction: column;
+  }
+
+  .admin-edit-head-actions button,
+  .admin-edit-actions-restored button {
+    width: 100%;
+  }
+}
