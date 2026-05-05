@@ -30,8 +30,6 @@
     </nav>
 
     <section class="farm-tab-panel active" data-farm-panel="main">
-      <div class="main-dashboard-layout">
-        <div class="main-dashboard-primary">
       <div id="profile" class="profile-shell">
         <div class="profile-card-final profile-card-skeleton" aria-hidden="true">
           <div class="profile-main-left">
@@ -99,28 +97,6 @@
       </section>
 
       <section id="licenseBox" class="license-section"></section>
-        </div>
-
-        <aside class="main-dashboard-side">
-          <section class="main-twitch-chat-card visual-section" aria-label="Чат Twitch канала">
-            <div class="main-twitch-chat-head">
-              <div>
-                <h2>💬 Чат Twitch</h2>
-                <p>Nico_Moose</p>
-              </div>
-              <a class="main-twitch-chat-link" href="https://www.twitch.tv/popout/Nico_Moose/chat?popout=" target="_blank" rel="noopener noreferrer">↗ Открыть</a>
-            </div>
-            <div class="main-twitch-chat-frame">
-              <div id="mainTwitchChatEmbed" class="main-twitch-chat-embed" data-channel="Nico_Moose">
-                <div class="main-twitch-chat-placeholder" aria-hidden="true">
-                  <div class="main-twitch-chat-placeholder-top"></div>
-                  <div class="main-twitch-chat-placeholder-body"></div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </aside>
-      </div>
     </section>
 
     <section class="farm-tab-panel" data-farm-panel="buildings">
@@ -233,9 +209,9 @@
   <script src="/js/10g-market-qty-presets.js"></script>
   <script src="/js/10h-market-exact-ui.js"></script>
   <script src="/js/10i-admin-journal.js"></script>
-  <script src="/js/10j-main-twitch-chat.js"></script>
   <script src="/app.js"></script>
   <script src="/js/11-performance-boost.js"></script>
+  <script src="/js/10k-admin-unified-editor.js"></script>
   <section id="admin-panel" class="admin-panel hidden" aria-hidden="true">
     <div class="admin-modal-card">
       <div class="admin-header">
@@ -255,56 +231,41 @@
 
       <div id="admin-player-info" class="admin-result"></div>
 
-      <div class="admin-tabs">
-        <button class="admin-tab active" data-admin-tab="balances">Баланс</button>
-        <button class="admin-tab" data-admin-tab="levels">Уровни</button>
+      <div class="admin-tabs admin-tabs-compact">
+        <button class="admin-tab active" data-admin-tab="extended">Расширенное</button>
         <button class="admin-tab" data-admin-tab="danger">Опасное</button>
-        <button class="admin-tab" data-admin-tab="extended">Расширенное</button>
         <button class="admin-tab" data-admin-tab="journal">Журнал</button>
       </div>
 
-      <div class="admin-tab-panel active" data-admin-panel="balances">
-        <div class="admin-grid">
-          <div class="admin-card">
-            <h3>Баланс и ресурсы</h3>
-            <input id="admin-farm-amount" placeholder="фермерский баланс: +1000 или -1000" />
-            <button id="admin-give-farm">Изменить фермерский баланс</button>
-            <input id="admin-upgrade-amount" placeholder="бонусный баланс: +1кк или -500к" />
-            <button id="admin-give-upgrade">Изменить бонусный баланс</button>
-            <input id="admin-parts-amount" placeholder="запчасти: +1000 или -1000" />
-            <button id="admin-give-parts">Изменить запчасти</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="admin-tab-panel" data-admin-panel="levels">
-        <div class="admin-grid">
-          <div class="admin-card">
-            <h3>Уровни</h3>
-            <input id="admin-level" placeholder="уровень фермы" />
-            <button id="admin-set-level">Установить уровень фермы</button>
-            <input id="admin-protection" placeholder="защита 0-120" />
-            <button id="admin-set-protection">Установить защиту</button>
-            <input id="admin-raid-power" placeholder="рейд-сила 0-200" />
-            <button id="admin-set-raid-power">Установить рейд-силу</button>
-          </div>
         </div>
       </div>
 
       <div class="admin-tab-panel" data-admin-panel="danger">
-        <div class="admin-grid">
+        <div class="admin-grid admin-danger-grid">
           <div class="admin-card danger-zone">
-            <h3>Опасные действия</h3>
-            <button id="admin-reset-raid">Сбросить КД рейда</button>
+            <h3>Опасные действия выбранного игрока</h3>
+            <p class="admin-muted">Эти кнопки работают по нику в поле игрока сверху.</p>
+            <button id="admin-reset-case-cooldown">Сбросить КД кейса игроку</button>
+            <button id="admin-reset-raid">Сбросить КД рейда игроку</button>
+            <button id="admin-reset-offcollect-cooldown">Сбросить КД оффсбора игроку</button>
             <button id="admin-delete-turret">Удалить турель</button>
             <button id="admin-delete-buildings">Удалить постройки</button>
             <button id="admin-restore-backup">Восстановить последний backup</button>
-            <button id="admin-delete-farm" class="danger">Удалить ферму</button>
+            <button id="admin-delete-farm" class="danger">Удалить ферму игрока</button>
+          </div>
+          <div class="admin-card danger-zone admin-global-danger">
+            <h3>Массовые сбросы</h3>
+            <p class="admin-muted">Работает сразу по всем игрокам. Использовать осторожно.</p>
+            <button id="admin-reset-gamus-all">Сбросить GAMUS всем</button>
+            <button id="admin-reset-case-cooldown-all">Сбросить КД кейса всем</button>
+            <button id="admin-reset-raid-cooldown-all">Сбросить КД рейда всем</button>
+            <button id="admin-reset-offcollect-cooldown-all">Сбросить КД оффсбора всем</button>
+
           </div>
         </div>
       </div>
 
-      <div class="admin-tab-panel" data-admin-panel="extended">
+      <div class="admin-tab-panel active" data-admin-panel="extended">
         <div class="admin-grid">
           <div class="admin-card">
             <h3>Перенос фермы</h3>
@@ -323,10 +284,10 @@
             <input id="admin-market-stock" placeholder="склад рынка" />
             <button id="admin-set-market-stock">Установить склад рынка</button>
             <button id="admin-clear-debt">Списать долг игрока</button>
-            <button id="admin-clear-all-debts">Списать долги всем</button>
-            <button id="admin-reset-gamus">Сбросить GAMUS</button>
-            <button id="admin-reset-cases">Сбросить кейсы игрока</button>
-            <button id="admin-reset-cases-all">Сбросить кейсы всем</button>
+
+            <button id="admin-reset-gamus">Сбросить GAMUS игроку</button>
+            <button id="admin-reset-cases">Сбросить историю кейсов игрока</button>
+
           </div>
           <div class="admin-card">
             <h3>Рулетка / тест</h3>

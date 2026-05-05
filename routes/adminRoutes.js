@@ -226,7 +226,7 @@ module.exports = function (db) {
 
       const allowed = new Set([
         'level','farm_balance','upgrade_balance','parts','license_level','raid_power','protection_level',
-        'turret_level','turret_chance'
+        'turret_level','turret_chance','total_income'
       ]);
       if (!allowed.has(field)) return res.status(400).json({ ok: false, error: 'field_not_allowed' });
 
@@ -251,6 +251,9 @@ module.exports = function (db) {
           .run(value, now, profile.twitch_id);
       } else if (field === 'upgrade_balance') {
         db.prepare(`UPDATE farm_profiles SET upgrade_balance=?, updated_at=? WHERE twitch_id=?`)
+          .run(value, now, profile.twitch_id);
+      } else if (field === 'total_income') {
+        db.prepare(`UPDATE farm_profiles SET total_income=?, updated_at=? WHERE twitch_id=?`)
           .run(value, now, profile.twitch_id);
       } else if (field === 'parts') {
         farm.resources.parts = value;
@@ -412,6 +415,126 @@ module.exports = function (db) {
     }
 
     res.json({ ok: true, profile });
+  });
+
+
+  function sanitizeAdminLogin(value) {
+    return String(value || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+  }
+
+  function resetCaseCooldownOnly(profile) {
+    const farm = deepCloneSafe(profile.farm || {}, {});
+    farm.lastCaseAt = 0;
+    farm.caseCooldownUntil = 0;
+    if (farm.cases && typeof farm.cases === 'object') {
+      farm.cases.lastOpenedAt = 0;
+      farm.cases.cooldownUntil = 0;
+    }
+    saveFarmObject(profile.twitch_id, farm);
+    logAdminEvent(db, profile.twitch_id, 'admin_reset_case_cooldown', { login: profile.login });
+  }
+
+  function resetRaidCooldownOnly(profile) {
+    const farm = deepCloneSafe(profile.farm || {}, {});
+    farm.raidCooldownUntil = 0;
+    farm.lastRaidAt = 0;
+    farm.shieldUntil = 0;
+    farm.shield_until = 0;
+    saveFarmObject(profile.twitch_id, farm);
+    logAdminEvent(db, profile.twitch_id, 'admin_reset_raid_cooldown', { login: profile.login });
+  }
+
+  function resetOffcollectCooldownOnly(profile) {
+    const farm = deepCloneSafe(profile.farm || {}, {});
+    const readyAt = Date.now() - 24 * 60 * 60 * 1000;
+    farm.lastWithdrawAt = readyAt;
+    db.prepare(`UPDATE farm_profiles SET last_collect_at=?, farm_json=?, updated_at=? WHERE twitch_id=?`)
+      .run(readyAt, JSON.stringify(farm), Date.now(), profile.twitch_id);
+    logAdminEvent(db, profile.twitch_id, 'admin_reset_offcollect_cooldown', { login: profile.login });
+  }
+
+  function resetGamusOnly(profile) {
+    const farm = deepCloneSafe(profile.farm || {}, {});
+    farm.lastGamusAt = 0;
+    delete farm.gamusLastClaimAt;
+    delete farm.gamus_bonus_ts;
+    if (farm.gamus && typeof farm.gamus === 'object') farm.gamus.lastClaimAt = 0;
+    saveFarmObject(profile.twitch_id, farm);
+    logAdminEvent(db, profile.twitch_id, 'admin_reset_gamus', { login: profile.login });
+  }
+
+  router.post('/player/set-building', (req, res) => {
+    try {
+      const login = sanitizeAdminLogin(req.body?.login);
+      const building = String(req.body?.building || '').trim();
+      const level = Math.max(0, Math.floor(Number(req.body?.level ?? 0)));
+      if (!login || !building) return res.status(400).json({ ok: false, error: 'missing_login_or_building' });
+      if (!Number.isFinite(level)) return res.status(400).json({ ok: false, error: 'invalid_level' });
+      const profile = getProfileByLogin(db, login);
+      if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+      saveFarmBackup(profile, 'before_set_building_' + building);
+      const farm = deepCloneSafe(profile.farm || {}, {});
+      farm.buildings = farm.buildings || {};
+      if (level <= 0) delete farm.buildings[building];
+      else farm.buildings[building] = level;
+      saveFarmObject(profile.twitch_id, farm);
+      logAdminEvent(db, profile.twitch_id, 'admin_set_building', { login, building, level });
+      res.json({ ok: true, message: `Постройка ${building}: ур. ${level}`, profile: getProfileByLogin(db, login) });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
+  });
+
+  router.post('/reset-case-cooldown', (req, res) => {
+    const login = sanitizeAdminLogin(req.body?.login);
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+    resetCaseCooldownOnly(profile);
+    res.json({ ok: true, message: `КД кейса сброшен для ${login}`, profile: getProfileByLogin(db, login) });
+  });
+
+  router.post('/reset-offcollect-cooldown', (req, res) => {
+    const login = sanitizeAdminLogin(req.body?.login);
+    const profile = getProfileByLogin(db, login);
+    if (!profile) return res.status(404).json({ ok: false, error: 'Игрок не найден' });
+    resetOffcollectCooldownOnly(profile);
+    res.json({ ok: true, message: `КД оффсбора сброшен для ${login}`, profile: getProfileByLogin(db, login) });
+  });
+
+  router.post('/reset-gamus-all', (req, res) => {
+    let count = 0;
+    for (const row of getAllProfiles()) {
+      const profile = getProfileByLogin(db, row.login);
+      if (profile) { resetGamusOnly(profile); count++; }
+    }
+    res.json({ ok: true, message: `GAMUS сброшен всем игрокам: ${count}` });
+  });
+
+  router.post('/reset-case-cooldown-all', (req, res) => {
+    let count = 0;
+    for (const row of getAllProfiles()) {
+      const profile = getProfileByLogin(db, row.login);
+      if (profile) { resetCaseCooldownOnly(profile); count++; }
+    }
+    res.json({ ok: true, message: `КД кейса сброшен всем игрокам: ${count}` });
+  });
+
+  router.post('/reset-raid-cooldown-all', (req, res) => {
+    let count = 0;
+    for (const row of getAllProfiles()) {
+      const profile = getProfileByLogin(db, row.login);
+      if (profile) { resetRaidCooldownOnly(profile); count++; }
+    }
+    res.json({ ok: true, message: `КД рейда сброшен всем игрокам: ${count}` });
+  });
+
+  router.post('/reset-offcollect-cooldown-all', (req, res) => {
+    let count = 0;
+    for (const row of getAllProfiles()) {
+      const profile = getProfileByLogin(db, row.login);
+      if (profile) { resetOffcollectCooldownOnly(profile); count++; }
+    }
+    res.json({ ok: true, message: `КД оффсбора сброшен всем игрокам: ${count}` });
   });
 
 
