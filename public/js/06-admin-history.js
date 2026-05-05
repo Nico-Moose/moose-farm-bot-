@@ -246,7 +246,7 @@ function bindAdminPanel() {
       if (!confirm(`ПОЛНОСТЬЮ удалить ферму ${login}?`)) return;
       if (!confirm(`Точно удалить? Это действие нельзя отменить.`)) return;
 
-      const data = await adminPost("delete-farm", { login });
+      const data = await adminPost("delete-farmer", { login });
       renderAdminPlayer(null);
       setAdminStatus(data.message);
     } catch (e) {

@@ -1000,39 +1000,53 @@ module.exports = function (db) {
     });
   });
 
-  router.post("/delete-farm", (req, res) => {
-    const login = String(req.body.login || "").toLowerCase().replace(/^@/, "");
+  router.post("/delete-farm", async (req, res) => {
+    try {
+      const login = sanitizeAdminLogin(req.body?.login);
+      if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник фермера' });
 
-    const profile = getProfileByLogin(db, login);
-    if (!profile) return res.status(404).json({ ok: false, error: "Игрок не найден" });
+      const profile = getProfileByLogin(db, login);
+      if (!profile) return res.status(404).json({ ok: false, error: 'Фермер не найден' });
 
-    saveFarmBackup(profile, 'before_delete_farm');
+      saveFarmBackup(profile, 'before_delete_farm_hard');
+      logAdminEvent(db, profile.twitch_id, 'admin_delete_farm_hard', {
+        login,
+        mode: 'site_and_wizebot',
+        route: 'delete-farm'
+      });
 
-    db.prepare(`
-      UPDATE farm_profiles
-      SET
-        level = 0,
-        farm_balance = 0,
-        upgrade_balance = 0,
-        total_income = 0,
-        parts = 0,
-        last_collect_at = ?,
-        farm_json = '{}',
-        license_level = 0,
-        protection_level = 0,
-        raid_power = 0,
-        turret_json = '{}',
-        updated_at = ?
-      WHERE twitch_id = ?
-    `).run(Date.now(), Date.now(), profile.twitch_id);
+      const deleteCommand = `!удалитьферму2 ${login}`;
+      let wizebotTrigger = { ok: false, skipped: true, reason: 'say_to_channel_not_called' };
 
-    logAdminEvent(db, profile.twitch_id, "admin_delete_farm", {});
+      try {
+        wizebotTrigger = await sayToChannel(deleteCommand);
+      } catch (triggerError) {
+        wizebotTrigger = { ok: false, error: triggerError.message || String(triggerError) };
+      }
 
-    res.json({
-      ok: true,
-      message: `Ферма ${login} сброшена`,
-      profile: getProfileByLogin(db, login)
-    });
+      // Старый route тоже должен удалять полностью так же, как список фермеров.
+      await sleep(900);
+
+      db.prepare('DELETE FROM farm_profiles WHERE twitch_id = ?').run(profile.twitch_id);
+
+      const warnings = [];
+      if (!wizebotTrigger || !wizebotTrigger.ok) {
+        warnings.push('site_deleted_but_wizebot_not_confirmed');
+      }
+
+      res.json({
+        ok: true,
+        login,
+        deleted: true,
+        wizebot_trigger: wizebotTrigger,
+        warnings,
+        message: warnings.length
+          ? `Фермер ${login} удалён на сайте. Команда ${deleteCommand} отправлена без подтверждения — проверь Twitch chat / WizeBot.`
+          : `Фермер ${login} удалён. Игроку нужно снова покупать ферму.`
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
   });
 
   function getAllProfiles() {
