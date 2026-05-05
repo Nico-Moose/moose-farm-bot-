@@ -3,7 +3,8 @@ const { config } = require('../config');
 const { getNextUpgrade, listBuildings } = require('../services/farmGameService');
 const { importPayloadToSqlite, importWizebotPayloadByLogin } = require('../services/wizebotBridgeImportService');
 const { getWizebotStateByLogin } = require('../services/wizebotStateExportService');
-const { getProfileByLogin, updateProfile, logFarmEvent } = require('../services/userService');
+const { upsertTwitchUser, getProfileByLogin, updateProfile, logFarmEvent } = require('../services/userService');
+const { getDb } = require('../services/dbService');
 const { syncWizebotFarmToProfile } = require('../services/wizebotSyncService');
 const { buildFarmV2FromProfile } = require('../services/farmV2Service');
 
@@ -185,13 +186,25 @@ router.get('/farm-v2-push', (req, res) => {
     return res.status(400).json({ ok: false, error: 'invalid_payload_object' });
   }
 
-  const profile = getProfileByLogin(login);
+  let profile = getProfileByLogin(login);
+  if (!profile) {
+    try {
+      upsertTwitchUser({
+        id: `legacy:${login}`,
+        login,
+        display_name: login,
+        profile_image_url: ''
+      });
+      profile = getProfileByLogin(login);
+    } catch (_) {}
+  }
+
   if (!profile) {
     return res.status(404).json({ ok: false, error: 'profile_not_found', login });
   }
 
   try {
-
+    const db = getDb();
 
 const balances = farmV2.balances || {};
 const progression = farmV2.progression || {};
