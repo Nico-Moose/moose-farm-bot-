@@ -28,15 +28,13 @@ async function fetchLongtextJson(longtextUrl) {
     throw new Error('invalid_longtext_url');
   }
 
-  // Нормализация возможных форматов longtext
   if (/^https?:\/\//i.test(url)) {
-    // уже полный URL
+    // full URL
   } else if (/^strm\.lv\/t\/longtexts\//i.test(url)) {
     url = 'https://' + url;
   } else if (/^\/t\/longtexts\//i.test(url)) {
     url = 'https://strm.lv' + url;
   } else if (/^[a-z0-9]+\/\d+$/i.test(url)) {
-    // если WizeBot вернул только хвост вида hash/id
     url = 'https://strm.lv/t/longtexts/' + url;
   } else {
     throw new Error('invalid_longtext_url');
@@ -60,12 +58,10 @@ async function fetchLongtextJson(longtextUrl) {
     throw new Error('empty_longtext_body');
   }
 
-  // если это уже JSON
   try {
     return JSON.parse(trimmed);
   } catch (_) {}
 
-  // если это HTML со вставленным JSON
   const jsonMatch =
     trimmed.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i) ||
     trimmed.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
@@ -139,8 +135,6 @@ function applyFarmV2Push(login, farmV2) {
   };
 
   const updatedProfile = updateProfile(nextProfile);
-
-
 
   logFarmEvent(updatedProfile.twitch_id, 'farm_v2_push_from_wizebot', {
     login,
@@ -313,6 +307,7 @@ router.get('/farm-v2-push-longtext', async (req, res) => {
     .replace(/[^a-z0-9_]/g, '');
 
   const longtextUrl = String(req.query.longtext || '').trim();
+  console.log('[LONGTEXT DEBUG]', { login, longtextUrl });
 
   if (!login) {
     return res.status(400).json({ ok: false, error: 'missing_login' });
