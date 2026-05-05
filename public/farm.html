@@ -97,6 +97,41 @@
       </section>
 
       <section id="licenseBox" class="license-section"></section>
+
+
+      <section id="twitchChatSection" class="twitch-chat-section visual-section" data-twitch-channel="Nico_Moose">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>💬 Twitch chat</h2>
+            <p>Живой чат канала прямо на главной странице. Вынесен отдельным блоком, чтобы не мешать ферме и админке.</p>
+          </div>
+        </div>
+        <div class="twitch-chat-shell">
+          <div class="twitch-chat-topline">
+            <div class="twitch-chat-kicker">🟣 Канал: Nico_Moose</div>
+            <div class="twitch-chat-actions">
+              <a class="twitch-chat-link" href="https://www.twitch.tv/Nico_Moose/chat" target="_blank" rel="noopener noreferrer">Открыть в Twitch ↗</a>
+              <button id="twitchChatReload" class="twitch-chat-reload" type="button">Обновить чат</button>
+            </div>
+          </div>
+
+          <div class="twitch-chat-frame-wrap">
+            <div id="twitchChatPlaceholder" class="twitch-chat-placeholder" aria-hidden="true">
+              <div class="twitch-chat-spinner"></div>
+              <div id="twitchChatStatus" class="twitch-chat-status">Подготавливаем Twitch chat…</div>
+              <div class="twitch-chat-note">Чат загружается только для вкладки «Главная», чтобы не нагружать остальные разделы.</div>
+            </div>
+            <iframe
+              id="twitchChatFrame"
+              class="twitch-chat-frame"
+              title="Twitch chat Nico_Moose"
+              loading="lazy"
+              referrerpolicy="origin"
+              allowfullscreen>
+            </iframe>
+          </div>
+        </div>
+      </section>
     </section>
 
     <section class="farm-tab-panel" data-farm-panel="buildings">
@@ -209,6 +244,7 @@
   <script src="/js/10g-market-qty-presets.js"></script>
   <script src="/js/10h-market-exact-ui.js"></script>
   <script src="/js/10i-admin-journal.js"></script>
+  <script src="/js/10j-main-twitch-chat.js"></script>
   <script src="/app.js"></script>
   <script src="/js/11-performance-boost.js"></script>
   <section id="admin-panel" class="admin-panel hidden" aria-hidden="true">
