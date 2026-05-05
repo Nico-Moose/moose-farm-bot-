@@ -8,7 +8,7 @@ const { getWizebotStateByLogin } = require('../services/wizebotStateExportServic
 const { upsertTwitchUser, getProfileByLogin, updateProfile, logFarmEvent } = require('../services/userService');
 const { syncWizebotFarmToProfile } = require('../services/wizebotSyncService');
 const { buildFarmV2FromProfile } = require('../services/farmV2Service');
-
+const { getDb } = require('../services/dbService');
 function getProvidedSecret(req) {
   return String(
     req.query.secret ||
@@ -337,5 +337,81 @@ router.get('/farm-v2-push-longtext', async (req, res) => {
     });
   }
 });
+router.get('/farmers-missing-buildings-site', (req, res) => {
+  const providedSecret = getProvidedSecret(req);
 
+  if (!providedSecret || providedSecret !== config.wizebot.bridgeSecret) {
+    return res.status(403).json({ ok: false, error: 'invalid_bridge_secret' });
+  }
+
+  try {
+    const db = getDb();
+
+    const rows = db.prepare(`
+      SELECT
+        u.login,
+        u.display_name,
+        f.level,
+        f.farm_balance,
+        f.upgrade_balance,
+        f.parts,
+        f.farm_json,
+        f.configs_json
+      FROM twitch_users u
+      JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+      WHERE f.level > 0
+      ORDER BY f.level DESC, LOWER(u.login) ASC
+    `).all();
+
+    const result = [];
+
+    for (const row of rows) {
+      let farm = {};
+      let configs = {};
+
+      try { farm = JSON.parse(row.farm_json || '{}') || {}; } catch (_) { farm = {}; }
+      try { configs = JSON.parse(row.configs_json || '{}') || {}; } catch (_) { configs = {}; }
+
+      const farmBuildings =
+        farm && farm.buildings && typeof farm.buildings === 'object'
+          ? farm.buildings
+          : {};
+
+      const hasAnyBuildingLevel = Object.keys(farmBuildings).some((key) => Number(farmBuildings[key] || 0) > 0);
+
+      const configBuildings =
+        configs && configs.buildings && typeof configs.buildings === 'object'
+          ? configs.buildings
+          : {};
+
+      const hasBuildingsConfig = Object.keys(configBuildings).length > 0;
+
+      if (!hasBuildingsConfig || !farmBuildings || typeof farmBuildings !== 'object') {
+        result.push({
+          login: row.login,
+          display_name: row.display_name,
+          level: Number(row.level || 0),
+          farm_balance: Number(row.farm_balance || 0),
+          upgrade_balance: Number(row.upgrade_balance || 0),
+          parts: Number(row.parts || 0),
+          has_any_building_level: hasAnyBuildingLevel,
+          has_buildings_config: hasBuildingsConfig
+        });
+      }
+    }
+
+    return res.json({
+      ok: true,
+      total: result.length,
+      players: result
+    });
+  } catch (error) {
+    console.error('[FARMERS MISSING BUILDINGS SITE] Error:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'farmers_missing_buildings_site_failed',
+      message: error.message
+    });
+  }
+});
 module.exports = router;
