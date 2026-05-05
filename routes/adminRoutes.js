@@ -5,7 +5,7 @@ const { syncProfileToWizebot } = require("../services/wizebotApiService");
 const { upsertTwitchUser, getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
 const { getStreamStatus, setSetting } = require("../services/streamStatusService");
 const { setMarketStock } = require("../services/farm/marketService");
-const { triggerWizebotLegacyFarmMigration } = require("../services/twitchChatService");
+const { triggerWizebotLegacyFarmMigration, sayToChannel } = require("../services/twitchChatService");
 
 function parseAmount(value) {
   if (typeof value === "number") return Math.trunc(value);
@@ -517,7 +517,7 @@ module.exports = function (db) {
     }
   });
 
-  router.post('/delete-farmer', (req, res) => {
+  router.post('/delete-farmer', async (req, res) => {
     try {
       const login = sanitizeAdminLogin(req.body?.login);
       if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник фермера' });
@@ -526,11 +526,37 @@ module.exports = function (db) {
       if (!profile) return res.status(404).json({ ok: false, error: 'Фермер не найден' });
 
       saveFarmBackup(profile, 'before_delete_farmer_hard');
-      logAdminEvent(db, profile.twitch_id, 'admin_delete_farmer_hard', { login });
+      logAdminEvent(db, profile.twitch_id, 'admin_delete_farmer_hard', { login, mode: 'site_and_wizebot' });
+
+      const deleteCommand = `!удалитьферму2 ${login}`;
+      let wizebotTrigger = { ok: false, skipped: true, reason: 'say_to_channel_not_called' };
+
+      try {
+        wizebotTrigger = await sayToChannel(deleteCommand);
+      } catch (triggerError) {
+        wizebotTrigger = { ok: false, error: triggerError.message || String(triggerError) };
+      }
+
+      // Даём чату небольшой шанс обработать удаление legacy/v2 vars до очистки сайта.
+      await sleep(900);
 
       db.prepare('DELETE FROM farm_profiles WHERE twitch_id = ?').run(profile.twitch_id);
 
-      res.json({ ok: true, message: `Фермер ${login} удалён. Игроку нужно снова покупать ферму.` });
+      const warnings = [];
+      if (!wizebotTrigger || !wizebotTrigger.ok) {
+        warnings.push('site_deleted_but_wizebot_not_confirmed');
+      }
+
+      res.json({
+        ok: true,
+        login,
+        deleted: true,
+        wizebot_trigger: wizebotTrigger,
+        warnings,
+        message: warnings.length
+          ? `Фермер ${login} удалён на сайте. Команда ${deleteCommand} отправлена без подтверждения — проверь Twitch chat / WizeBot.`
+          : `Фермер ${login} удалён. Игроку нужно снова покупать ферму.`
+      });
     } catch (error) {
       res.status(500).json({ ok: false, error: error.message || String(error) });
     }
