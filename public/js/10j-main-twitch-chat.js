@@ -1,98 +1,70 @@
+/* Safe patch: compact Twitch chat on the main page, lazy-initialized. */
 (function () {
-  const section = document.getElementById('twitchChatSection');
-  if (!section) return;
+  const CHAT_CHANNEL = 'Nico_Moose';
+  const MAIN_TAB = 'main';
+  let chatInitialized = false;
 
-  const panel = document.querySelector('[data-farm-panel="main"]');
-  const frame = document.getElementById('twitchChatFrame');
-  const placeholder = document.getElementById('twitchChatPlaceholder');
-  const statusEl = document.getElementById('twitchChatStatus');
-  const reloadBtn = document.getElementById('twitchChatReload');
-  if (!panel || !frame || !placeholder || !statusEl) return;
-
-  const rawChannel = String(section.getAttribute('data-twitch-channel') || 'Nico_Moose').trim();
-  const channel = rawChannel.replace(/^@/, '') || 'Nico_Moose';
-  const allowedParents = Array.from(new Set([
-    window.location.hostname,
-    'farm-moose.bothost.tech',
-    'localhost'
-  ].filter(Boolean)));
-
-  let chatLoaded = false;
-  let chatLoading = false;
-
-  function setStatus(text) {
-    statusEl.textContent = text || '';
+  function buildParentList() {
+    const parents = new Set(['farm-moose.bothost.tech', 'localhost']);
+    const host = (window.location && window.location.hostname ? window.location.hostname : '').trim();
+    if (host) parents.add(host);
+    if (host === '127.0.0.1') parents.add('localhost');
+    return Array.from(parents);
   }
 
-  function buildChatUrl() {
-    const url = new URL(`https://www.twitch.tv/embed/${encodeURIComponent(channel)}/chat`);
-    allowedParents.forEach((parent) => url.searchParams.append('parent', parent));
-    url.searchParams.set('darkpopout', 'true');
-    return url.toString();
+  function buildChatUrl(channel) {
+    const parents = buildParentList();
+    const query = parents.map((parent) => `parent=${encodeURIComponent(parent)}`).join('&');
+    return `https://www.twitch.tv/embed/${encodeURIComponent(channel)}/chat?${query}&darkpopout`;
   }
 
-  function loadChat(force) {
-    if (chatLoading) return;
-    if (chatLoaded && !force) return;
+  function mountTwitchChat() {
+    if (chatInitialized) return;
+    const mount = document.getElementById('mainTwitchChatEmbed');
+    if (!mount) return;
 
-    chatLoading = true;
-    placeholder.classList.remove('hidden');
-    setStatus(force ? 'Обновляем Twitch chat…' : 'Подключаем Twitch chat…');
+    const channel = mount.dataset.channel || CHAT_CHANNEL;
+    const iframe = document.createElement('iframe');
+    iframe.src = buildChatUrl(channel);
+    iframe.title = `Twitch chat ${channel}`;
+    iframe.loading = 'lazy';
+    iframe.allowFullscreen = false;
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
 
-    if (force) {
-      frame.removeAttribute('src');
-      chatLoaded = false;
-    }
-
-    frame.onload = function () {
-      chatLoading = false;
-      chatLoaded = true;
-      placeholder.classList.add('hidden');
-      setStatus('Чат подключён');
-    };
-
-    frame.onerror = function () {
-      chatLoading = false;
-      placeholder.classList.remove('hidden');
-      setStatus('Не удалось загрузить чат. Попробуй кнопку обновления.');
-    };
-
-    frame.src = buildChatUrl();
+    mount.innerHTML = '';
+    mount.appendChild(iframe);
+    mount.dataset.loaded = '1';
+    chatInitialized = true;
   }
 
-  function maybeLoadChat() {
-    if (!panel.classList.contains('active')) return;
-    if ('requestIdleCallback' in window) {
-      window.requestIdleCallback(() => loadChat(false), { timeout: 1200 });
-      return;
-    }
-    window.setTimeout(() => loadChat(false), 250);
+  function tryMountForActiveTab() {
+    const activePanel = document.querySelector('.farm-tab-panel.active');
+    const activeName = activePanel ? activePanel.getAttribute('data-farm-panel') : MAIN_TAB;
+    if (activeName === MAIN_TAB) mountTwitchChat();
   }
 
-  reloadBtn?.addEventListener('click', function () {
-    loadChat(true);
-  });
-
-  document.querySelectorAll('[data-farm-tab]').forEach((btn) => {
-    btn.addEventListener('click', function () {
-      const target = btn.getAttribute('data-farm-tab');
-      if (target === 'main') {
-        window.setTimeout(maybeLoadChat, 120);
+  function wrapOpenFarmTab() {
+    if (typeof window.openFarmTab !== 'function' || window.openFarmTab.__twitchChatWrapped) return;
+    const original = window.openFarmTab;
+    const wrapped = function wrappedOpenFarmTab(name) {
+      const result = original.apply(this, arguments);
+      if ((name || MAIN_TAB) === MAIN_TAB) {
+        window.requestAnimationFrame(tryMountForActiveTab);
       }
-    });
-  });
-
-  if ('IntersectionObserver' in window) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          maybeLoadChat();
-          observer.disconnect();
-        }
-      });
-    }, { rootMargin: '180px 0px' });
-    observer.observe(section);
+      return result;
+    };
+    wrapped.__twitchChatWrapped = true;
+    window.openFarmTab = wrapped;
   }
 
-  maybeLoadChat();
+  function initMainTwitchChat() {
+    wrapOpenFarmTab();
+    tryMountForActiveTab();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMainTwitchChat, { once: true });
+  } else {
+    initMainTwitchChat();
+  }
 })();

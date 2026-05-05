@@ -1,163 +1,182 @@
-.twitch-chat-section {
+/* Safe patch: compact Twitch chat sidebar on the main page.
+   Kept separate to avoid touching existing layout logic. */
+
+.main-dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
+  align-items: start;
+}
+
+.main-dashboard-primary {
+  min-width: 0;
+}
+
+.main-dashboard-side {
+  min-width: 0;
+}
+
+.main-twitch-chat-card {
+  position: sticky;
+  top: 84px;
+  margin: 0;
+  padding: 14px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(125, 207, 88, 0.10), rgba(255,255,255,0.02)),
+    rgba(10, 28, 14, 0.96);
+  border: 1px solid rgba(193,255,168,0.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 42px rgba(0,0,0,0.26);
+}
+
+.main-twitch-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.main-twitch-chat-head h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.main-twitch-chat-head p {
+  margin: 6px 0 0;
+  color: rgba(244,255,242,0.68);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.main-twitch-chat-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 900;
+  color: #f4fff2;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  white-space: nowrap;
+}
+
+.main-twitch-chat-link:hover {
+  background: linear-gradient(180deg, #a2ed76, #77c752);
+  color: #071307;
+}
+
+.main-twitch-chat-frame {
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(10, 20, 12, 0.92), rgba(17, 37, 22, 0.98));
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.main-twitch-chat-embed {
+  width: 100%;
+  min-height: 760px;
+  background: linear-gradient(180deg, rgba(8, 16, 10, 0.95), rgba(13, 29, 17, 0.98));
+}
+
+.main-twitch-chat-embed iframe {
+  display: block;
+  width: 100%;
+  height: 760px;
+  border: 0;
+  background: #0c1411;
+}
+
+.main-twitch-chat-placeholder {
+  display: grid;
+  grid-template-rows: 58px 1fr;
+  min-height: 760px;
+  background: linear-gradient(180deg, rgba(13, 23, 15, 0.96), rgba(10, 20, 12, 0.98));
+}
+
+.main-twitch-chat-placeholder-top,
+.main-twitch-chat-placeholder-body {
   position: relative;
   overflow: hidden;
 }
 
-.twitch-chat-shell {
-  display: grid;
-  gap: 16px;
+.main-twitch-chat-placeholder-top {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
 }
 
-.twitch-chat-topline {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.twitch-chat-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: #efe8ff;
-  background: linear-gradient(135deg, rgba(126, 87, 194, .26), rgba(88, 28, 135, .18));
-  border: 1px solid rgba(180, 140, 255, .2);
-}
-
-.twitch-chat-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.twitch-chat-link,
-.twitch-chat-reload {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 10px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(175, 135, 255, .2);
-  background: rgba(255, 255, 255, .04);
-  color: inherit;
-  text-decoration: none;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform .18s ease, border-color .18s ease, background .18s ease;
-}
-
-.twitch-chat-link:hover,
-.twitch-chat-reload:hover {
-  transform: translateY(-1px);
-  border-color: rgba(175, 135, 255, .38);
-  background: rgba(255, 255, 255, .07);
-}
-
-.twitch-chat-frame-wrap {
-  position: relative;
-  min-height: 540px;
-  border-radius: 22px;
-  padding: 10px;
+.main-twitch-chat-placeholder-body {
   background:
-    radial-gradient(circle at top left, rgba(145, 70, 255, .14), transparent 42%),
-    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
-  border: 1px solid rgba(174, 136, 255, .15);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 18px 42px rgba(0,0,0,.18);
+    linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+    rgba(0,0,0,0.08);
 }
 
-.twitch-chat-frame {
-  display: block;
-  width: 100%;
-  min-height: 520px;
-  height: 520px;
-  border: 0;
-  border-radius: 16px;
-  background: #0f0a19;
-}
-
-.twitch-chat-placeholder {
+.main-twitch-chat-placeholder-top::after,
+.main-twitch-chat-placeholder-body::after {
+  content: "";
   position: absolute;
-  inset: 10px;
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(29, 16, 51, .94), rgba(16, 11, 29, .98));
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  gap: 12px;
-  padding: 24px;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+  transform: translateX(-100%);
+  animation: mainTwitchChatShimmer 1.7s infinite;
 }
 
-.twitch-chat-placeholder.hidden {
-  display: none;
+@keyframes mainTwitchChatShimmer {
+  to { transform: translateX(100%); }
 }
 
-.twitch-chat-spinner {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  border: 4px solid rgba(255,255,255,.12);
-  border-top-color: rgba(175, 135, 255, .9);
-  animation: twitchChatSpin 1s linear infinite;
-}
-
-.twitch-chat-status {
-  font-size: 14px;
-  color: rgba(255,255,255,.72);
-}
-
-.twitch-chat-note {
-  font-size: 13px;
-  color: rgba(255,255,255,.56);
-}
-
-@keyframes twitchChatSpin {
-  to { transform: rotate(360deg); }
-}
-
-@media (max-width: 900px) {
-  .twitch-chat-frame-wrap {
-    min-height: 460px;
+@media (max-width: 1180px) {
+  .main-dashboard-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
   }
 
-  .twitch-chat-frame {
-    min-height: 440px;
-    height: 440px;
+  .main-twitch-chat-embed,
+  .main-twitch-chat-embed iframe,
+  .main-twitch-chat-placeholder {
+    min-height: 680px;
+    height: 680px;
+  }
+}
+
+@media (max-width: 980px) {
+  .main-dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .main-twitch-chat-card {
+    position: static;
+  }
+
+  .main-twitch-chat-embed,
+  .main-twitch-chat-embed iframe,
+  .main-twitch-chat-placeholder {
+    min-height: 540px;
+    height: 540px;
   }
 }
 
 @media (max-width: 640px) {
-  .twitch-chat-frame-wrap {
-    min-height: 420px;
-    padding: 8px;
+  .main-twitch-chat-card {
+    padding: 12px;
+    border-radius: 20px;
   }
 
-  .twitch-chat-frame {
-    min-height: 404px;
-    height: 404px;
-  }
-
-  .twitch-chat-topline {
+  .main-twitch-chat-head {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .twitch-chat-actions {
+  .main-twitch-chat-link {
     width: 100%;
   }
 
-  .twitch-chat-link,
-  .twitch-chat-reload {
-    flex: 1 1 160px;
+  .main-twitch-chat-embed,
+  .main-twitch-chat-embed iframe,
+  .main-twitch-chat-placeholder {
+    min-height: 500px;
+    height: 500px;
   }
 }
