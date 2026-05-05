@@ -32,6 +32,15 @@ async function triggerWizebotWebMasterApply(login) {
   return sayToChannel(`!сайтфермапуш ${normalized}`);
 }
 
+
+async function triggerWizebotLegacyFarmMigration(login) {
+  const normalized = normalizeLogin(login);
+  if (!normalized) return { ok: false, error: 'missing_login' };
+
+  const command = String(process.env.WIZEBOT_LEGACY_MIGRATION_COMMAND || '!сайтмигрферма').trim() || '!сайтмигрферма';
+  return sayToChannel(`${command} ${normalized}`);
+}
+
 function startTwitchChatBot() {
   const client = new tmi.Client({
     options: { debug: false },
@@ -117,5 +126,6 @@ function startTwitchChatBot() {
 module.exports = {
   startTwitchChatBot,
   sayToChannel,
-  triggerWizebotWebMasterApply
+  triggerWizebotWebMasterApply,
+  triggerWizebotLegacyFarmMigration
 };

@@ -5,6 +5,7 @@ const { syncProfileToWizebot } = require("../services/wizebotApiService");
 const { upsertTwitchUser, getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
 const { getStreamStatus, setSetting } = require("../services/streamStatusService");
 const { setMarketStock } = require("../services/farm/marketService");
+const { triggerWizebotLegacyFarmMigration } = require("../services/twitchChatService");
 
 function parseAmount(value) {
   if (typeof value === "number") return Math.trunc(value);
@@ -166,6 +167,24 @@ module.exports = function (db) {
 
   const pendingAdminActions = new Set();
 
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function waitForLegacyMigrationPush(login, beforeSyncAt, timeoutMs = 20000) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      const profile = getProfileByLogin(db, login);
+      const syncAt = Number(profile?.last_wizebot_sync_at || 0);
+      const level = Number(profile?.level || profile?.farm?.level || 0);
+      const hasFarmPayload = !!profile && (syncAt > beforeSyncAt || level > 0);
+      if (hasFarmPayload) return profile;
+      await sleep(700);
+    }
+    return null;
+  }
+
+
   function adminActionGuard(req, res, next) {
     if (req.method !== 'POST') return next();
     const adminLogin = (
@@ -309,7 +328,7 @@ module.exports = function (db) {
 
     let profile = getProfileByLogin(db, login);
 
-    // Создаём профиль на сайте, если игрок ещё не заходил через Twitch.
+    // Создаём профиль на сайте заранее: /bridge/farm-v2-push от WizeBot требует, чтобы игрок уже существовал.
     if (!profile) {
       upsertTwitchUser({
         id: `legacy:${login}`,
@@ -324,34 +343,85 @@ module.exports = function (db) {
 
     saveFarmBackup(profile, 'before_import_legacy_farm');
 
-    // syncWizebotFarmToProfile читает старые WizeBot vars:
-    // farm_, farm_virtual_balance_, farm_upgrade_balance_, farm_total_income_, farm_last_,
-    // farm_license_, farm_protection_level_, farm_raid_power_, farm_defense_building_.
+    // 1) Быстрый прямой путь через WizeBot API custom-data, если конкретный WizeBot-аккаунт отдаёт legacy vars через API.
     const result = await syncWizebotFarmToProfile({ login, profile, allowAnyLogin: true });
-    if (!result.ok) return result;
+    if (result.ok) {
+      const updatedProfile = updateProfile({ ...profile, ...result.profile, twitch_id: profile.twitch_id });
 
-    const updatedProfile = updateProfile({ ...profile, ...result.profile, twitch_id: profile.twitch_id });
+      let pushBack = null;
+      try {
+        pushBack = await syncProfileToWizebot(updatedProfile);
+      } catch (error) {
+        pushBack = { ok: false, error: error.message || String(error) };
+      }
 
-    // Сразу кладём новую farm_v2 модель обратно в WizeBot, как делает команда !мигрферма.
-    let pushBack = null;
-    try {
-      pushBack = await syncProfileToWizebot(updatedProfile);
-    } catch (error) {
-      pushBack = { ok: false, error: error.message || String(error) };
+      const freshProfile = getProfileById(profile.twitch_id);
+      logAdminEvent(db, profile.twitch_id, source, {
+        login,
+        mode: 'wizebot_api_custom_data',
+        imported: result.imported || null,
+        pushBack
+      });
+
+      return {
+        ok: true,
+        profile: freshProfile,
+        imported: result.imported || null,
+        pushBack,
+        mode: 'wizebot_api_custom_data'
+      };
     }
 
-    const freshProfile = getProfileById(profile.twitch_id);
-    logAdminEvent(db, profile.twitch_id, source, {
+    // 2) Надёжный путь для старой !ферма: запускаем WizeBot-side мигратор из чата.
+    // Он читает JS.wizebot.get_var('farm_' + login) там же, где это делает команда !ферма,
+    // собирает farm_v2 и пушит на сайт через /bridge/farm-v2-push.
+    const beforeSyncAt = Number(profile.last_wizebot_sync_at || 0);
+    let trigger = null;
+    try {
+      trigger = await triggerWizebotLegacyFarmMigration(login);
+    } catch (error) {
+      trigger = { ok: false, error: error.message || String(error) };
+    }
+
+    if (!trigger || !trigger.ok) {
+      return {
+        ok: false,
+        error:
+          'Старая ферма не прочиталась через WizeBot API, и сайт не смог запустить WizeBot-команду миграции. ' +
+          'Проверь, что Twitch chat bot подключён и в WizeBot создана команда !сайтмигрферма.',
+        apiError: result.error || null,
+        trigger
+      };
+    }
+
+    const migratedProfile = await waitForLegacyMigrationPush(login, beforeSyncAt);
+    if (!migratedProfile) {
+      return {
+        ok: false,
+        error:
+          'Команда миграции отправлена в Twitch chat, но сайт не получил /bridge/farm-v2-push от WizeBot. ' +
+          'Проверь команду !сайтмигрферма в WizeBot и ALLOWED_CALLERS внутри неё.',
+        apiError: result.error || null,
+        trigger
+      };
+    }
+
+    logAdminEvent(db, migratedProfile.twitch_id || profile.twitch_id, source, {
       login,
-      imported: result.imported || null,
-      pushBack
+      mode: 'wizebot_chat_legacy_migrator',
+      trigger,
+      apiError: result.error || null
     });
 
     return {
       ok: true,
-      profile: freshProfile,
-      imported: result.imported || null,
-      pushBack
+      profile: migratedProfile,
+      imported: {
+        login,
+        mode: 'wizebot_chat_legacy_migrator'
+      },
+      pushBack: trigger,
+      mode: 'wizebot_chat_legacy_migrator'
     };
   }
 
