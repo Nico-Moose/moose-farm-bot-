@@ -1,84 +1,123 @@
-/* Safe patch: standalone Twitch stream tab. Does not touch farm logic. */
+/* Safe patch: dedicated stream tab with smart offline view.
+   Online -> Twitch embed player.
+   Offline -> custom branded card with links.
+   Uses actual Twitch API status for the embed, ignoring manual farm-online overrides. */
 (function () {
-  const DEFAULT_CHANNEL = 'Nico_Moose';
-  let streamMounted = false;
-  let chatMounted = false;
+  const CHANNEL = 'Nico_Moose';
+  let loaded = false;
+  let lastOnline = null;
 
-  function parentsQuery() {
+  function buildParentList() {
     const parents = new Set(['farm-moose.bothost.tech', 'localhost']);
     const host = (window.location && window.location.hostname ? window.location.hostname : '').trim();
     if (host) parents.add(host);
     if (host === '127.0.0.1') parents.add('localhost');
-    return Array.from(parents).map((parent) => `parent=${encodeURIComponent(parent)}`).join('&');
+    return Array.from(parents);
   }
 
-  function buildStreamUrl(channel) {
-    return `https://player.twitch.tv/?channel=${encodeURIComponent(channel)}&${parentsQuery()}&muted=false`;
+  function buildPlayerUrl(channel) {
+    const params = new URLSearchParams();
+    buildParentList().forEach((parent) => params.append('parent', parent));
+    params.set('channel', channel);
+    params.set('muted', 'false');
+    params.set('autoplay', 'false');
+    return `https://player.twitch.tv/?${params.toString()}`;
   }
 
-  function buildChatUrl(channel) {
-    return `https://www.twitch.tv/embed/${encodeURIComponent(channel)}/chat?${parentsQuery()}&darkpopout`;
+  async function getStreamStatus() {
+    const res = await fetch('/api/stream/embed-status', { credentials: 'same-origin' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || 'stream_status_failed');
+    return !!data.streamOnline;
   }
 
-  function mountIframe(box, src, title) {
-    const iframe = document.createElement('iframe');
-    iframe.src = src;
-    iframe.title = title;
-    iframe.loading = 'lazy';
-    iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-    iframe.allowFullscreen = true;
-    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-    box.innerHTML = '';
-    box.appendChild(iframe);
-    box.dataset.loaded = '1';
+  function onlineMarkup(channel) {
+    return `
+      <section class="stream-tab-card">
+        <div class="stream-tab-head">
+          <div>
+            <h3>▶️ Трансляция</h3>
+            <p>Прямой эфир Twitch внутри сайта.</p>
+          </div>
+          <a class="stream-tab-link" href="https://www.twitch.tv/${channel}" target="_blank" rel="noopener noreferrer">Открыть на Twitch</a>
+        </div>
+        <div class="stream-player-shell">
+          <iframe
+            src="${buildPlayerUrl(channel)}"
+            title="Twitch stream ${channel}"
+            loading="lazy"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
+      </section>`;
   }
 
-  function mountStreamTab() {
-    const videoBox = document.getElementById('streamVideoEmbed');
-    const chatBox = document.getElementById('streamChatEmbed');
+  function offlineMarkup(channel) {
+    return `
+      <section class="stream-tab-card">
+        <div class="stream-tab-head">
+          <div>
+            <h3>🎬 Трансляция</h3>
+            <p>Стрим сейчас оффлайн — показываем свою заставку вместо стандартного Twitch embed.</p>
+          </div>
+          <a class="stream-tab-link" href="https://www.twitch.tv/${channel}" target="_blank" rel="noopener noreferrer">Открыть на Twitch</a>
+        </div>
+        <div class="stream-offline-shell">
+          <div class="stream-offline-logo">🫎</div>
+          <div class="stream-offline-content">
+            <div class="stream-offline-badge">НЕ В СЕТИ</div>
+            <div class="stream-offline-sign">
+              <span class="stream-offline-title">СТРИМ</span>
+              <span class="stream-offline-tag">кастомные режимы</span>
+              <span class="stream-offline-subtitle">скоро начнётся</span>
+            </div>
+            <p class="stream-offline-note">Канал <b>${channel}</b> сейчас оффлайн. Чат справа остаётся доступен, а трансляция автоматически появится здесь, когда стрим станет онлайн.</p>
+            <div class="stream-offline-actions">
+              <a class="stream-offline-link" href="https://www.twitch.tv/${channel}" target="_blank" rel="noopener noreferrer">▶ Перейти на канал</a>
+              <a class="stream-offline-chat-link" href="https://www.twitch.tv/popout/${channel}/chat?popout=" target="_blank" rel="noopener noreferrer">💬 Открыть чат</a>
+            </div>
+          </div>
+        </div>
+      </section>`;
+  }
 
-    if (videoBox && !streamMounted) {
-      const channel = videoBox.dataset.channel || DEFAULT_CHANNEL;
-      mountIframe(videoBox, buildStreamUrl(channel), `Twitch stream ${channel}`);
-      streamMounted = true;
+  async function render(force) {
+    const panel = document.querySelector('[data-farm-panel="stream"]');
+    const box = document.getElementById('streamTabBox');
+    if (!panel || !box) return;
+    if (!force && loaded && !panel.classList.contains('active')) return;
+
+    try {
+      const online = await getStreamStatus();
+      if (!force && loaded && online === lastOnline) return;
+      box.innerHTML = online ? onlineMarkup(CHANNEL) : offlineMarkup(CHANNEL);
+      loaded = true;
+      lastOnline = online;
+    } catch (error) {
+      box.innerHTML = offlineMarkup(CHANNEL);
+      loaded = true;
+      lastOnline = false;
     }
-
-    if (chatBox && !chatMounted) {
-      const channel = chatBox.dataset.channel || DEFAULT_CHANNEL;
-      mountIframe(chatBox, buildChatUrl(channel), `Twitch chat ${channel}`);
-      chatMounted = true;
-    }
   }
 
-  function isStreamActive() {
-    return !!document.querySelector('[data-farm-panel="stream"].active');
-  }
-
-  function syncStreamLayoutClass() {
-    const active = isStreamActive();
-    document.body.classList.toggle('stream-tab-active', active);
-    if (active) mountStreamTab();
-  }
-
-  function initStreamTab() {
-    syncStreamLayoutClass();
-
-    document.querySelectorAll('[data-farm-tab="stream"]').forEach((btn) => {
+  function hookTabs() {
+    document.querySelectorAll('[data-farm-tab]').forEach((btn) => {
       if (btn.dataset.streamBound === '1') return;
       btn.dataset.streamBound = '1';
-      btn.addEventListener('click', () => setTimeout(syncStreamLayoutClass, 0));
-    });
-
-    document.querySelectorAll('[data-farm-tab]').forEach((btn) => {
-      if (btn.dataset.streamClassBound === '1') return;
-      btn.dataset.streamClassBound = '1';
-      btn.addEventListener('click', () => setTimeout(syncStreamLayoutClass, 0));
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-farm-tab');
+        if (tab === 'stream') setTimeout(() => render(false), 40);
+      });
     });
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initStreamTab, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      hookTabs();
+      if (document.querySelector('[data-farm-panel="stream"]')?.classList.contains('active')) render(true);
+    }, { once: true });
   } else {
-    initStreamTab();
+    hookTabs();
+    if (document.querySelector('[data-farm-panel="stream"]')?.classList.contains('active')) render(true);
   }
 })();

@@ -87,6 +87,11 @@ async function getStreamStatus() {
   return { online: !!status.online, source: 'twitch', checkedAt: status.at, error: status.error };
 }
 
+async function getActualTwitchStreamStatus() {
+  const status = await getTwitchStreamStatus();
+  return { online: !!status.online, source: 'twitch', checkedAt: status.at, error: status.error };
+}
+
 
 function getStreamStatusSnapshot() {
   const manual = getManualStreamOverride();
@@ -97,5 +102,5 @@ function getStreamStatusSnapshot() {
   return { online: !!twitchCache.online, source: 'cache', checkedAt: twitchCache.at || 0, error: twitchCache.error || null };
 }
 
-module.exports = { getStreamStatus, getStreamStatusSnapshot, setSetting, getSetting };
+module.exports = { getStreamStatus, getActualTwitchStreamStatus, getStreamStatusSnapshot, setSetting, getSetting };
 

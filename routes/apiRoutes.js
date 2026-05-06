@@ -98,7 +98,7 @@ router.use((req, res, next) => {
 const { config } = require('../config');
 const { syncProfileToWizebotIfNeeded, isWebMasterProfile } = require('../services/wizebotApiService');
 const { enqueueProfileSync, getQueueStats } = require('../services/wizebotSyncQueueService');
-const { getStreamStatus, getStreamStatusSnapshot } = require('../services/streamStatusService');
+const { getStreamStatus, getActualTwitchStreamStatus, getStreamStatusSnapshot } = require('../services/streamStatusService');
 const { getCache, setCache, invalidateFarmCache } = require('../services/apiCacheService');
 
 function hasActiveFarm(profile) {
@@ -378,6 +378,11 @@ router.get('/me', requireAuth, async (req, res) => {
 
 router.get('/stream/status', requireAuth, async (req, res) => {
   const streamStatus = await getStreamStatus();
+  res.json({ ok: true, streamStatus, streamOnline: !!streamStatus.online });
+});
+
+router.get('/stream/embed-status', requireAuth, async (req, res) => {
+  const streamStatus = await getActualTwitchStreamStatus();
   res.json({ ok: true, streamStatus, streamOnline: !!streamStatus.online });
 });
 
