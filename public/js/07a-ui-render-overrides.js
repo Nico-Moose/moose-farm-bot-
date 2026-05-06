@@ -29,14 +29,14 @@ function ensureMainActionButtons(data) {
   if (upgrade1Btn) {
     upgrade1Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-one');
     upgrade1Btn.disabled = !farmActive;
-    upgrade1Btn.innerHTML = `⬆️ Улучшить ферму +1<br><small id="upgrade1Text">${farmActive ? (data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум') : 'ферма не активна'}</small>`;
+    upgrade1Btn.innerHTML = `⬆️ Ап +1<br><small id="upgrade1Text">${farmActive ? (data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум') : 'ферма не активна'}</small>`;
   }
   if (upgrade10Btn) {
     upgrade10Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-ten');
     upgrade10Btn.disabled = !farmActive;
     upgrade10Btn.innerHTML = farmActive
-      ? '🚀 Улучшить ферму +10<br><small>до 10 уровней</small>'
-      : '🚀 Улучшить ферму +10<br><small>ферма не активна</small>';
+      ? '🚀 Ап +10<br><small>до 10 уровней</small>'
+      : '🚀 Ап +10<br><small>ферма не активна</small>';
   }
 }
 
@@ -125,14 +125,16 @@ function renderLicense(data) {
   box.style.display = '';
   const p = data.profile || {};
   const farmActive = !!(data && data.hasFarm);
-  const st = resourceStatus(p, next.cost, 0);
+  const gold = ordinaryCoins(p);
+  const missingGold = Math.max(0, Number(next.cost || 0) - gold);
+  const goldOk = missingGold <= 0;
   box.innerHTML = `
     <div class="license-card compact-license-card">
       <h2>🎟 Лицензии</h2>
       <p>Сейчас открыто до: <b>${p.license_level ? p.license_level : 39}</b> уровня</p>
       <p>Следующая лицензия: <b>${next.level}</b> уровень</p>
       <p>Цена: <b>${formatNumber(next.cost)}💰</b></p>
-      <p class="resource-line">У тебя: <b>${formatNumber(st.coins)}💰</b>${st.coinsOk ? ' ✅' : ` ❌ не хватает ${formatNumber(st.missingCoins)}💰`}</p>
+      <p class="resource-line">У тебя голды: <b>${formatNumber(gold)}💰</b>${goldOk ? ' ✅' : ` ❌ не хватает ${formatNumber(missingGold)}💰`}</p>
       <button id="buyLicenseBtn">🎟 Купить лицензию до ${next.level}</button>
     </div>
   `;

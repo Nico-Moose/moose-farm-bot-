@@ -126,7 +126,7 @@ function ensureMainActionButtons(data) {
     upgrade1Btn.classList.toggle('farm-max-disabled', isMaxFarm);
     upgrade1Btn.disabled = isMaxFarm;
     upgrade1Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
-    upgrade1Btn.innerHTML = `⬆️ Улучшить ферму +1<br><small id="upgrade1Text">${data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум'}</small>`;
+    upgrade1Btn.innerHTML = `⬆️ Ап +1<br><small id="upgrade1Text">${data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум'}</small>`;
   }
 
   if (upgrade10Btn) {
