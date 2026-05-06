@@ -1,6 +1,5 @@
 const { ensureFarmShape } = require('./profileShape');
 const { num } = require('./numberUtils');
-const { spendCoins } = require('./paymentService');
 
 function getLicenseLevels(profile) {
   const licenses = profile?.configs?.licenses || {};
@@ -61,25 +60,25 @@ function buyNextLicense(profile) {
     };
   }
 
-  const paid = spendCoins(profile, next.cost);
-
-  if (!paid.ok) {
+  const currentGold = num(profile?.twitch_balance, 0);
+  if (currentGold < next.cost) {
     return {
       ok: false,
       error: 'not_enough_money',
       needed: next.cost,
-      available: paid.available,
+      available: currentGold,
       profile
     };
   }
 
+  profile.twitch_balance = currentGold - next.cost;
   profile.license_level = next.level;
 
   return {
     ok: true,
     licenseLevel: next.level,
     cost: next.cost,
-    spent: paid.spent,
+    spent: { farm_balance: 0, twitch_balance: next.cost, upgrade_balance: 0 },
     profile
   };
 }

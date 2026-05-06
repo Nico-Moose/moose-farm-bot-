@@ -74,6 +74,7 @@ function normalizeProfile(row) {
 
     level: Number(row.level || 0),
     farm_balance: Number(row.farm_balance || 0),
+    twitch_balance: Number(row.twitch_balance || 0),
     upgrade_balance: Number(row.upgrade_balance || 0),
     total_income: Number(row.total_income || 0),
     parts: Number(row.parts || 0),
@@ -102,6 +103,7 @@ function getProfileByLogin(db, login) {
 
       f.level,
       f.farm_balance,
+      f.twitch_balance,
       f.upgrade_balance,
       f.total_income,
       f.parts,

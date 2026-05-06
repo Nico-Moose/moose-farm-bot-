@@ -8,7 +8,7 @@ function ensureMainActionButtons(data) {
   if (!raidActionBtn) {
     raidActionBtn = document.createElement('button');
     raidActionBtn.id = 'raidActionBtn';
-    raidActionBtn.className = 'compact-action danger-lite';
+    raidActionBtn.className = 'compact-action compact-action-raid danger-lite';
     grid.prepend(raidActionBtn);
     raidActionBtn.addEventListener('click', doRaid);
   }
@@ -27,12 +27,12 @@ function ensureMainActionButtons(data) {
   const upgrade1Btn = document.getElementById('upgrade1Btn');
   const upgrade10Btn = document.getElementById('upgrade10Btn');
   if (upgrade1Btn) {
-    upgrade1Btn.classList.add('compact-action');
+    upgrade1Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-one');
     upgrade1Btn.disabled = !farmActive;
     upgrade1Btn.innerHTML = `⬆️ Улучшить ферму +1<br><small id="upgrade1Text">${farmActive ? (data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум') : 'ферма не активна'}</small>`;
   }
   if (upgrade10Btn) {
-    upgrade10Btn.classList.add('compact-action');
+    upgrade10Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-ten');
     upgrade10Btn.disabled = !farmActive;
     upgrade10Btn.innerHTML = farmActive
       ? '🚀 Улучшить ферму +10<br><small>до 10 уровней</small>'

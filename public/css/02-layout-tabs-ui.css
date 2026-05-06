@@ -741,7 +741,7 @@ body {
   min-height: 238px;
 }
 .action-grid-top {
-  min-height: 132px;
+  min-height: 96px;
   align-items: stretch;
 }
 #upgrade1Btn,
@@ -749,11 +749,11 @@ body {
 #collectBtn,
 #raidActionBtn,
 #raidHistoryBtn {
-  min-height: 82px;
+  min-height: 60px;
 }
 #upgrade1Btn,
 #upgrade10Btn {
-  min-width: 168px;
+  min-width: 148px;
 }
 .logout-form {
   min-height: 63px;

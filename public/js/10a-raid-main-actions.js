@@ -91,7 +91,7 @@ function ensureMainActionButtons(data) {
   if (!raidActionBtn) {
     raidActionBtn = document.createElement('button');
     raidActionBtn.id = 'raidActionBtn';
-    raidActionBtn.className = 'compact-action danger-lite';
+    raidActionBtn.className = 'compact-action compact-action-raid danger-lite';
     raidWrap.appendChild(raidActionBtn);
     raidActionBtn.addEventListener('click', doRaid);
   }
@@ -122,7 +122,7 @@ function ensureMainActionButtons(data) {
   const upgrade10Btn = document.getElementById('upgrade10Btn');
 
   if (upgrade1Btn) {
-    upgrade1Btn.classList.add('compact-action');
+    upgrade1Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-one');
     upgrade1Btn.classList.toggle('farm-max-disabled', isMaxFarm);
     upgrade1Btn.disabled = isMaxFarm;
     upgrade1Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
@@ -130,7 +130,7 @@ function ensureMainActionButtons(data) {
   }
 
   if (upgrade10Btn) {
-    upgrade10Btn.classList.add('compact-action');
+    upgrade10Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-ten');
     upgrade10Btn.classList.toggle('farm-max-disabled', isMaxFarm);
     upgrade10Btn.disabled = isMaxFarm;
     upgrade10Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
