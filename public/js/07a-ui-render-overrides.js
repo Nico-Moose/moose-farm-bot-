@@ -34,8 +34,9 @@ function ensureMainActionButtons(data) {
   if (upgrade10Btn) {
     upgrade10Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-ten');
     upgrade10Btn.disabled = !farmActive;
+    const pack10 = typeof getFarmUpgradePack10 === 'function' ? getFarmUpgradePack10(data.profile || {}) : null;
     upgrade10Btn.innerHTML = farmActive
-      ? '🚀 Ап +10<br><small>до 10 уровней</small>'
+      ? `🚀 Ап +10<br><small>${pack10 && pack10.count ? `${formatNumber(pack10.cost)}💰${pack10.parts ? ' / ' + formatNumber(pack10.parts) + '🔧' : ''}` : 'до 10 уровней'}</small>`
       : '🚀 Ап +10<br><small>ферма не активна</small>';
   }
 }
@@ -85,33 +86,10 @@ function render(data) {
 }
 
 function renderQuickStatus(data) {
-  let box = document.getElementById('quickStatus');
-  const profile = data.profile;
-  const next = data.nextUpgrade;
-  const farmActive = !!(data && data.hasFarm);
-  if (!box) {
-    box = document.createElement('section');
-    box.id = 'quickStatus';
-    box.className = 'quick-status';
-    document.getElementById('profile')?.insertAdjacentElement('afterend', box);
-  }
-  let upgradeText = farmActive ? '✅ Ферма уже на максимальном уровне' : 'Ферма удалена или не активна. Купи ферму заново.';
-  if (farmActive && next) {
-    const st = resourceStatus(profile, next.cost, next.parts);
-    const possible = (st.coinsOk && st.partsOk) ? 'Ресурсов хватает для следующего уровня.' : `Не хватает: ${st.missingCoins ? formatNumber(st.missingCoins) + '💰 ' : ''}${st.missingParts ? formatNumber(st.missingParts) + '🔧' : ''}`;
-    upgradeText = `⬆️ Следующий ап: ${formatNumber(next.cost)}💰${next.parts ? ' / ' + formatNumber(next.parts) + '🔧' : ''}. ${possible}`;
-  }
-  box.innerHTML = `
-    <div><b>Текущие ресурсы</b></div>
-    <div class="quick-status-grid compact-stats">
-      <span>💰 Голда: <b>${formatNumber(ordinaryCoins(profile))}</b></span>
-      <span>🌾 Ферма: <b>${formatNumber(farmCoins(profile))}</b></span>
-      <span>💎 Бонусные: <b>${formatNumber(bonusCoins(profile))}</b></span>
-      <span>🔧 Запчасти: <b>${formatNumber(profile.parts || 0)}</b></span>
-    </div>
-    <div class="quick-status-upgrade">${upgradeText}</div>
-  `;
+  const box = document.getElementById('quickStatus');
+  if (box) box.remove();
 }
+
 
 function renderLicense(data) {
   const box = document.getElementById('licenseBox');

@@ -157,6 +157,38 @@ function currentCoins(profile) {
   return ordinaryCoins(profile) + farmCoins(profile) + bonusCoins(profile);
 }
 
+function calcFarmUpgradeCost(level) {
+  const lvl = Number(level || 0) || 0;
+  if (lvl < 30) return 75 * lvl;
+  if (lvl < 60) return (75 * lvl) + 5000 + ((lvl - 30) * 400);
+  if (lvl === 60) return (300 * lvl) + 1500;
+  if (lvl < 80) return (300 * 60) + 1500 + (lvl - 60) * 500;
+  if (lvl === 80) return (300 * 60) + 1500 + (20 * 500) + 2000;
+  if (lvl < 100) return (300 * 60) + 1500 + (20 * 500) + 2000 + (lvl - 80) * 1000;
+  if (lvl === 100) return (300 * 60) + 1500 + (20 * 500) + 2000 + (20 * 1000) + 1500;
+  return (300 * 60) + 1500 + (20 * 500) + 2000 + (20 * 1000) + 2000 + (lvl - 100) * 3000;
+}
+
+function getPartsRequiredForLevel(profile, level) {
+  const required = profile?.configs?.parts_required || {};
+  return Number(required[String(level)] ?? required[level] ?? 0) || 0;
+}
+
+function getFarmUpgradePack10(profile) {
+  const currentLevel = Number(profile?.level || profile?.farm?.level || 0) || 0;
+  let totalCost = 0;
+  let totalParts = 0;
+  let count = 0;
+  for (let i = 1; i <= 10; i++) {
+    const lvl = currentLevel + i;
+    if (lvl > 300) break;
+    totalCost += calcFarmUpgradeCost(lvl);
+    totalParts += getPartsRequiredForLevel(profile, lvl);
+    count++;
+  }
+  return { count, cost: totalCost, parts: totalParts };
+}
+
 function resourceStatus(profile, needCoins = 0, needParts = 0) {
   const coins = currentCoins(profile);
   const parts = Number(profile?.parts || 0);
@@ -183,45 +215,10 @@ function formatNeedLine(profile, needCoins = 0, needParts = 0) {
 }
 
 function renderQuickStatus(data) {
-  let box = document.getElementById('quickStatus');
-  const profile = data.profile;
-  const next = data.nextUpgrade;
-
-  if (!box) {
-    box = document.createElement('section');
-    box.id = 'quickStatus';
-    box.className = 'quick-status';
-    const profileEl = document.getElementById('profile');
-    profileEl?.insertAdjacentElement('afterend', box);
-  }
-
-  const coins = currentCoins(profile);
-  const twitchCoins = ordinaryCoins(profile);
-  const parts = Number(profile.parts || 0);
-  let upgradeText = '✅ Ферма уже на максимальном уровне';
-
-  if (next) {
-    const st = resourceStatus(profile, next.cost, next.parts);
-    const missing = [];
-    if (!st.coinsOk) missing.push(`💰 ${formatNumber(st.missingCoins)}`);
-    if (!st.partsOk) missing.push(`🔧 ${formatNumber(st.missingParts)}`);
-    upgradeText = missing.length
-      ? `⬆️ Следующий ап: нужно ${formatNumber(next.cost)}💰${next.parts ? ` и ${formatNumber(next.parts)}🔧` : ''}. Не хватает: ${missing.join(' / ')}`
-      : `⬆️ Следующий ап доступен: ${formatNumber(next.cost)}💰${next.parts ? ` / ${formatNumber(next.parts)}🔧` : ''}`;
-  }
-
-  box.innerHTML = `
-    <div><b>Текущие ресурсы</b></div>
-    <div class="quick-status-grid">
-      <span>💰 Голда: <b>${formatNumber(twitchCoins)}</b></span>
-      <span>🌾 Ферма: <b>${formatNumber(farmCoins(profile))}</b></span>
-      <span>💎 Бонусные: <b>${formatNumber(bonusCoins(profile))}</b></span>
-      <span>💳 Доступно для трат: <b>${formatNumber(coins)}</b></span>
-      <span>🔧 Запчасти: <b>${formatNumber(parts)}</b></span>
-    </div>
-    <div class="quick-status-upgrade">${upgradeText}</div>
-  `;
+  const box = document.getElementById('quickStatus');
+  if (box) box.remove();
 }
+
 
 function buildingErrorLabel(code, data = {}) {
   const labels = {

@@ -134,7 +134,8 @@ function ensureMainActionButtons(data) {
     upgrade10Btn.classList.toggle('farm-max-disabled', isMaxFarm);
     upgrade10Btn.disabled = isMaxFarm;
     upgrade10Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
-    upgrade10Btn.innerHTML = `🚀 Улучшить ферму +10<br><small>${isMaxFarm ? 'максимум' : 'до 10 уровней'}</small>`;
+    const pack10 = typeof getFarmUpgradePack10 === 'function' ? getFarmUpgradePack10(data.profile || {}) : null;
+    upgrade10Btn.innerHTML = `🚀 Улучшить ферму +10<br><small>${isMaxFarm ? 'максимум' : (pack10 && pack10.count ? `${formatNumber(pack10.cost)}💰${pack10.parts ? ' / ' + formatNumber(pack10.parts) + '🔧' : ''}` : 'до 10 уровней')}</small>`;
   }
 }
 
