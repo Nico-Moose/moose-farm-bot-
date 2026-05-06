@@ -1,7 +1,7 @@
 const express = require("express");
 const { requireAdmin } = require("../middleware/requireAdmin");
 const { syncWizebotFarmToProfile } = require("../services/wizebotSyncService");
-const { syncProfileToWizebot } = require("../services/wizebotApiService");
+const { syncProfileToWizebot, setCurrencyValue } = require("../services/wizebotApiService");
 const { upsertTwitchUser, getProfile: getProfileById, updateProfile, logFarmEvent } = require("../services/userService");
 const { getStreamStatus, setSetting } = require("../services/streamStatusService");
 const { setMarketStock } = require("../services/farm/marketService");
@@ -234,7 +234,7 @@ module.exports = function (db) {
 
 
   // Admin: set one editable player field from profile preview
-    router.post('/player/set-field', (req, res) => {
+    router.post('/player/set-field', async (req, res) => {
     try {
       const login = String(req.body?.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
       const field = String(req.body?.field || '').trim();
@@ -266,8 +266,10 @@ module.exports = function (db) {
         db.prepare(`UPDATE farm_profiles SET level=?, farm_json=?, updated_at=? WHERE twitch_id=?`)
           .run(nextLevel, JSON.stringify(farm), now, profile.twitch_id);
       } else if (field === 'twitch_balance') {
+        const nextGold = Math.max(0, Math.floor(value));
+        await setCurrencyValue(login, nextGold);
         db.prepare(`UPDATE farm_profiles SET twitch_balance=?, updated_at=? WHERE twitch_id=?`)
-          .run(Math.max(0, Math.floor(value)), now, profile.twitch_id);
+          .run(nextGold, now, profile.twitch_id);
       } else if (field === 'farm_balance') {
         db.prepare(`UPDATE farm_profiles SET farm_balance=?, updated_at=? WHERE twitch_id=?`)
           .run(value, now, profile.twitch_id);
