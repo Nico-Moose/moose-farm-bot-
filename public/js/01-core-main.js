@@ -182,46 +182,11 @@ function formatNeedLine(profile, needCoins = 0, needParts = 0) {
   return `${coinLine}\n${partsLine}`;
 }
 
-function renderQuickStatus(data) {
-  let box = document.getElementById('quickStatus');
-  const profile = data.profile;
-  const next = data.nextUpgrade;
-
-  if (!box) {
-    box = document.createElement('section');
-    box.id = 'quickStatus';
-    box.className = 'quick-status';
-    const profileEl = document.getElementById('profile');
-    profileEl?.insertAdjacentElement('afterend', box);
-  }
-
-  const coins = currentCoins(profile);
-  const twitchCoins = ordinaryCoins(profile);
-  const parts = Number(profile.parts || 0);
-  let upgradeText = '✅ Ферма уже на максимальном уровне';
-
-  if (next) {
-    const st = resourceStatus(profile, next.cost, next.parts);
-    const missing = [];
-    if (!st.coinsOk) missing.push(`💰 ${formatNumber(st.missingCoins)}`);
-    if (!st.partsOk) missing.push(`🔧 ${formatNumber(st.missingParts)}`);
-    upgradeText = missing.length
-      ? `⬆️ Следующий ап: нужно ${formatNumber(next.cost)}💰${next.parts ? ` и ${formatNumber(next.parts)}🔧` : ''}. Не хватает: ${missing.join(' / ')}`
-      : `⬆️ Следующий ап доступен: ${formatNumber(next.cost)}💰${next.parts ? ` / ${formatNumber(next.parts)}🔧` : ''}`;
-  }
-
-  box.innerHTML = `
-    <div><b>Текущие ресурсы</b></div>
-    <div class="quick-status-grid">
-      <span>💰 Голда: <b>${formatNumber(twitchCoins)}</b></span>
-      <span>🌾 Ферма: <b>${formatNumber(farmCoins(profile))}</b></span>
-      <span>💎 Бонусные: <b>${formatNumber(bonusCoins(profile))}</b></span>
-      <span>💳 Доступно для трат: <b>${formatNumber(coins)}</b></span>
-      <span>🔧 Запчасти: <b>${formatNumber(parts)}</b></span>
-    </div>
-    <div class="quick-status-upgrade">${upgradeText}</div>
-  `;
+function renderQuickStatus() {
+  const box = document.getElementById('quickStatus');
+  if (box) box.remove();
 }
+
 
 function buildingErrorLabel(code, data = {}) {
   const labels = {
