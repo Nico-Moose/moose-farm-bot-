@@ -325,6 +325,29 @@ function touchPresence(twitchId, page = 'farm') {
   `).run(twitchId, now, String(page || 'farm'));
 }
 
+function getPresenceVisibility(twitchId) {
+  if (!twitchId) return { hidden_from_online: false };
+  const row = getDb().prepare(`
+    SELECT hidden_from_online
+    FROM farm_presence
+    WHERE twitch_id = ?
+  `).get(twitchId);
+  return { hidden_from_online: !!Number(row?.hidden_from_online || 0) };
+}
+
+function setPresenceVisibility(twitchId, hiddenFromOnline = false) {
+  if (!twitchId) return { hidden_from_online: false };
+  const now = Date.now();
+  const hidden = hiddenFromOnline ? 1 : 0;
+  getDb().prepare(`
+    INSERT INTO farm_presence (twitch_id, last_seen_at, page, hidden_from_online)
+    VALUES (?, ?, 'farm', ?)
+    ON CONFLICT(twitch_id) DO UPDATE SET
+      hidden_from_online = excluded.hidden_from_online
+  `).run(twitchId, now, hidden);
+  return { hidden_from_online: !!hidden };
+}
+
 function listOnlineFarmers({ withinMs = 3 * 60 * 1000, limit = 30 } = {}) {
   limit = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
   const cutoff = Date.now() - Math.max(30 * 1000, Number(withinMs || 0));
@@ -356,6 +379,7 @@ function listOnlineFarmers({ withinMs = 3 * 60 * 1000, limit = 30 } = {}) {
     JOIN twitch_users u ON u.twitch_id = p.twitch_id
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE p.last_seen_at >= ?
+      AND COALESCE(p.hidden_from_online, 0) = 0
     ORDER BY COALESCE(f.level, 0) DESC, LOWER(COALESCE(u.display_name, u.login)) ASC, p.last_seen_at DESC
     LIMIT ?
   `).all(cutoff, limit);
@@ -392,7 +416,8 @@ function listFarmerDirectory({ search = '', limit = 500 } = {}) {
       f.raid_power,
       f.turret_json,
       f.last_wizebot_sync_at,
-      p.last_seen_at
+      p.last_seen_at,
+      p.hidden_from_online
     FROM twitch_users u
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     LEFT JOIN farm_presence p ON p.twitch_id = u.twitch_id
@@ -407,7 +432,7 @@ function listFarmerDirectory({ search = '', limit = 500 } = {}) {
   const rows = getDb().prepare(sql).all(...params);
   return rows.map((row) => ({
     ...normalizeProfile(row),
-    is_online: Number(row.last_seen_at || 0) >= Date.now() - 3 * 60 * 1000,
+    is_online: Number(row.last_seen_at || 0) >= Date.now() - 3 * 60 * 1000 && !Number(row.hidden_from_online || 0),
     last_seen_at: Number(row.last_seen_at || 0)
   })).filter((profile) => !!(profile && hasMeaningfulFarm(profile)));
 }
@@ -480,6 +505,8 @@ module.exports = {
   listRaidCandidateProfiles,
   listTopProfilesLite,
   touchPresence,
+  getPresenceVisibility,
+  setPresenceVisibility,
   listOnlineFarmers,
   listFarmerDirectory,
   logFarmEvent,

@@ -92,6 +92,15 @@ function migrate(database) {
   addColumn('turret_json', `turret_json TEXT NOT NULL DEFAULT '{}'`);
   addColumn('last_wizebot_sync_at', 'last_wizebot_sync_at INTEGER');
 
+  const presenceColumns = database
+    .prepare(`PRAGMA table_info(farm_presence)`)
+    .all()
+    .map((c) => c.name);
+
+  if (!presenceColumns.includes('hidden_from_online')) {
+    database.exec(`ALTER TABLE farm_presence ADD COLUMN hidden_from_online INTEGER NOT NULL DEFAULT 0`);
+  }
+
   database.exec(`
     CREATE INDEX IF NOT EXISTS idx_twitch_users_login_lower ON twitch_users(LOWER(login));
     CREATE INDEX IF NOT EXISTS idx_farm_events_twitch_type_created ON farm_events(twitch_id, type, created_at DESC);

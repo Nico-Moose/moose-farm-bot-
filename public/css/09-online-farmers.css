@@ -111,3 +111,38 @@
     top: 84px;
   }
 }
+
+/* PATCH: wider desktop shell + sticky online/Twitch columns. Mobile rules untouched. */
+@media (min-width: 1450px) {
+  .app-shell {
+    width: min(1880px, calc(100% - 32px)) !important;
+    max-width: none !important;
+  }
+
+  .main-dashboard-layout {
+    display: grid !important;
+    grid-template-columns: 270px minmax(0, 1fr) 340px !important;
+    gap: 18px !important;
+    align-items: start !important;
+  }
+
+  .farm-online-side,
+  .main-dashboard-side {
+    position: sticky !important;
+    top: 84px !important;
+    align-self: start !important;
+    margin-top: 0 !important;
+  }
+
+  .main-twitch-chat-card {
+    position: static !important;
+    top: auto !important;
+  }
+}
+
+@media (min-width: 1800px) {
+  .main-dashboard-layout {
+    grid-template-columns: 280px minmax(0, 1fr) 352px !important;
+    gap: 20px !important;
+  }
+}

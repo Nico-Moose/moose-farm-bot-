@@ -11,6 +11,8 @@ const {
   listTopProfilesLite,
   listFarmEvents,
   touchPresence,
+  getPresenceVisibility,
+  setPresenceVisibility,
   listOnlineFarmers,
   listFarmerDirectory,
   getProfileByLogin
@@ -394,6 +396,30 @@ router.post('/farm/presence', requireAuth, (req, res) => {
   try {
     touchPresence(req.session.twitchUser.id, req.body?.page || 'farm');
     res.json({ ok: true, seenAt: Date.now() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.get('/farm/presence-visibility', requireAuth, (req, res) => {
+  try {
+    const login = String(req.session?.twitchUser?.login || '').toLowerCase();
+    const canHideSelf = login === 'nico_moose';
+    const visibility = getPresenceVisibility(req.session.twitchUser.id);
+    res.json({ ok: true, canHideSelf, hidden_from_online: canHideSelf ? !!visibility.hidden_from_online : false });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.post('/farm/presence-visibility', requireAuth, (req, res) => {
+  try {
+    const login = String(req.session?.twitchUser?.login || '').toLowerCase();
+    if (login !== 'nico_moose') {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    const visibility = setPresenceVisibility(req.session.twitchUser.id, !!req.body?.hidden_from_online);
+    res.json({ ok: true, ...visibility });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message || String(error) });
   }
