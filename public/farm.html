@@ -27,6 +27,7 @@
       <button class="farm-tab" data-farm-tab="market">🏪 Рынок</button>
       <button class="farm-tab" data-farm-tab="tops">🏆 Топ / инфо</button>
       <button class="farm-tab" data-farm-tab="history">📜 История / журнал</button>
+      <button class="farm-tab" data-farm-tab="stream">📺 Стрим</button>
     </nav>
 
     <div class="farm-content-with-chat main-dashboard-layout">
@@ -167,6 +168,38 @@
         <div id="historyPager" class="history-pager panel-body"></div>
       </section>
     </section>
+
+    <section class="farm-tab-panel" data-farm-panel="stream">
+      <section class="stream-section visual-section tab-page-card">
+        <div class="section-head no-toggle-head">
+          <div>
+            <h2>📺 Стрим</h2>
+            <p>Трансляция Twitch и чат канала в одной вкладке.</p>
+          </div>
+          <button class="back-main-btn" data-farm-tab="main" type="button">← На главную</button>
+        </div>
+        <div class="stream-layout panel-body">
+          <article class="stream-video-card">
+            <div class="stream-card-head">
+              <h3>▶️ Трансляция</h3>
+              <a href="https://www.twitch.tv/Nico_Moose" target="_blank" rel="noopener noreferrer">Открыть на Twitch</a>
+            </div>
+            <div id="streamVideoEmbed" class="stream-video-embed" data-channel="Nico_Moose">
+              <div class="stream-placeholder">Загрузка стрима...</div>
+            </div>
+          </article>
+          <article class="stream-chat-card">
+            <div class="stream-card-head">
+              <h3>💬 Чат</h3>
+              <a href="https://www.twitch.tv/popout/Nico_Moose/chat?popout=" target="_blank" rel="noopener noreferrer">Открыть чат</a>
+            </div>
+            <div id="streamChatEmbed" class="stream-chat-embed" data-channel="Nico_Moose">
+              <div class="stream-placeholder">Загрузка чата...</div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
       </div>
 
       <aside class="main-dashboard-side persistent-twitch-chat-side">
@@ -232,6 +265,7 @@
   <script src="/js/10h-market-exact-ui.js"></script>
   <script src="/js/10i-admin-journal.js"></script>
   <script src="/js/10j-main-twitch-chat.js"></script>
+  <script src="/js/10l-stream-tab.js"></script>
   <script src="/app.js"></script>
   <script src="/js/11-performance-boost.js"></script>
   <script src="/js/10k-admin-unified-editor.js"></script>
