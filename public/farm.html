@@ -103,12 +103,16 @@
 
         <aside class="main-dashboard-side">
           <section class="main-twitch-chat-card visual-section" aria-label="Чат Twitch канала">
-            <div class="main-twitch-chat-head">
+            <div class="main-twitch-chat-head main-twitch-chat-drag-handle">
               <div>
                 <h2>💬 Чат Twitch</h2>
                 <p>Nico_Moose</p>
               </div>
-              <a class="main-twitch-chat-link" href="https://www.twitch.tv/popout/Nico_Moose/chat?popout=" target="_blank" rel="noopener noreferrer">↗ Открыть</a>
+              <div class="main-twitch-chat-head-actions">
+                <button type="button" id="mainTwitchChatToggleMode" class="main-twitch-chat-mode-btn" title="Переключить режим окна">✋ Переместить</button>
+                <button type="button" id="mainTwitchChatResetPos" class="main-twitch-chat-reset-btn hidden" title="Вернуть окно вправо">📌 Закрепить</button>
+                <a class="main-twitch-chat-link" href="https://www.twitch.tv/popout/Nico_Moose/chat?popout=" target="_blank" rel="noopener noreferrer">↗ Открыть</a>
+              </div>
             </div>
             <div class="main-twitch-chat-frame">
               <div id="mainTwitchChatEmbed" class="main-twitch-chat-embed" data-channel="Nico_Moose">
