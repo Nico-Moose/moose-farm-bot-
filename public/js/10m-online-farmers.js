@@ -7,8 +7,8 @@
   let lastAllFarmersQuery = '';
   let lastAllFarmersScroll = 0;
   let hideSelfInOnline = false;
-  let canHideSelfGlobally = false;
   let currentViewerLogin = '';
+  let canToggleHideSelf = false;
   const API = {
     async get(path) {
       const res = await fetch(`/api${path}`, { credentials: 'same-origin' });
@@ -29,9 +29,6 @@
     const box = byId('onlineFarmersList'); if (!box) return;
     let list = Array.isArray(players) ? players.slice() : [];
     list.sort((a, b) => Number(b.level || 0) - Number(a.level || 0) || String(a.display_name || a.login || '').localeCompare(String(b.display_name || b.login || ''), 'ru'));
-    if (hideSelfInOnline && currentViewerLogin) {
-      list = list.filter((p) => String(p.login || '').toLowerCase() !== currentViewerLogin);
-    }
     if (!list.length) { box.innerHTML = '<div class="online-farmers-empty">Сейчас на сайте никого нет.</div>'; return; }
     box.innerHTML = list.map((p) => `<button type="button" class="online-farmer-item" data-farmer-login="${String(p.login || '').toLowerCase()}"><img class="online-farmer-avatar" src="${p.avatar_url || '/favicon.ico'}" alt="${p.display_name || p.login}" /><span class="online-farmer-copy"><span class="online-farmer-name">${p.display_name || p.login}</span><span class="online-farmer-meta">@${p.login} · ур. ${Number(p.level || 0)}</span></span><span class="online-farmer-dot" aria-hidden="true"></span></button>`).join('');
   }
@@ -51,46 +48,12 @@
   async function openFarmerProfile(login, fromDirectory = false) { const modal = byId('farmerProfileModal'); const body = byId('farmerProfileModalBody'); if (!modal || !body) return; if (fromDirectory) { const listDialog = byId('allFarmersModal'); const listBox = byId('allFarmersList'); reopenAllFarmersAfterProfile = true; lastAllFarmersQuery = byId('allFarmersSearch')?.value || ''; lastAllFarmersScroll = listDialog ? listDialog.scrollTop : (listBox ? listBox.scrollTop : 0); closeModal('allFarmersModal'); } else { reopenAllFarmersAfterProfile = false; } modal.classList.remove('hidden'); modal.setAttribute('aria-hidden', 'false'); body.textContent = 'Загрузка...'; const data = await API.get(`/farm/farmer-profile/${encodeURIComponent(login)}`); renderFarmerProfile(data.profile || {}); }
   function closeModal(id) { const modal = byId(id); if (!modal) return; modal.classList.add('hidden'); modal.setAttribute('aria-hidden', 'true'); if (id === 'farmerProfileModal' && reopenAllFarmersAfterProfile) { reopenAllFarmersAfterProfile = false; openAllFarmers(true); } }
   function openAllFarmers(restore = false) { const modal = byId('allFarmersModal'); if (!modal) return; modal.classList.remove('hidden'); modal.setAttribute('aria-hidden', 'false'); const input = byId('allFarmersSearch'); const query = restore ? lastAllFarmersQuery : (input?.value || ''); if (input) input.value = query; loadAllFarmers(query).then(() => { if (restore) { modal.scrollTop = lastAllFarmersScroll || 0; } }).catch((e) => { const box = byId('allFarmersList'); if (box) box.innerHTML = `<div class="online-farmers-empty">${e.message}</div>`; }); if (input) setTimeout(() => input.focus(), 30); }
-  function updateHideSelfButton() {
-    const btn = byId('toggleHideSelfBtn');
-    if (!btn) return;
-    if (!canHideSelfGlobally) {
-      btn.classList.add('hidden');
-      return;
-    }
-    btn.classList.remove('hidden');
-    btn.textContent = hideSelfInOnline ? '🙈 Показать себя' : '🙈 Скрыть себя';
-    btn.title = hideSelfInOnline
-      ? 'Снова показывать Nico_Moose в онлайн-фермерах для всех игроков'
-      : 'Скрыть Nico_Moose из онлайн-фермеров для всех игроков';
-  }
-
-  async function loadPresenceVisibility() {
-    try {
-      const data = await API.get('/farm/presence-visibility');
-      canHideSelfGlobally = !!data.canHideSelf;
-      hideSelfInOnline = !!data.hidden_from_online;
-      updateHideSelfButton();
-    } catch (_) {
-      canHideSelfGlobally = false;
-      updateHideSelfButton();
-    }
-  }
-
-  async function togglePresenceVisibility() {
-    if (!canHideSelfGlobally) return;
-    const data = await API.post('/farm/presence-visibility', { hidden_from_online: !hideSelfInOnline });
-    hideSelfInOnline = !!data.hidden_from_online;
-    updateHideSelfButton();
-    await loadOnlineFarmers();
-    await loadAllFarmers(lastAllFarmersQuery || '');
-  }
-
   async function sendHeartbeat() { try { await API.post('/farm/presence', { page: 'farm' }); } catch (_) {} }
   function startPresenceLoop() { clearInterval(heartbeatTimer); sendHeartbeat(); heartbeatTimer = setInterval(sendHeartbeat, 30000); }
   function startOnlineLoop() { clearInterval(onlineRefreshTimer); loadOnlineFarmers(); onlineRefreshTimer = setInterval(loadOnlineFarmers, 45000); }
-  document.addEventListener('click', (event) => { const farmerBtn = event.target.closest('[data-farmer-login]'); if (farmerBtn) { const fromDirectory = !!farmerBtn.closest('#allFarmersList'); openFarmerProfile(farmerBtn.getAttribute('data-farmer-login'), fromDirectory).catch((e) => alert(e.message)); return; } if (event.target.closest('#openAllFarmersBtn')) { openAllFarmers(); return; } if (event.target.closest('#toggleHideSelfBtn')) { togglePresenceVisibility().catch((e) => alert(e.message)); return; } if (event.target.closest('[data-farmer-modal-close]')) { closeModal('farmerProfileModal'); return; } if (event.target.closest('[data-farmers-list-close]')) { closeModal('allFarmersModal'); return; } });
+  async function syncHideSelfButton() { const hideBtn = byId('toggleHideSelfBtn'); if (!hideBtn) return; if (!canToggleHideSelf) { hideBtn.classList.add('hidden'); return; } hideBtn.classList.remove('hidden'); hideBtn.textContent = hideSelfInOnline ? '🙈 Показать себя' : '🙈 Скрыть себя'; }
+  document.addEventListener('click', (event) => { const farmerBtn = event.target.closest('[data-farmer-login]'); if (farmerBtn) { const fromDirectory = !!farmerBtn.closest('#allFarmersList'); openFarmerProfile(farmerBtn.getAttribute('data-farmer-login'), fromDirectory).catch((e) => alert(e.message)); return; } if (event.target.closest('#openAllFarmersBtn')) { openAllFarmers(); return; } if (event.target.closest('#toggleHideSelfBtn')) { if (!canToggleHideSelf) return; hideSelfInOnline = !hideSelfInOnline; API.post('/farm/presence-visibility', { hidden: hideSelfInOnline }).then((data) => { hideSelfInOnline = !!data.hidden; syncHideSelfButton(); loadOnlineFarmers(); }).catch((e) => alert(e.message)); return; } if (event.target.closest('[data-farmer-modal-close]')) { closeModal('farmerProfileModal'); return; } if (event.target.closest('[data-farmers-list-close]')) { closeModal('allFarmersModal'); return; } });
   document.addEventListener('input', (event) => { if (event.target && event.target.id === 'allFarmersSearch') { clearTimeout(searchTimer); const q = event.target.value || ''; lastAllFarmersQuery = q; const modal = byId('allFarmersModal'); if (modal) modal.scrollTop = 0; searchTimer = setTimeout(() => { loadAllFarmers(q).catch((e) => { const box = byId('allFarmersList'); if (box) box.innerHTML = `<div class="online-farmers-empty">${e.message}</div>`; }); }, 180); } });
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeModal('farmerProfileModal'); closeModal('allFarmersModal'); } });
-  document.addEventListener('DOMContentLoaded', () => { currentViewerLogin = String(window.__FARM_LOGIN__ || '').toLowerCase(); loadPresenceVisibility().finally(() => { startPresenceLoop(); startOnlineLoop(); }); const allFarmersModal = byId('allFarmersModal'); if (allFarmersModal) { allFarmersModal.addEventListener('scroll', () => { lastAllFarmersScroll = allFarmersModal.scrollTop; }, { passive: true }); } });
+  document.addEventListener('DOMContentLoaded', () => { currentViewerLogin = String(window.__FARM_LOGIN__ || '').toLowerCase(); startPresenceLoop(); startOnlineLoop(); API.get('/farm/presence-visibility').then((data) => { canToggleHideSelf = !!data.can_toggle; hideSelfInOnline = !!data.hidden; syncHideSelfButton(); }).catch(() => {}); const allFarmersModal = byId('allFarmersModal'); if (allFarmersModal) { allFarmersModal.addEventListener('scroll', () => { lastAllFarmersScroll = allFarmersModal.scrollTop; }, { passive: true }); } });
 })();
