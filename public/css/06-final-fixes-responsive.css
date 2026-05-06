@@ -717,3 +717,17 @@ button.is-busy,
   .admin-journal-tools { grid-template-columns: 1fr; }
   .admin-event-head { flex-direction: column; }
 }
+
+.buildings-combat-inline {
+  margin-top: 18px;
+}
+
+.buildings-combat-inline-title {
+  margin: 0 0 14px;
+  font-size: 1.8rem;
+  font-weight: 900;
+}
+
+.combat-grid-inline {
+  margin: 0;
+}
