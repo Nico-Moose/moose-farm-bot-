@@ -75,6 +75,12 @@ function spendCoins(profile, amount, options = {}) {
       ['all', 'twitch_balance'],
       ['all', 'farm_balance']
     ],
+    // Case opening on the site: first spend gold, then дописывать с фермы.
+    // Бонусные монеты не используются вообще.
+    case_open: [
+      ['all', 'twitch_balance'],
+      ['all', 'farm_balance']
+    ],
     // Simple site-only operations that intentionally use bonus first.
     upgrade_only: [
       ['all', 'upgrade_balance']

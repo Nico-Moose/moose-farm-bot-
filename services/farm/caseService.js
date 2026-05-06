@@ -79,7 +79,7 @@ function openCase(profile, now = Date.now()) {
     return { ok: false, error: 'cooldown', remainingMs: status.remainingMs, profile };
   }
 
-  const paid = spendCoins(profile, status.cost, { mode: 'building' });
+  const paid = spendCoins(profile, status.cost, { mode: 'case_open' });
   if (!paid.ok) {
     return {
       ok: false,
