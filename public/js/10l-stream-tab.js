@@ -51,22 +51,9 @@
 
   function offlineMarkup(channel) {
     return `
-      <div class="stream-offline-shell">
-        <div class="stream-offline-logo">🫎</div>
-        <div class="stream-offline-content">
-          <div class="stream-offline-badge">НЕ В СЕТИ</div>
-          <div class="stream-offline-sign">
-            <span class="stream-offline-title">СТРИМ</span>
-            <span class="stream-offline-tag">кастомные режимы</span>
-            <span class="stream-offline-subtitle">скоро начнётся</span>
-          </div>
-          <p class="stream-offline-note">Канал <b>${channel}</b> сейчас оффлайн. Чат справа остаётся доступен, а трансляция автоматически появится здесь, когда стрим станет онлайн.</p>
-          <div class="stream-offline-actions">
-            <a class="stream-offline-link" href="https://www.twitch.tv/${channel}" target="_blank" rel="noopener noreferrer">▶ Перейти на канал</a>
-            <a class="stream-offline-chat-link" href="https://www.twitch.tv/popout/${channel}/chat?popout=" target="_blank" rel="noopener noreferrer">💬 Открыть чат</a>
-          </div>
-        </div>
-      </div>`;
+      <a class="stream-offline-banner" href="https://www.twitch.tv/${channel}" target="_blank" rel="noopener noreferrer" aria-label="Открыть канал ${channel} на Twitch">
+        <img src="/img/stream-offline-banner.png" alt="Стрим скоро начнётся" loading="lazy" />
+      </a>`;
   }
 
   function mountChat(force) {
