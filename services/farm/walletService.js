@@ -36,20 +36,6 @@ function spendCoins(profile, amount, options = {}) {
   const needed = Math.floor(num(amount, 0));
   const mode = options.mode || 'farm_upgrade';
   const wallet = getWallet(profile);
-  const available = wallet.total;
-
-  if (available < needed) {
-    return {
-      ok: false,
-      available,
-      needed,
-      missing: needed - available,
-      spent: { farm_balance: 0, twitch_balance: 0, upgrade_balance: 0 }
-    };
-  }
-
-  let remaining = needed;
-  const spent = { farm_balance: 0, twitch_balance: 0, upgrade_balance: 0 };
 
   const stepsByMode = {
     // WizeBot !ап: farm above buffer -> twitch above buffer -> bonus -> farm -> twitch
@@ -68,16 +54,15 @@ function spendCoins(profile, amount, options = {}) {
       ['all', 'farm_balance'],
       ['all', 'twitch_balance']
     ],
+    // Case: spend ordinary gold first, then farm balance. Bonus balance is ignored.
+    case: [
+      ['all', 'twitch_balance'],
+      ['all', 'farm_balance']
+    ],
     // WizeBot turret: twitch above buffer -> bonus -> twitch
     turret: [
       ['above', 'twitch_balance'],
       ['all', 'upgrade_balance'],
-      ['all', 'twitch_balance'],
-      ['all', 'farm_balance']
-    ],
-    // Case opening on the site: first spend gold, then дописывать с фермы.
-    // Бонусные монеты не используются вообще.
-    case_open: [
       ['all', 'twitch_balance'],
       ['all', 'farm_balance']
     ],
@@ -88,6 +73,21 @@ function spendCoins(profile, amount, options = {}) {
   };
 
   const steps = stepsByMode[mode] || stepsByMode.farm_upgrade;
+  const availableSources = [...new Set(steps.map(([, source]) => source))];
+  const available = availableSources.reduce((sum, source) => sum + num(wallet[source], 0), 0);
+
+  if (available < needed) {
+    return {
+      ok: false,
+      available,
+      needed,
+      missing: needed - available,
+      spent: { farm_balance: 0, twitch_balance: 0, upgrade_balance: 0 }
+    };
+  }
+
+  let remaining = needed;
+  const spent = { farm_balance: 0, twitch_balance: 0, upgrade_balance: 0 };
 
   for (const [kind, source] of steps) {
     if (remaining <= 0) break;
