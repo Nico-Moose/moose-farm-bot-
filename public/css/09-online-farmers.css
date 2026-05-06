@@ -144,40 +144,43 @@
   }
 }
 
-/* PATCH: right Twitch chat follows the page like the online farmers block.
-   Desktop only: keep the card inside the right column, aligned below the tabs at page top,
-   and sticky under the tabs while scrolling. This overrides older top/padding tweaks. */
+/* PATCH: final desktop Twitch chat sticky alignment.
+   Keep the right Twitch chat inside the right column, below the sticky tabs.
+   Do not use fixed positioning: it follows the page like the online farmers block. */
 @media (min-width: 1450px) {
+  .main-dashboard-layout {
+    align-items: start !important;
+    overflow: visible !important;
+  }
+
   .persistent-twitch-chat-side,
-  .main-dashboard-side.persistent-twitch-chat-side {
-    position: relative !important;
+  .main-dashboard-side {
+    position: sticky !important;
+    top: 84px !important;
     align-self: start !important;
     margin-top: 0 !important;
     padding-top: 0 !important;
-    z-index: 50 !important;
+    height: auto !important;
+    max-height: calc(100vh - 96px) !important;
+    overflow: visible !important;
+    z-index: 10 !important;
   }
 
-  .persistent-twitch-chat-side .main-twitch-chat-card,
-  .main-dashboard-side.persistent-twitch-chat-side .main-twitch-chat-card {
-    position: sticky !important;
-    top: 84px !important;
+  .main-twitch-chat-card {
+    position: static !important;
+    top: auto !important;
     margin-top: 0 !important;
-    max-height: calc(100vh - 108px) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
+    z-index: 10 !important;
   }
 
-  .persistent-twitch-chat-side .main-twitch-chat-frame {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
+  .main-twitch-chat-embed,
+  .main-twitch-chat-embed iframe,
+  .main-twitch-chat-placeholder {
+    height: clamp(560px, calc(100vh - 220px), 760px) !important;
+    min-height: clamp(560px, calc(100vh - 220px), 760px) !important;
   }
 
-  .persistent-twitch-chat-side .main-twitch-chat-embed,
-  .persistent-twitch-chat-side .main-twitch-chat-embed iframe,
-  .persistent-twitch-chat-side .main-twitch-chat-placeholder {
-    height: calc(100vh - 214px) !important;
-    min-height: 520px !important;
-    max-height: calc(100vh - 214px) !important;
+  .farm-tabs {
+    z-index: 30 !important;
   }
 }
