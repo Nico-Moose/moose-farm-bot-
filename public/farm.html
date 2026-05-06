@@ -29,9 +29,9 @@
       <button class="farm-tab" data-farm-tab="history">📜 История / журнал</button>
     </nav>
 
-    <section class="farm-tab-panel active" data-farm-panel="main">
-      <div class="main-dashboard-layout">
-        <div class="main-dashboard-primary">
+    <div class="farm-content-with-chat">
+      <div class="farm-content-primary">
+        <section class="farm-tab-panel active" data-farm-panel="main">
       <div id="profile" class="profile-shell">
         <div class="profile-card-final profile-card-skeleton" aria-hidden="true">
           <div class="profile-main-left">
@@ -99,33 +99,7 @@
       </section>
 
       <section id="licenseBox" class="license-section"></section>
-        </div>
-
-        <aside class="main-dashboard-side">
-          <section class="main-twitch-chat-card visual-section" aria-label="Чат Twitch канала">
-            <div class="main-twitch-chat-head main-twitch-chat-drag-handle">
-              <div>
-                <h2>💬 Чат Twitch</h2>
-                <p>Nico_Moose</p>
-              </div>
-              <div class="main-twitch-chat-head-actions">
-                <button type="button" id="mainTwitchChatToggleMode" class="main-twitch-chat-mode-btn" title="Переключить режим окна">✋ Переместить</button>
-                <button type="button" id="mainTwitchChatResetPos" class="main-twitch-chat-reset-btn hidden" title="Вернуть окно вправо">📌 Закрепить</button>
-                <a class="main-twitch-chat-link" href="https://www.twitch.tv/popout/Nico_Moose/chat?popout=" target="_blank" rel="noopener noreferrer">↗ Открыть</a>
-              </div>
-            </div>
-            <div class="main-twitch-chat-frame">
-              <div id="mainTwitchChatEmbed" class="main-twitch-chat-embed" data-channel="Nico_Moose">
-                <div class="main-twitch-chat-placeholder" aria-hidden="true">
-                  <div class="main-twitch-chat-placeholder-top"></div>
-                  <div class="main-twitch-chat-placeholder-body"></div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </aside>
-      </div>
-    </section>
+        </section>
 
     <section class="farm-tab-panel" data-farm-panel="buildings">
       <section id="buildingsResourcesSection" class="quick-status buildings-resources-section"></section>
@@ -195,6 +169,28 @@
         <div id="historyBox" class="info-card panel-body">Загрузка истории...</div>
       </section>
     </section>
+      </div>
+
+      <aside class="main-dashboard-side persistent-twitch-chat-side">
+        <section class="main-twitch-chat-card visual-section" aria-label="Чат Twitch канала">
+          <div class="main-twitch-chat-head">
+            <div>
+              <h2>💬 Чат Twitch</h2>
+              <p>Nico_Moose</p>
+            </div>
+            <a class="main-twitch-chat-link" href="https://www.twitch.tv/popout/Nico_Moose/chat?popout=" target="_blank" rel="noopener noreferrer">↗ Открыть</a>
+          </div>
+          <div class="main-twitch-chat-frame">
+            <div id="mainTwitchChatEmbed" class="main-twitch-chat-embed" data-channel="Nico_Moose">
+              <div class="main-twitch-chat-placeholder" aria-hidden="true">
+                <div class="main-twitch-chat-placeholder-top"></div>
+                <div class="main-twitch-chat-placeholder-body"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </div>
 
     <div id="message"></div>
 
