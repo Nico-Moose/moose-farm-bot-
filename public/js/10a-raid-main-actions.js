@@ -27,6 +27,61 @@ function raidSummaryTitle(log) {
   return attacker === me ? '🏴‍☠️ Твой рейд' : '🛡 Рейд на тебя';
 }
 
+
+function formatRaidCountdown(ms) {
+  const totalSeconds = Math.max(0, Math.ceil((Number(ms) || 0) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+  if (hours > 0) return `${hours}:${mm}:${ss}`;
+  return `${mm}:${ss}`;
+}
+
+let raidCountdownTimerInstalled = false;
+
+function syncRaidCountdownButton() {
+  const raidActionBtn = document.getElementById('raidActionBtn');
+  if (!raidActionBtn) return;
+
+  const cooldownUntil = Number(raidActionBtn.dataset.cooldownUntil || 0);
+  const unlocked = raidActionBtn.dataset.unlocked === '1';
+  const streamOnline = raidActionBtn.dataset.streamOnline === '1';
+  const farmActive = raidActionBtn.dataset.farmActive === '1';
+
+  if (!farmActive) {
+    raidActionBtn.disabled = true;
+    raidActionBtn.innerHTML = '🏴 Рейд<br><small>ферма не активна</small>';
+    return;
+  }
+
+  if (!unlocked) {
+    raidActionBtn.disabled = true;
+    raidActionBtn.innerHTML = '🏴 Рейд<br><small>с 30 уровня</small>';
+    return;
+  }
+
+  if (!streamOnline) {
+    raidActionBtn.disabled = true;
+    raidActionBtn.innerHTML = '🏴 Рейд<br><small>только когда стрим онлайн</small>';
+    return;
+  }
+
+  const remainingMs = Math.max(0, cooldownUntil - Date.now());
+  const ready = remainingMs <= 0;
+  raidActionBtn.disabled = !ready;
+  raidActionBtn.innerHTML = ready
+    ? '🏴 Рейд<br><small>готов к атаке</small>'
+    : `🏴 Рейд<br><small>${formatRaidCountdown(remainingMs)}</small>`;
+}
+
+function ensureRaidCountdownTicker() {
+  if (raidCountdownTimerInstalled) return;
+  raidCountdownTimerInstalled = true;
+  setInterval(syncRaidCountdownButton, 1000);
+}
+
 function openRaidLogModal(index = 0) {
   const logs = latestRaidLogsFromState();
   const log = logs[index];
@@ -111,11 +166,15 @@ function ensureMainActionButtons(data) {
   }
 
   const raid = data.raid || {};
-  const raidReady = !raid.remainingMs;
-  raidActionBtn.disabled = !raid.unlocked || !raidReady;
-  raidActionBtn.innerHTML = raid.unlocked
-    ? `🏴 Рейд<br><small>${raidReady ? 'готов к атаке' : 'кд ' + formatTime(raid.remainingMs)}</small>`
-    : '🏴 Рейд<br><small>с 30 уровня</small>';
+  const farmActive = !!(data && data.hasFarm);
+  const streamOnline = !!(data.streamOnline || data.profile?.stream_online);
+  const cooldownUntil = Date.now() + Math.max(0, Number(raid.remainingMs || 0));
+  raidActionBtn.dataset.cooldownUntil = String(cooldownUntil);
+  raidActionBtn.dataset.unlocked = raid.unlocked ? '1' : '0';
+  raidActionBtn.dataset.streamOnline = streamOnline ? '1' : '0';
+  raidActionBtn.dataset.farmActive = farmActive ? '1' : '0';
+  ensureRaidCountdownTicker();
+  syncRaidCountdownButton();
 
   const hasRaidHistory = latestRaidLogsFromState().length > 0;
   raidHistoryBtn.disabled = !hasRaidHistory;
