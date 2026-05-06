@@ -31,6 +31,16 @@
     </nav>
 
     <div class="farm-content-with-chat main-dashboard-layout">
+      <aside class="farm-online-side visual-section">
+        <div class="farm-online-head">
+          <div>
+            <h2>🟢 Онлайн фермеры</h2>
+            <p>Игроки, которые сейчас на сайте</p>
+          </div>
+          <button id="openAllFarmersBtn" type="button" class="farm-online-all-btn">👥 Все фермеры</button>
+        </div>
+        <div id="onlineFarmersList" class="online-farmers-list">Загрузка...</div>
+      </aside>
       <div class="farm-content-primary main-dashboard-primary">
         <section class="farm-tab-panel active" data-farm-panel="main">
       <div id="profile" class="profile-shell">
@@ -225,6 +235,34 @@
   </main>
 
   <div id="caseOverlay" class="case-overlay"></div>
+
+  <div id="farmerProfileModal" class="farmer-modal hidden" aria-hidden="true">
+    <div class="farmer-modal-backdrop" data-farmer-modal-close="1"></div>
+    <div class="farmer-modal-dialog">
+      <div class="farmer-modal-head">
+        <h3>👤 Профиль фермера</h3>
+        <button type="button" class="farmer-modal-close" data-farmer-modal-close="1">✕</button>
+      </div>
+      <div id="farmerProfileModalBody" class="farmer-modal-body">Загрузка...</div>
+    </div>
+  </div>
+
+  <div id="allFarmersModal" class="farmers-list-modal hidden" aria-hidden="true">
+    <div class="farmers-list-backdrop" data-farmers-list-close="1"></div>
+    <div class="farmers-list-dialog">
+      <div class="farmers-list-head">
+        <div>
+          <h3>👥 Все фермеры</h3>
+          <p>Поиск по нику, онлайн и оффлайн игроки</p>
+        </div>
+        <button type="button" class="farmers-list-close" data-farmers-list-close="1">✕</button>
+      </div>
+      <div class="farmers-list-tools">
+        <input id="allFarmersSearch" type="text" placeholder="Поиск по нику" autocomplete="off" />
+      </div>
+      <div id="allFarmersList" class="all-farmers-list">Загрузка...</div>
+    </div>
+  </div>
   <script src="/js/01-core-main.js"></script>
   <script src="/js/02-market.js"></script>
   <script src="/js/03-buildings.js"></script>
@@ -260,6 +298,7 @@
   <script src="/js/10i-admin-journal.js"></script>
   <script src="/js/10j-main-twitch-chat.js"></script>
   <script src="/js/10l-stream-tab.js"></script>
+  <script src="/js/10m-online-farmers.js"></script>
   <script src="/app.js"></script>
   <script src="/js/11-performance-boost.js"></script>
   <script src="/js/10k-admin-unified-editor.js"></script>

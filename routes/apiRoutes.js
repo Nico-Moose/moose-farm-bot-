@@ -9,7 +9,11 @@ const {
   listProfiles,
   listRaidCandidateProfiles,
   listTopProfilesLite,
-  listFarmEvents
+  listFarmEvents,
+  touchPresence,
+  listOnlineFarmers,
+  listFarmerDirectory,
+  getProfileByLogin
 } = require('../services/userService');
 
 const {
@@ -384,6 +388,83 @@ router.get('/stream/status', requireAuth, async (req, res) => {
 router.get('/stream/embed-status', requireAuth, async (req, res) => {
   const streamStatus = await getActualTwitchStreamStatus();
   res.json({ ok: true, streamStatus, streamOnline: !!streamStatus.online });
+});
+
+router.post('/farm/presence', requireAuth, (req, res) => {
+  try {
+    touchPresence(req.session.twitchUser.id, req.body?.page || 'farm');
+    res.json({ ok: true, seenAt: Date.now() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.get('/farm/online-farmers', requireAuth, (req, res) => {
+  try {
+    const players = listOnlineFarmers({ withinMs: 3 * 60 * 1000, limit: 50 }).map((profile) => ({
+      login: profile.login,
+      display_name: profile.display_name,
+      avatar_url: profile.avatar_url,
+      level: profile.level,
+      last_seen_at: profile.last_seen_at,
+      page: profile.page || 'farm'
+    }));
+    res.json({ ok: true, players, total: players.length });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.get('/farm/farmers-directory', requireAuth, (req, res) => {
+  try {
+    const search = String(req.query.q || '');
+    const players = listFarmerDirectory({ search, limit: 500 }).map((profile) => ({
+      login: profile.login,
+      display_name: profile.display_name,
+      avatar_url: profile.avatar_url,
+      level: profile.level,
+      is_online: !!profile.is_online,
+      last_seen_at: profile.last_seen_at || 0
+    }));
+    res.json({ ok: true, players, total: players.length });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.get('/farm/farmer-profile/:login', requireAuth, (req, res) => {
+  try {
+    const login = String(req.params.login || '').trim().toLowerCase().replace(/^@/, '');
+    const profile = getProfileByLogin(login);
+    if (!profile || !hasActiveFarm(profile)) {
+      return res.status(404).json({ ok: false, error: 'farmer_not_found' });
+    }
+
+    const farm = profile.farm || {};
+    const buildings = farm.buildings || {};
+    res.json({
+      ok: true,
+      profile: {
+        login: profile.login,
+        display_name: profile.display_name,
+        avatar_url: profile.avatar_url,
+        level: profile.level,
+        twitch_balance: profile.twitch_balance,
+        farm_balance: profile.farm_balance,
+        upgrade_balance: profile.upgrade_balance,
+        parts: profile.parts,
+        license_level: profile.license_level,
+        protection_level: profile.protection_level,
+        raid_power: profile.raid_power,
+        turret: profile.turret || {},
+        buildings,
+        updated_at: profile.updated_at || 0,
+        last_wizebot_sync_at: profile.last_wizebot_sync_at || 0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
 });
 
 router.post('/farm/collect', requireAuth, async (req, res) => {

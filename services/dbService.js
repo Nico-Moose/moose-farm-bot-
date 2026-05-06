@@ -58,6 +58,13 @@ function migrate(database) {
       value TEXT,
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS farm_presence (
+      twitch_id TEXT PRIMARY KEY,
+      last_seen_at INTEGER NOT NULL,
+      page TEXT,
+      FOREIGN KEY (twitch_id) REFERENCES twitch_users(twitch_id)
+    );
   `);
 
   const columns = database
@@ -90,6 +97,7 @@ function migrate(database) {
     CREATE INDEX IF NOT EXISTS idx_farm_events_twitch_type_created ON farm_events(twitch_id, type, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_farm_events_created ON farm_events(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_farm_events_type_created ON farm_events(type, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_farm_presence_seen ON farm_presence(last_seen_at DESC);
   `);
 }
 

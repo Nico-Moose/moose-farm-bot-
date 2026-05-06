@@ -312,6 +312,106 @@ function listTopProfilesLite() {
   return setCache(cacheKey, result, 5000);
 }
 
+
+function touchPresence(twitchId, page = 'farm') {
+  if (!twitchId) return;
+  const now = Date.now();
+  getDb().prepare(`
+    INSERT INTO farm_presence (twitch_id, last_seen_at, page)
+    VALUES (?, ?, ?)
+    ON CONFLICT(twitch_id) DO UPDATE SET
+      last_seen_at = excluded.last_seen_at,
+      page = excluded.page
+  `).run(twitchId, now, String(page || 'farm'));
+}
+
+function listOnlineFarmers({ withinMs = 3 * 60 * 1000, limit = 30 } = {}) {
+  limit = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
+  const cutoff = Date.now() - Math.max(30 * 1000, Number(withinMs || 0));
+  const rows = getDb().prepare(`
+    SELECT
+      u.twitch_id,
+      u.login,
+      u.display_name,
+      u.avatar_url,
+      f.level,
+      f.farm_balance,
+      f.twitch_balance,
+      f.upgrade_balance,
+      f.total_income,
+      f.parts,
+      f.last_collect_at,
+      f.created_at,
+      f.updated_at,
+      f.farm_json,
+      f.configs_json,
+      f.license_level,
+      f.protection_level,
+      f.raid_power,
+      f.turret_json,
+      f.last_wizebot_sync_at,
+      p.last_seen_at,
+      p.page
+    FROM farm_presence p
+    JOIN twitch_users u ON u.twitch_id = p.twitch_id
+    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+    WHERE p.last_seen_at >= ?
+    ORDER BY LOWER(COALESCE(u.display_name, u.login)) ASC, p.last_seen_at DESC
+    LIMIT ?
+  `).all(cutoff, limit);
+
+  return rows.map(normalizeProfile).filter((profile) => !!(profile && hasMeaningfulFarm(profile))).map((profile, idx) => ({
+    ...profile,
+    last_seen_at: Number(rows[idx].last_seen_at || 0),
+    page: rows[idx].page || 'farm'
+  }));
+}
+
+function listFarmerDirectory({ search = '', limit = 500 } = {}) {
+  limit = Math.min(1000, Math.max(1, parseInt(limit, 10) || 500));
+  const q = String(search || '').trim().toLowerCase().replace(/^@/, '');
+  let sql = `
+    SELECT
+      u.twitch_id,
+      u.login,
+      u.display_name,
+      u.avatar_url,
+      f.level,
+      f.farm_balance,
+      f.twitch_balance,
+      f.upgrade_balance,
+      f.total_income,
+      f.parts,
+      f.last_collect_at,
+      f.created_at,
+      f.updated_at,
+      f.farm_json,
+      f.configs_json,
+      f.license_level,
+      f.protection_level,
+      f.raid_power,
+      f.turret_json,
+      f.last_wizebot_sync_at,
+      p.last_seen_at
+    FROM twitch_users u
+    JOIN farm_profiles f ON f.twitch_id = u.twitch_id
+    LEFT JOIN farm_presence p ON p.twitch_id = u.twitch_id
+  `;
+  const params = []
+  if (q) {
+    sql += ` WHERE LOWER(u.login) LIKE ? OR LOWER(u.display_name) LIKE ?`;
+    params.push(`%${q}%`, `%${q}%`);
+  }
+  sql += ` ORDER BY LOWER(COALESCE(u.display_name, u.login)) ASC LIMIT ?`;
+  params.push(limit);
+  const rows = getDb().prepare(sql).all(...params);
+  return rows.map((row) => ({
+    ...normalizeProfile(row),
+    is_online: Number(row.last_seen_at || 0) >= Date.now() - 3 * 60 * 1000,
+    last_seen_at: Number(row.last_seen_at || 0)
+  })).filter((profile) => !!(profile && hasMeaningfulFarm(profile)));
+}
+
 function logFarmEvent(twitchId, type, payload = {}) {
   const db = getDb();
   const createdAt = Date.now();
@@ -379,6 +479,9 @@ module.exports = {
   listProfiles,
   listRaidCandidateProfiles,
   listTopProfilesLite,
+  touchPresence,
+  listOnlineFarmers,
+  listFarmerDirectory,
   logFarmEvent,
   listFarmEvents
 };
