@@ -173,14 +173,15 @@ module.exports = function (db) {
 
   async function waitForLegacyMigrationPush(login, beforeSyncAt, timeoutMs = 20000) {
     const startedAt = Date.now();
+    const before = Number(beforeSyncAt || 0);
+
     while (Date.now() - startedAt < timeoutMs) {
       const profile = getProfileByLogin(db, login);
       const syncAt = Number(profile?.last_wizebot_sync_at || 0);
-      const level = Number(profile?.level || profile?.farm?.level || 0);
-      const hasFarmPayload = !!profile && (syncAt > beforeSyncAt || level > 0);
-      if (hasFarmPayload) return profile;
+      if (profile && syncAt > before) return profile;
       await sleep(700);
     }
+
     return null;
   }
 
@@ -693,6 +694,63 @@ module.exports = function (db) {
       if (profile) { resetOffcollectCooldownOnly(profile); count++; }
     }
     res.json({ ok: true, message: `КД оффсбора сброшен всем игрокам: ${count}` });
+  });
+
+  router.post('/trigger-legacy-migration', async (req, res) => {
+    try {
+      const login = sanitizeAdminLogin(req.body?.login);
+      if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник игрока' });
+
+      const profile = getProfileByLogin(db, login);
+      if (!profile) {
+        return res.status(404).json({
+          ok: false,
+          error: 'Игрок не найден на сайте. Он должен хотя бы раз войти на сайт через Twitch.'
+        });
+      }
+
+      const beforeSyncAt = Number(profile.last_wizebot_sync_at || 0);
+      let trigger = null;
+
+      try {
+        trigger = await triggerWizebotLegacyFarmMigration(login);
+      } catch (error) {
+        trigger = { ok: false, error: error.message || String(error) };
+      }
+
+      if (!trigger || !trigger.ok) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Не удалось отправить WizeBot-команду миграции. Проверь подключение Twitch-бота и команду !сайтмигрферма.',
+          wizebot_trigger: trigger || null
+        });
+      }
+
+      const migratedProfile = await waitForLegacyMigrationPush(login, beforeSyncAt, 25000);
+      if (!migratedProfile) {
+        return res.status(504).json({
+          ok: false,
+          error: 'WizeBot-команда отправлена, но сайт не получил новые данные вовремя. Проверь Twitch chat / WizeBot и попробуй ещё раз.',
+          wizebot_trigger: trigger
+        });
+      }
+
+      logAdminEvent(db, migratedProfile.twitch_id || profile.twitch_id, 'admin_trigger_legacy_migration', {
+        login,
+        beforeSyncAt,
+        afterSyncAt: Number(migratedProfile.last_wizebot_sync_at || 0),
+        trigger
+      });
+
+      return res.json({
+        ok: true,
+        message: `WizeBot данные синхронизированы: ${login}`,
+        profile: migratedProfile,
+        wizebot_trigger: trigger
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
   });
 
 

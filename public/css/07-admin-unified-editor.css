@@ -423,3 +423,15 @@
     min-height: 46px;
   }
 }
+
+
+.admin-unified-migrate-farm {
+  background: linear-gradient(180deg, rgba(193,58,72,.98), rgba(154,36,52,.98));
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.10);
+  font-weight: 900;
+}
+
+.admin-unified-migrate-farm:hover {
+  background: linear-gradient(180deg, rgba(210,70,86,.98), rgba(171,45,62,.98));
+}

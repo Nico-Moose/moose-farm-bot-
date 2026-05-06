@@ -109,6 +109,7 @@
         </div>
         <div class="admin-unified-actions">
           <button type="button" id="admin-unified-refresh">↻ Обновить</button>
+          <button type="button" id="admin-unified-migrate-farm" class="admin-unified-migrate-farm">🟥 Мигрферма</button>
           <button type="button" id="admin-unified-reset-case">🎰 КД кейса</button>
           <button type="button" id="admin-unified-reset-raid">⚔️ КД рейда</button>
           <button type="button" id="admin-unified-reset-offcollect">🌙 КД оффсбора</button>
@@ -175,6 +176,21 @@
     if (data.profile) renderUnifiedEditor(data.profile);
     else await reloadPlayer();
     status(data.message || message);
+  }
+
+  async function triggerLegacyMigration() {
+    const login = currentLogin();
+    if (!login) throw new Error('Укажи ник игрока');
+
+    status('Отправляю WizeBot-команду миграции...');
+    const data = await postAdmin('trigger-legacy-migration', { login });
+    if (data.profile) {
+      renderUnifiedEditor(data.profile);
+    } else {
+      await reloadPlayer();
+    }
+    status(data.message || 'WizeBot данные синхронизированы');
+    return data;
   }
 
   async function fetchAdminPlayers(prefix) {
@@ -308,6 +324,10 @@
     panel.addEventListener('click', (event) => {
       if (event.target.closest('#admin-unified-refresh')) {
         reloadPlayer('Игрок обновлён').catch((e) => status(e.message, true));
+        return;
+      }
+      if (event.target.closest('#admin-unified-migrate-farm')) {
+        triggerLegacyMigration().catch((e) => status(e.message, true));
         return;
       }
       if (event.target.closest('#admin-unified-reset-case') || event.target.closest('#admin-reset-case-cooldown')) {
