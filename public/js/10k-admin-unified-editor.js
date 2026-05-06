@@ -46,19 +46,18 @@
 
   const fieldDefinitions = [
     ['level', '🌾 Уровень', '0+'],
+    ['twitch_balance', '💰 Голда', '0+'],
     ['farm_balance', '🌾 Ферма', 'можно отрицательное'],
     ['upgrade_balance', '💎 Бонусные', '0+'],
     ['parts', '🔧 Запчасти', '0+'],
     ['license_level', '📜 Лицензия', '0+'],
     ['raid_power', '⚔️ Рейд-сила', '0+'],
     ['protection_level', '🛡 Защита', '0+'],
-    ['turret_level', '🔫 Турель ур.', '0+'],
-    ['turret_chance', '🎯 Турель шанс %', 'число']
+    ['turret_level', '🔫 Турель ур.', '0+']
   ];
 
   function fieldValue(profile, field) {
     if (field === 'turret_level') return Number(profile?.turret?.level || 0);
-    if (field === 'turret_chance') return Number(profile?.turret?.chance || 0);
     return Number(profile?.[field] || 0);
   }
 
@@ -109,7 +108,6 @@
         </div>
         <div class="admin-unified-actions">
           <button type="button" id="admin-unified-refresh">↻ Обновить</button>
-          <button type="button" id="admin-unified-migrate-farm" class="admin-unified-migrate-farm">🟥 Мигрферма</button>
           <button type="button" id="admin-unified-reset-case">🎰 КД кейса</button>
           <button type="button" id="admin-unified-reset-raid">⚔️ КД рейда</button>
           <button type="button" id="admin-unified-reset-offcollect">🌙 КД оффсбора</button>
@@ -176,18 +174,6 @@
     if (data.profile) renderUnifiedEditor(data.profile);
     else await reloadPlayer();
     status(data.message || message);
-  }
-
-  async function triggerLegacyMigration() {
-    const login = currentLogin();
-    if (!login) throw new Error('Укажи ник игрока');
-
-    status('Отправляю WizeBot-команду миграции...');
-    const data = await postAdmin('trigger-legacy-migration', { login });
-    if (data.profile) renderUnifiedEditor(data.profile);
-    else await reloadPlayer();
-    status(data.message || 'WizeBot данные синхронизированы');
-    return data;
   }
 
   async function fetchAdminPlayers(prefix) {
@@ -321,10 +307,6 @@
     panel.addEventListener('click', (event) => {
       if (event.target.closest('#admin-unified-refresh')) {
         reloadPlayer('Игрок обновлён').catch((e) => status(e.message, true));
-        return;
-      }
-      if (event.target.closest('#admin-unified-migrate-farm')) {
-        triggerLegacyMigration().catch((e) => status(e.message, true));
         return;
       }
       if (event.target.closest('#admin-unified-reset-case') || event.target.closest('#admin-reset-case-cooldown')) {

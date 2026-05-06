@@ -232,62 +232,6 @@ module.exports = function (db) {
 
   router.use(requireAdmin);
 
-  router.post('/trigger-legacy-migration', async (req, res) => {
-    try {
-      const login = String(req.body?.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
-      if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник игрока' });
-
-      const profile = getProfileByLogin(db, login);
-      if (!profile) {
-        return res.status(404).json({
-          ok: false,
-          error: 'Игрок не найден на сайте. Он должен хотя бы раз войти на сайт через Twitch.'
-        });
-      }
-
-      const beforeSyncAt = Number(profile.last_wizebot_sync_at || 0);
-      let trigger = null;
-      try {
-        trigger = await triggerWizebotLegacyFarmMigration(login);
-      } catch (error) {
-        trigger = { ok: false, error: error.message || String(error) };
-      }
-
-      if (!trigger || !trigger.ok) {
-        return res.status(400).json({
-          ok: false,
-          error: 'Не удалось отправить WizeBot-команду миграции. Проверь подключение Twitch-бота и команду !сайтмигрферма.',
-          wizebot_trigger: trigger || null
-        });
-      }
-
-      const migratedProfile = await waitForLegacyMigrationPush(login, beforeSyncAt, 25000);
-      if (!migratedProfile) {
-        return res.status(504).json({
-          ok: false,
-          error: 'WizeBot-команда отправлена, но сайт не получил новые данные вовремя. Проверь Twitch chat / WizeBot и попробуй ещё раз.',
-          wizebot_trigger: trigger
-        });
-      }
-
-      logAdminEvent(db, migratedProfile.twitch_id || profile.twitch_id, 'admin_trigger_legacy_migration', {
-        login,
-        beforeSyncAt,
-        afterSyncAt: Number(migratedProfile.last_wizebot_sync_at || 0),
-        trigger
-      });
-
-      return res.json({
-        ok: true,
-        message: `WizeBot данные синхронизированы: ${login}`,
-        profile: migratedProfile,
-        wizebot_trigger: trigger
-      });
-    } catch (error) {
-      return res.status(500).json({ ok: false, error: error.message || String(error) });
-    }
-  });
-
 
   // Admin: set one editable player field from profile preview
     router.post('/player/set-field', (req, res) => {
@@ -300,8 +244,8 @@ module.exports = function (db) {
       if (!Number.isFinite(value)) return res.status(400).json({ ok: false, error: 'invalid_number' });
 
       const allowed = new Set([
-        'level','farm_balance','upgrade_balance','parts','license_level','raid_power','protection_level',
-        'turret_level','turret_chance','total_income'
+        'level','twitch_balance','farm_balance','upgrade_balance','parts','license_level','raid_power','protection_level',
+        'turret_level','total_income'
       ]);
       if (!allowed.has(field)) return res.status(400).json({ ok: false, error: 'field_not_allowed' });
 
@@ -321,6 +265,9 @@ module.exports = function (db) {
         farm.level = nextLevel;
         db.prepare(`UPDATE farm_profiles SET level=?, farm_json=?, updated_at=? WHERE twitch_id=?`)
           .run(nextLevel, JSON.stringify(farm), now, profile.twitch_id);
+      } else if (field === 'twitch_balance') {
+        db.prepare(`UPDATE farm_profiles SET twitch_balance=?, updated_at=? WHERE twitch_id=?`)
+          .run(Math.max(0, Math.floor(value)), now, profile.twitch_id);
       } else if (field === 'farm_balance') {
         db.prepare(`UPDATE farm_profiles SET farm_balance=?, updated_at=? WHERE twitch_id=?`)
           .run(value, now, profile.twitch_id);
@@ -345,10 +292,6 @@ module.exports = function (db) {
           .run(Math.max(0, Math.floor(value)), now, profile.twitch_id);
       } else if (field === 'turret_level') {
         turret.level = Math.max(0, Math.floor(value));
-        db.prepare(`UPDATE farm_profiles SET turret_json=?, updated_at=? WHERE twitch_id=?`)
-          .run(JSON.stringify(turret), now, profile.twitch_id);
-      } else if (field === 'turret_chance') {
-        turret.chance = Math.max(0, value);
         db.prepare(`UPDATE farm_profiles SET turret_json=?, updated_at=? WHERE twitch_id=?`)
           .run(JSON.stringify(turret), now, profile.twitch_id);
       }
