@@ -847,7 +847,8 @@ router.get('/farm/history', requireAuth, (req, res) => {
   const twitchId = req.session.twitchUser.id;
   const type = String(req.query.type || '').trim();
   const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '100', 10) || 100));
-  const cacheKey = `farm:${twitchId}:history:${type || 'all'}:${limit}`;
+  const days = Math.min(7, Math.max(1, parseInt(req.query.days || '7', 10) || 7));
+  const cacheKey = `farm:${twitchId}:history:${type || 'all'}:${limit}:${days}`;
   const cached = getCache(cacheKey);
   if (cached) return res.json(cached);
 
@@ -856,7 +857,8 @@ router.get('/farm/history', requireAuth, (req, res) => {
     events: listFarmEvents({
       twitchId,
       type,
-      limit
+      limit,
+      days
     })
   };
   res.json(setCache(cacheKey, payload, 1200));

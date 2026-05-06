@@ -152,9 +152,19 @@
             <option value="gamus_claim">GAMUS</option>
             <option value="off_collect">Оффсбор</option>
           </select>
+          <select id="historyDays">
+            <option value="1">За 1 день</option>
+            <option value="2">За 2 дня</option>
+            <option value="3">За 3 дня</option>
+            <option value="4">За 4 дня</option>
+            <option value="5">За 5 дней</option>
+            <option value="6">За 6 дней</option>
+            <option value="7" selected>За 7 дней</option>
+          </select>
           <button id="historyRefreshBtn">Обновить журнал</button>
         </div>
         <div id="historyBox" class="info-card panel-body">Загрузка истории...</div>
+        <div id="historyPager" class="history-pager panel-body"></div>
       </section>
     </section>
       </div>

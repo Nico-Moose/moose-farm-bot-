@@ -335,8 +335,9 @@ function logFarmEvent(twitchId, type, payload = {}) {
   `).run(twitchId, type, twitchId, type);
 }
 
-function listFarmEvents({ twitchId = null, login = '', type = '', limit = 100 } = {}) {
+function listFarmEvents({ twitchId = null, login = '', type = '', limit = 100, days = 0 } = {}) {
   limit = Math.min(200, Math.max(1, parseInt(limit, 10) || 100));
+  days = Math.min(30, Math.max(0, parseInt(days, 10) || 0));
 
   let sql = `
     SELECT e.id, e.twitch_id, u.login, u.display_name, e.type, e.payload, e.created_at
@@ -359,6 +360,11 @@ function listFarmEvents({ twitchId = null, login = '', type = '', limit = 100 } 
   if (type) {
     where.push(`e.type = ?`);
     params.push(type);
+  }
+
+  if (days > 0) {
+    where.push('e.created_at >= ?');
+    params.push(Date.now() - days * 24 * 60 * 60 * 1000);
   }
 
   if (where.length) sql += ` WHERE ` + where.join(' AND ');

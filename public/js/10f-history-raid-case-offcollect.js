@@ -266,3 +266,155 @@
   };
 })();
 
+
+
+/* ==========================================================================
+   PATCH: user history pagination + 7-day filter + grouped by day
+   ========================================================================== */
+(function(){
+  const HISTORY_PAGE_SIZE = 10;
+  const historyState = window.__farmHistoryState = window.__farmHistoryState || {
+    events: [],
+    page: 1,
+    totalPages: 1,
+    type: '',
+    days: 7
+  };
+
+  function hsEsc(value){ return String(value ?? '').replace(/[&<>"']/g, (ch)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+  function hsFmt(value){ if (typeof stageFormat === 'function') return stageFormat(value || 0); if (typeof formatNumber === 'function') return formatNumber(value || 0); return String(value ?? 0); }
+  function hsPayload(e){ let p=e?.payload||{}; if(typeof p==='string'){ try{ p=JSON.parse(p);}catch(_){ p={}; } } return p&&typeof p==='object'?p:{}; }
+  function hsDayKey(ts){ return new Date(Number(ts || Date.now())).toLocaleDateString('ru-RU'); }
+  function hsDateTime(ts){ return new Date(Number(ts || Date.now())).toLocaleString('ru-RU'); }
+
+  function hsTitle(event){
+    const p = hsPayload(event);
+    const t = String(event?.type || '').toLowerCase();
+    if (t === 'upgrade') return '🌾 Ферма улучшена';
+    if (t === 'building_buy') return '🏗 Здание куплено';
+    if (t === 'building_upgrade') return '🏗 Здание улучшено';
+    if (t === 'market_buy_parts') return '🏪 Куплены запчасти';
+    if (t === 'market_sell_parts') return '🏪 Проданы запчасти';
+    if (t === 'raid') return p.killed_by_turret ? '🔫 Рейд отбит турелью' : '🏴 Рейд выполнен';
+    if (t === 'case_open') return '🎰 Кейс открыт';
+    if (t === 'gamus_claim') return '🎁 GAMUS получен';
+    if (t === 'off_collect') return '🌙 Оффсбор получен';
+    return '📌 Событие';
+  }
+
+  function hsText(event){
+    const p = hsPayload(event);
+    const t = String(event?.type || '').toLowerCase();
+    if (t === 'upgrade') {
+      const levels = Number(p.levels || p.upgraded || 1) || 1;
+      const newLevel = Number(p.level || p.newLevel || 0) || 0;
+      return `Ферма улучшена на ${hsFmt(levels)} ур.${newLevel ? ` Теперь уровень ${hsFmt(newLevel)}.` : ''}${p.totalCost ? ` Потрачено ${hsFmt(p.totalCost)}💰.` : ''}${p.totalParts ? ` Потрачено ${hsFmt(p.totalParts)}🔧.` : ''}`;
+    }
+    if (t === 'building_buy' || t === 'building_upgrade') {
+      const building = p.buildingName || p.building || p.key || 'здание';
+      const level = Number(p.level || p.newLevel || 0) || 0;
+      return `${t === 'building_buy' ? 'Куплено' : 'Улучшено'} здание «${hsEsc(building)}»${level ? ` до ур. ${hsFmt(level)}.` : '.'}${p.cost ? ` Потрачено ${hsFmt(p.cost)}💰.` : ''}${p.parts ? ` Потрачено ${hsFmt(p.parts)}🔧.` : ''}`;
+    }
+    if (t === 'market_buy_parts') return `Куплено ${hsFmt(p.qty || p.parts || 0)}🔧${p.cost ? ` за ${hsFmt(p.cost)}💎.` : '.'}`;
+    if (t === 'market_sell_parts') return `Продано ${hsFmt(p.qty || p.parts || 0)}🔧${p.gain || p.reward ? ` за ${hsFmt(p.gain || p.reward)}💎.` : '.'}`;
+    if (t === 'raid') return p.killed_by_turret ? `Рейд на ${hsEsc(p.target || 'цель')} был отбит турелью.` : `Рейд на ${hsEsc(p.target || 'цель')} принёс ${hsFmt(p.stolen || 0)}💰${p.bonus_stolen ? ` и ${hsFmt(p.bonus_stolen)}💎.` : '.'}`;
+    if (t === 'case_open') return `Открыт кейс${p.prizeValue ? `, получено ${hsFmt(p.prizeValue)}${p.prizeType === 'parts' ? '🔧' : '💎'}.` : '.'}`;
+    if (t === 'gamus_claim') return `Получен GAMUS${p.tier ? ` тира ${hsFmt(p.tier)}.` : '.'}`;
+    if (t === 'off_collect') return `Получен оффсбор${p.income ? `: ${hsFmt(p.income)}💰.` : '.'}${p.partsIncome ? ` Запчасти: ${hsFmt(p.partsIncome)}🔧.` : ''}`;
+
+    const details = [];
+    if (p.eventTitle) details.push(p.eventTitle);
+    if (p.login) details.push(`игрок: ${p.login}`);
+    if (p.level) details.push(`уровень: ${hsFmt(p.level)}`);
+    if (p.cost) details.push(`цена: ${hsFmt(p.cost)}💰`);
+    if (p.parts) details.push(`запчасти: ${hsFmt(p.parts)}🔧`);
+    if (p.amount) details.push(`значение: ${hsFmt(p.amount)}`);
+    return details.length ? details.join(' · ') : 'Действие выполнено.';
+  }
+
+  function hsRenderPager(){
+    const pager = document.getElementById('historyPager');
+    if (!pager) return;
+    if (!historyState.events.length) { pager.innerHTML = ''; return; }
+    const totalPages = historyState.totalPages || 1;
+    const page = historyState.page || 1;
+    const buttons = [];
+    buttons.push(`<button type="button" data-history-page="prev" ${page <= 1 ? 'disabled' : ''}>← Назад</button>`);
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || Math.abs(i - page) <= 1) {
+        buttons.push(`<button type="button" data-history-page="${i}" class="${i === page ? 'active' : ''}">${i}</button>`);
+      } else if (Math.abs(i - page) === 2) {
+        buttons.push('<span class="history-pager-dots">…</span>');
+      }
+    }
+    buttons.push(`<button type="button" data-history-page="next" ${page >= totalPages ? 'disabled' : ''}>Вперёд →</button>`);
+    pager.innerHTML = `<div class="history-pager-inner">${buttons.join('')}</div>`;
+  }
+
+  function hsRenderList(events){
+    const rows = Array.isArray(events) ? events : [];
+    if (!rows.length) return '<div class="history-empty-state">За выбранный период событий не найдено.</div>';
+    let html = '';
+    let currentDay = '';
+    rows.forEach((event) => {
+      const day = hsDayKey(event.created_at);
+      if (day !== currentDay) {
+        currentDay = day;
+        html += `<div class="history-day-separator">${hsEsc(day)}</div>`;
+      }
+      const login = event.login || event.display_name || state?.profile?.login || '';
+      html += `<div class="pretty-event-row event-row-clean history-human-row history-card-row">
+        <div class="event-title-line"><b>${hsTitle(event)}</b>${login ? `<span>@${hsEsc(login)}</span>` : ''}</div>
+        <small>${hsDateTime(event.created_at)}</small>
+        <p>${hsText(event)}</p>
+      </div>`;
+    });
+    return `<div class="events-list history-paged-list">${html}</div>`;
+  }
+
+  function hsRenderCurrentPage(){
+    const box = document.getElementById('historyBox');
+    if (!box) return;
+    const all = historyState.events || [];
+    historyState.totalPages = Math.max(1, Math.ceil(all.length / HISTORY_PAGE_SIZE));
+    if (historyState.page > historyState.totalPages) historyState.page = historyState.totalPages;
+    if (historyState.page < 1) historyState.page = 1;
+    const start = (historyState.page - 1) * HISTORY_PAGE_SIZE;
+    const rows = all.slice(start, start + HISTORY_PAGE_SIZE);
+    box.innerHTML = hsRenderList(rows);
+    hsRenderPager();
+  }
+
+  window.loadHistory = async function loadHistoryPatched(){
+    const box = document.getElementById('historyBox');
+    if (!box) return;
+    const type = document.getElementById('historyType')?.value || '';
+    const days = Math.min(7, Math.max(1, parseInt(document.getElementById('historyDays')?.value || '7', 10) || 7));
+    box.innerHTML = '<div class="history-empty-state">Загрузка истории...</div>';
+    const url = '/api/farm/history?limit=70&days=' + encodeURIComponent(days) + (type ? '&type=' + encodeURIComponent(type) : '');
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'history_failed');
+    historyState.events = Array.isArray(data.events) ? data.events : [];
+    historyState.page = 1;
+    historyState.type = type;
+    historyState.days = days;
+    hsRenderCurrentPage();
+  };
+
+  document.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-history-page]');
+    if (!btn) return;
+    const value = btn.getAttribute('data-history-page');
+    if (value === 'prev') historyState.page -= 1;
+    else if (value === 'next') historyState.page += 1;
+    else historyState.page = parseInt(value, 10) || 1;
+    hsRenderCurrentPage();
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('historyDays')?.addEventListener('change', () => {
+      window.loadHistory?.().catch((e) => showMessage('❌ История: ' + e.message));
+    });
+  });
+})();

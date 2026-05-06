@@ -362,3 +362,50 @@ button.danger {
 .admin-report { text-align: left; line-height: 1.55; }
 @keyframes caseRoll { from { transform: translateX(0); } to { transform: translateX(-4550px); } }
 
+
+
+.history-pager {
+  padding-top: 0;
+}
+
+.history-pager-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-pager button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 12px;
+}
+
+.history-pager button.active {
+  box-shadow: 0 0 0 2px rgba(145,226,109,.28) inset;
+}
+
+.history-pager-dots {
+  opacity: .65;
+  padding: 0 4px;
+}
+
+.history-day-separator {
+  margin: 10px 0 6px;
+  font-weight: 900;
+  color: #d8ffb8;
+}
+
+.history-card-row {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.06);
+}
+
+.history-empty-state {
+  padding: 18px;
+  text-align: center;
+  opacity: .8;
+}
