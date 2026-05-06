@@ -1,32 +1,3 @@
-function calcFarmUpgradeCostClient(level) {
-  const lvl = Number(level || 0) || 0;
-  if (lvl < 30) return 75 * lvl;
-  if (lvl < 60) return (75 * lvl) + 5000 + ((lvl - 30) * 400);
-  if (lvl === 60) return (300 * lvl) + 1500;
-  if (lvl < 80) return (300 * 60) + 1500 + (lvl - 60) * 500;
-  if (lvl === 80) return (300 * 60) + 1500 + (20 * 500) + 2000;
-  if (lvl < 100) return (300 * 60) + 1500 + (20 * 500) + 2000 + (lvl - 80) * 1000;
-  if (lvl === 100) return (300 * 60) + 1500 + (20 * 500) + 2000 + (20 * 1000) + 1500;
-  return (300 * 60) + 1500 + (20 * 500) + 2000 + (20 * 1000) + 2000 + (lvl - 100) * 3000;
-}
-
-function getFarmUpgradePack10(profile) {
-  const currentLevel = Number(profile?.level || 0) || 0;
-  const partsRequired = profile?.configs?.parts_required || {};
-  const MAX_LEVEL = 120;
-  let totalCost = 0;
-  let totalParts = 0;
-  let count = 0;
-
-  for (let nextLevel = currentLevel + 1; nextLevel <= Math.min(currentLevel + 10, MAX_LEVEL); nextLevel++) {
-    totalCost += calcFarmUpgradeCostClient(nextLevel);
-    totalParts += Number(partsRequired[String(nextLevel)] ?? partsRequired[nextLevel] ?? 0) || 0;
-    count++;
-  }
-
-  return { count, totalCost, totalParts, maxed: currentLevel >= MAX_LEVEL };
-}
-
 /* Extracted from 10-final-patches.js lines 1-175. Safe split, logic unchanged. */
 /* Moose Farm frontend split module: финальные hotfix-патчи по рейдам/рынку/журналу
    Safe-refactor: extracted from public/app.js without logic changes. */
@@ -163,10 +134,7 @@ function ensureMainActionButtons(data) {
     upgrade10Btn.classList.toggle('farm-max-disabled', isMaxFarm);
     upgrade10Btn.disabled = isMaxFarm;
     upgrade10Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
-    const pack10 = getFarmUpgradePack10(data.profile || {});
-    const levelsLabel = isMaxFarm ? 'максимум' : ('до +' + pack10.count + ' ур.');
-    const priceLabel = isMaxFarm ? 'максимум' : (formatNumber(pack10.totalCost) + '💰' + (pack10.totalParts ? ' / ' + formatNumber(pack10.totalParts) + '🔧' : ''));
-    upgrade10Btn.innerHTML = `🚀 Ап +10<br><small>${levelsLabel} · ${priceLabel}</small>`;
+    upgrade10Btn.innerHTML = `🚀 Улучшить ферму +10<br><small>${isMaxFarm ? 'максимум' : 'до 10 уровней'}</small>`;
   }
 }
 

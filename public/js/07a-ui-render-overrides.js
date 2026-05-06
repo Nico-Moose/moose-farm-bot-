@@ -1,32 +1,3 @@
-function calcFarmUpgradeCostClient(level) {
-  const lvl = Number(level || 0) || 0;
-  if (lvl < 30) return 75 * lvl;
-  if (lvl < 60) return (75 * lvl) + 5000 + ((lvl - 30) * 400);
-  if (lvl === 60) return (300 * lvl) + 1500;
-  if (lvl < 80) return (300 * 60) + 1500 + (lvl - 60) * 500;
-  if (lvl === 80) return (300 * 60) + 1500 + (20 * 500) + 2000;
-  if (lvl < 100) return (300 * 60) + 1500 + (20 * 500) + 2000 + (lvl - 80) * 1000;
-  if (lvl === 100) return (300 * 60) + 1500 + (20 * 500) + 2000 + (20 * 1000) + 1500;
-  return (300 * 60) + 1500 + (20 * 500) + 2000 + (20 * 1000) + 2000 + (lvl - 100) * 3000;
-}
-
-function getFarmUpgradePack10(profile) {
-  const currentLevel = Number(profile?.level || 0) || 0;
-  const partsRequired = profile?.configs?.parts_required || {};
-  const MAX_LEVEL = 120;
-  let totalCost = 0;
-  let totalParts = 0;
-  let count = 0;
-
-  for (let nextLevel = currentLevel + 1; nextLevel <= Math.min(currentLevel + 10, MAX_LEVEL); nextLevel++) {
-    totalCost += calcFarmUpgradeCostClient(nextLevel);
-    totalParts += Number(partsRequired[String(nextLevel)] ?? partsRequired[nextLevel] ?? 0) || 0;
-    count++;
-  }
-
-  return { count, totalCost, totalParts, maxed: currentLevel >= MAX_LEVEL };
-}
-
 function ensureMainActionButtons(data) {
   const grid = document.querySelector('.action-grid-top');
   if (!grid) return;
@@ -63,16 +34,9 @@ function ensureMainActionButtons(data) {
   if (upgrade10Btn) {
     upgrade10Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-ten');
     upgrade10Btn.disabled = !farmActive;
-    if (farmActive) {
-      const pack10 = getFarmUpgradePack10(data.profile || {});
-      const levelsLabel = pack10.maxed ? 'максимум' : ('до +' + pack10.count + ' ур.');
-      const priceLabel = pack10.maxed
-        ? 'максимум'
-        : (formatNumber(pack10.totalCost) + '💰' + (pack10.totalParts ? ' / ' + formatNumber(pack10.totalParts) + '🔧' : ''));
-      upgrade10Btn.innerHTML = `🚀 Ап +10<br><small>${levelsLabel} · ${priceLabel}</small>`;
-    } else {
-      upgrade10Btn.innerHTML = '🚀 Ап +10<br><small>ферма не активна</small>';
-    }
+    upgrade10Btn.innerHTML = farmActive
+      ? '🚀 Ап +10<br><small>до 10 уровней</small>'
+      : '🚀 Ап +10<br><small>ферма не активна</small>';
   }
 }
 
@@ -120,11 +84,34 @@ function render(data) {
   renderBuildings(data);
 }
 
-function renderQuickStatus() {
-  const box = document.getElementById('quickStatus');
-  if (box) box.remove();
+function renderQuickStatus(data) {
+  let box = document.getElementById('quickStatus');
+  const profile = data.profile;
+  const next = data.nextUpgrade;
+  const farmActive = !!(data && data.hasFarm);
+  if (!box) {
+    box = document.createElement('section');
+    box.id = 'quickStatus';
+    box.className = 'quick-status';
+    document.getElementById('profile')?.insertAdjacentElement('afterend', box);
+  }
+  let upgradeText = farmActive ? '✅ Ферма уже на максимальном уровне' : 'Ферма удалена или не активна. Купи ферму заново.';
+  if (farmActive && next) {
+    const st = resourceStatus(profile, next.cost, next.parts);
+    const possible = (st.coinsOk && st.partsOk) ? 'Ресурсов хватает для следующего уровня.' : `Не хватает: ${st.missingCoins ? formatNumber(st.missingCoins) + '💰 ' : ''}${st.missingParts ? formatNumber(st.missingParts) + '🔧' : ''}`;
+    upgradeText = `⬆️ Следующий ап: ${formatNumber(next.cost)}💰${next.parts ? ' / ' + formatNumber(next.parts) + '🔧' : ''}. ${possible}`;
+  }
+  box.innerHTML = `
+    <div><b>Текущие ресурсы</b></div>
+    <div class="quick-status-grid compact-stats">
+      <span>💰 Голда: <b>${formatNumber(ordinaryCoins(profile))}</b></span>
+      <span>🌾 Ферма: <b>${formatNumber(farmCoins(profile))}</b></span>
+      <span>💎 Бонусные: <b>${formatNumber(bonusCoins(profile))}</b></span>
+      <span>🔧 Запчасти: <b>${formatNumber(profile.parts || 0)}</b></span>
+    </div>
+    <div class="quick-status-upgrade">${upgradeText}</div>
+  `;
 }
-
 
 function renderLicense(data) {
   const box = document.getElementById('licenseBox');
@@ -138,14 +125,16 @@ function renderLicense(data) {
   box.style.display = '';
   const p = data.profile || {};
   const farmActive = !!(data && data.hasFarm);
-  const st = resourceStatus(p, next.cost, 0);
+  const gold = ordinaryCoins(p);
+  const missingGold = Math.max(0, Number(next.cost || 0) - gold);
+  const goldOk = missingGold <= 0;
   box.innerHTML = `
     <div class="license-card compact-license-card">
       <h2>🎟 Лицензии</h2>
       <p>Сейчас открыто до: <b>${p.license_level ? p.license_level : 39}</b> уровня</p>
       <p>Следующая лицензия: <b>${next.level}</b> уровень</p>
       <p>Цена: <b>${formatNumber(next.cost)}💰</b></p>
-      <p class="resource-line">У тебя: <b>${formatNumber(st.coins)}💰</b>${st.coinsOk ? ' ✅' : ` ❌ не хватает ${formatNumber(st.missingCoins)}💰`}</p>
+      <p class="resource-line">У тебя голды: <b>${formatNumber(gold)}💰</b>${goldOk ? ' ✅' : ` ❌ не хватает ${formatNumber(missingGold)}💰`}</p>
       <button id="buyLicenseBtn">🎟 Купить лицензию до ${next.level}</button>
     </div>
   `;
