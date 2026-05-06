@@ -517,10 +517,10 @@
 
   .main-twitch-chat-card {
     position: fixed !important;
-    top: 84px;
+    top: var(--main-twitch-fixed-top, 84px);
     right: max(16px, calc((100vw - 1760px) / 2 + 22px));
     width: 332px;
-    max-height: calc(100vh - 108px);
+    max-height: calc(100vh - var(--main-twitch-fixed-top, 84px) - 24px);
     overflow: hidden;
   }
 
@@ -528,7 +528,7 @@
   .main-twitch-chat-embed,
   .main-twitch-chat-embed iframe,
   .main-twitch-chat-placeholder {
-    height: calc(100vh - 220px);
-    min-height: calc(100vh - 220px);
+    height: calc(100vh - var(--main-twitch-fixed-top, 84px) - 132px);
+    min-height: 420px;
   }
 }

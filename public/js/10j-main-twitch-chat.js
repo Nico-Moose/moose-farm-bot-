@@ -37,9 +37,43 @@
     chatInitialized = true;
   }
 
+
+  function updateFixedChatTop() {
+    const card = document.querySelector('.main-twitch-chat-card');
+    const layout = document.querySelector('.main-dashboard-layout');
+    if (!card || !layout) return;
+
+    const isDesktop = window.matchMedia && window.matchMedia('(min-width: 1450px)').matches;
+    if (!isDesktop) {
+      document.documentElement.style.removeProperty('--main-twitch-fixed-top');
+      return;
+    }
+
+    const minTop = 84;
+    const normalTop = Math.round(layout.getBoundingClientRect().top);
+    const top = Math.max(minTop, normalTop);
+    document.documentElement.style.setProperty('--main-twitch-fixed-top', `${top}px`);
+  }
+
+  let rafId = 0;
+  function scheduleFixedChatTopUpdate() {
+    if (rafId) return;
+    rafId = window.requestAnimationFrame(() => {
+      rafId = 0;
+      updateFixedChatTop();
+    });
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mountTwitchChat, { once: true });
+    document.addEventListener('DOMContentLoaded', () => {
+      mountTwitchChat();
+      updateFixedChatTop();
+    }, { once: true });
   } else {
     mountTwitchChat();
+    updateFixedChatTop();
   }
+
+  window.addEventListener('scroll', scheduleFixedChatTopUpdate, { passive: true });
+  window.addEventListener('resize', scheduleFixedChatTopUpdate, { passive: true });
 })();
