@@ -1,3 +1,11 @@
+function isValidNextUpgrade(next) {
+  return !!(next && typeof next === 'object' && next.level !== undefined && next.cost !== undefined);
+}
+
+function isValidNextLicense(next) {
+  return !!(next && typeof next === 'object' && next.level !== undefined && next.cost !== undefined);
+}
+
 function ensureMainActionButtons(data) {
   const grid = document.querySelector('.action-grid-top');
   if (!grid) return;
@@ -26,17 +34,25 @@ function ensureMainActionButtons(data) {
 
   const upgrade1Btn = document.getElementById('upgrade1Btn');
   const upgrade10Btn = document.getElementById('upgrade10Btn');
+  const hasNextUpgrade = isValidNextUpgrade(data.nextUpgrade);
+  const isMaxFarm = farmActive && !hasNextUpgrade;
+
   if (upgrade1Btn) {
     upgrade1Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-one');
-    upgrade1Btn.disabled = !farmActive;
-    upgrade1Btn.innerHTML = `⬆️ Ап +1<br><small id="upgrade1Text">${farmActive ? (data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум') : 'ферма не активна'}</small>`;
+    upgrade1Btn.disabled = !farmActive || isMaxFarm;
+    upgrade1Btn.classList.toggle('farm-max-disabled', isMaxFarm);
+    upgrade1Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
+    upgrade1Btn.innerHTML = `⬆️ Ап +1<br><small id="upgrade1Text">${farmActive ? (hasNextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум') : 'ферма не активна'}</small>`;
   }
+
   if (upgrade10Btn) {
     upgrade10Btn.classList.add('compact-action', 'compact-action-upgrade', 'compact-action-upgrade-ten');
-    upgrade10Btn.disabled = !farmActive;
-    const pack10 = typeof getFarmUpgradePack10 === 'function' ? getFarmUpgradePack10(data.profile || {}) : null;
+    upgrade10Btn.disabled = !farmActive || isMaxFarm;
+    upgrade10Btn.classList.toggle('farm-max-disabled', isMaxFarm);
+    upgrade10Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
+    const pack10 = hasNextUpgrade && typeof getFarmUpgradePack10 === 'function' ? getFarmUpgradePack10(data.profile || {}) : null;
     upgrade10Btn.innerHTML = farmActive
-      ? `🚀 Ап +10<br><small>${pack10 && pack10.count ? `${formatNumber(pack10.cost)}💰${pack10.parts ? ' / ' + formatNumber(pack10.parts) + '🔧' : ''}` : 'до 10 уровней'}</small>`
+      ? `🚀 Ап +10<br><small>${isMaxFarm ? 'максимум' : (pack10 && pack10.count ? `${formatNumber(pack10.cost)}💰${pack10.parts ? ' / ' + formatNumber(pack10.parts) + '🔧' : ''}` : 'до 10 уровней')}</small>`
       : '🚀 Ап +10<br><small>ферма не активна</small>';
   }
 }
@@ -95,7 +111,7 @@ function renderLicense(data) {
   const box = document.getElementById('licenseBox');
   if (!box) return;
   const next = data.nextLicense;
-  if (!next) {
+  if (!isValidNextLicense(next)) {
     box.innerHTML = '';
     box.style.display = 'none';
     return;

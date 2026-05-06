@@ -120,8 +120,15 @@
       raidUpgrades: data.raidUpgrades || prev.raidUpgrades || {},
       turret: data.turret || prev.turret || {},
       raid: data.raid || prev.raid || {},
-      nextUpgrade: data.nextUpgrade || prev.nextUpgrade || {},
-      nextLicense: data.nextLicense || prev.nextLicense || {},
+      // ВАЖНО: null у nextUpgrade/nextLicense означает "максимум / лицензий больше нет".
+      // Нельзя заменять null на {}, иначе после неудачного апа здания UI снова включает
+      // кнопки апа фермы и показывает лицензию `undefined`.
+      nextUpgrade: Object.prototype.hasOwnProperty.call(data, 'nextUpgrade')
+        ? data.nextUpgrade
+        : (Object.prototype.hasOwnProperty.call(prev, 'nextUpgrade') ? prev.nextUpgrade : null),
+      nextLicense: Object.prototype.hasOwnProperty.call(data, 'nextLicense')
+        ? data.nextLicense
+        : (Object.prototype.hasOwnProperty.call(prev, 'nextLicense') ? prev.nextLicense : null),
       caseStatus: data.caseStatus || prev.caseStatus || {},
       gamus: data.gamus || prev.gamus || {},
       raidInfo: data.raidInfo || prev.raidInfo || {},

@@ -5,6 +5,10 @@
    RAID HISTORY + MAX FARM BUTTONS PATCH
    ========================================================================== */
 
+function isValidNextUpgradeFinal(next) {
+  return !!(next && typeof next === 'object' && next.level !== undefined && next.cost !== undefined);
+}
+
 function latestRaidLogsFromState() {
   const p = state?.profile || {};
   const farm = p.farm || {};
@@ -117,7 +121,8 @@ function ensureMainActionButtons(data) {
   raidHistoryBtn.disabled = !hasRaidHistory;
   raidHistoryBtn.innerHTML = hasRaidHistory ? '📜 Последний рейд' : '📜 Истории нет';
 
-  const isMaxFarm = !data.nextUpgrade;
+  const hasNextUpgrade = isValidNextUpgradeFinal(data.nextUpgrade);
+  const isMaxFarm = !hasNextUpgrade;
   const upgrade1Btn = document.getElementById('upgrade1Btn');
   const upgrade10Btn = document.getElementById('upgrade10Btn');
 
@@ -126,7 +131,7 @@ function ensureMainActionButtons(data) {
     upgrade1Btn.classList.toggle('farm-max-disabled', isMaxFarm);
     upgrade1Btn.disabled = isMaxFarm;
     upgrade1Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
-    upgrade1Btn.innerHTML = `⬆️ Ап +1<br><small id="upgrade1Text">${data.nextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум'}</small>`;
+    upgrade1Btn.innerHTML = `⬆️ Ап +1<br><small id="upgrade1Text">${hasNextUpgrade ? formatNumber(data.nextUpgrade.cost) + '💰' + (data.nextUpgrade.parts ? ' / ' + formatNumber(data.nextUpgrade.parts) + '🔧' : '') : 'максимум'}</small>`;
   }
 
   if (upgrade10Btn) {
@@ -134,7 +139,7 @@ function ensureMainActionButtons(data) {
     upgrade10Btn.classList.toggle('farm-max-disabled', isMaxFarm);
     upgrade10Btn.disabled = isMaxFarm;
     upgrade10Btn.title = isMaxFarm ? 'Ферма уже максимального уровня' : '';
-    const pack10 = typeof getFarmUpgradePack10 === 'function' ? getFarmUpgradePack10(data.profile || {}) : null;
+    const pack10 = hasNextUpgrade && typeof getFarmUpgradePack10 === 'function' ? getFarmUpgradePack10(data.profile || {}) : null;
     upgrade10Btn.innerHTML = `🚀 Улучшить ферму +10<br><small>${isMaxFarm ? 'максимум' : (pack10 && pack10.count ? `${formatNumber(pack10.cost)}💰${pack10.parts ? ' / ' + formatNumber(pack10.parts) + '🔧' : ''}` : 'до 10 уровней')}</small>`;
   }
 }
