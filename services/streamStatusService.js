@@ -1,7 +1,7 @@
 const { config } = require('../config');
 const { getDb } = require('./dbService');
 
-let twitchCache = { at: 0, online: false, error: null };
+let twitchCache = { at: 0, online: false, error: null, confirmed: false };
 let tokenCache = { token: null, expiresAt: 0 };
 
 function getSetting(key, fallback = null) {
@@ -51,7 +51,7 @@ async function getTwitchStreamStatus() {
 
   const channel = String(config.twitch.channel || '').replace(/^@/, '').toLowerCase();
   if (!channel || !config.twitch.clientId || !config.twitch.clientSecret || typeof fetch !== 'function') {
-    twitchCache = { at: now, online: false, error: 'twitch_api_not_configured' };
+    twitchCache = { at: now, online: false, error: 'twitch_api_not_configured', confirmed: false };
     return twitchCache;
   }
 
@@ -66,9 +66,9 @@ async function getTwitchStreamStatus() {
     });
     if (!res.ok) throw new Error(`twitch_stream_${res.status}`);
     const json = await res.json();
-    twitchCache = { at: now, online: Array.isArray(json.data) && json.data.length > 0, error: null };
+    twitchCache = { at: now, online: Array.isArray(json.data) && json.data.length > 0, error: null, confirmed: true };
   } catch (error) {
-    twitchCache = { at: now, online: false, error: error.message };
+    twitchCache = { at: now, online: !!twitchCache.online, error: error.message, confirmed: false };
   }
   return twitchCache;
 }
@@ -84,12 +84,12 @@ async function getStreamStatus() {
   if (['false', '0', 'offline'].includes(forced)) return { online: false, source: 'env', checkedAt: Date.now(), error: null };
 
   const status = await getTwitchStreamStatus();
-  return { online: !!status.online, source: 'twitch', checkedAt: status.at, error: status.error };
+  return { online: !!status.online, source: 'twitch', checkedAt: status.at, error: status.error, confirmed: status.confirmed !== false };
 }
 
 async function getActualTwitchStreamStatus() {
   const status = await getTwitchStreamStatus();
-  return { online: !!status.online, source: 'twitch', checkedAt: status.at, error: status.error };
+  return { online: !!status.online, source: 'twitch', checkedAt: status.at, error: status.error, confirmed: status.confirmed !== false };
 }
 
 
@@ -99,7 +99,7 @@ function getStreamStatusSnapshot() {
   const forced = String(process.env.STREAM_ONLINE || '').toLowerCase();
   if (['true', '1', 'online'].includes(forced)) return { online: true, source: 'env', checkedAt: Date.now(), error: null };
   if (['false', '0', 'offline'].includes(forced)) return { online: false, source: 'env', checkedAt: Date.now(), error: null };
-  return { online: !!twitchCache.online, source: 'cache', checkedAt: twitchCache.at || 0, error: twitchCache.error || null };
+  return { online: !!twitchCache.online, source: 'cache', checkedAt: twitchCache.at || 0, error: twitchCache.error || null, confirmed: twitchCache.confirmed !== false };
 }
 
 module.exports = { getStreamStatus, getActualTwitchStreamStatus, getStreamStatusSnapshot, setSetting, getSetting };

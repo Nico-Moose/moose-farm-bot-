@@ -5,6 +5,8 @@
 (function () {
   const CHANNEL = 'Nico_Moose';
   let lastOnline = null;
+  let lastConfirmed = false;
+  let pollTimer = null;
 
   function buildParentList() {
     const parents = new Set(['farm-moose.bothost.tech', 'localhost']);
@@ -28,7 +30,12 @@
     const res = await fetch('/api/stream/embed-status', { credentials: 'same-origin' });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) throw new Error(data.error || 'stream_status_failed');
-    return !!data.streamOnline;
+    const st = data.streamStatus || {};
+    return {
+      online: !!data.streamOnline,
+      confirmed: st.confirmed !== false,
+      error: st.error || null
+    };
   }
 
   function onlineMarkup(channel) {
@@ -59,18 +66,45 @@
 
 
     try {
-      const online = await getStreamStatus();
-      if (!force && lastOnline === online && videoBox.dataset.loaded === '1') return;
+      const status = await getStreamStatus();
+      const online = !!status.online;
+      const confirmed = status.confirmed !== false;
       const channel = videoBox.dataset.channel || CHANNEL;
+
+      if (!confirmed) {
+        if (videoBox.dataset.loaded === '1') return;
+        videoBox.innerHTML = onlineMarkup(channel);
+        videoBox.dataset.loaded = '1';
+        videoBox.dataset.state = 'fallback-online';
+        lastOnline = true;
+        lastConfirmed = false;
+        return;
+      }
+
+      if (!force && lastOnline === online && lastConfirmed === true && videoBox.dataset.loaded === '1') return;
       videoBox.innerHTML = online ? onlineMarkup(channel) : offlineMarkup(channel);
       videoBox.dataset.loaded = '1';
+      videoBox.dataset.state = online ? 'online' : 'offline';
       lastOnline = online;
+      lastConfirmed = true;
     } catch (_) {
       const channel = videoBox.dataset.channel || CHANNEL;
-      videoBox.innerHTML = offlineMarkup(channel);
+      if (videoBox.dataset.loaded === '1') return;
+      videoBox.innerHTML = onlineMarkup(channel);
       videoBox.dataset.loaded = '1';
-      lastOnline = false;
+      videoBox.dataset.state = 'fallback-online';
+      lastOnline = true;
+      lastConfirmed = false;
     }
+  }
+
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(() => {
+      const panel = document.querySelector('[data-farm-panel="stream"]');
+      if (!panel || !panel.classList.contains('active')) return;
+      render(true);
+    }, 60000);
   }
 
   function hookTabs() {
@@ -87,10 +121,12 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       hookTabs();
+      startPolling();
       if (document.querySelector('[data-farm-panel="stream"]')?.classList.contains('active')) render(true);
     }, { once: true });
   } else {
     hookTabs();
+    startPolling();
     if (document.querySelector('[data-farm-panel="stream"]')?.classList.contains('active')) render(true);
   }
 })();
