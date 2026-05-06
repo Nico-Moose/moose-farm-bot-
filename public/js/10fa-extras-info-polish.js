@@ -95,29 +95,41 @@
     const gamus = data.gamus || {};
     const ranges = gamus.ranges || {};
     const streamOnline = streamIsOnline(data);
+    box.classList.add('main-actions-extras-grid');
     box.innerHTML = `
-      <div class="combat-card polished-extra-card">
-        <h3>🎰 Кейс</h3>
-        <p>Доступ: <b>${!streamOnline ? 'только когда стрим онлайн' : (cs.unlocked ? 'да' : 'с 30 уровня фермы')}</b></p>
-        <p>Цена: <b>${pFmt(cs.cost || 0)}💰</b> | множитель: <b>x${Number(cs.finalMultiplier || 1).toFixed(2)}</b></p>
-        <p>Призы: <b>${pFmt(ranges.minMoney || cs.minMoney || 0)}-${pFmt(ranges.maxMoney || cs.maxMoney || 0)}💎</b> / <b>${pFmt(ranges.minParts || cs.minParts || 0)}-${pFmt(ranges.maxParts || cs.maxParts || 0)}🔧</b></p>
-        <p>Кулдаун: <b>${cs.remainingMs ? formatTime(cs.remainingMs) : 'готово ✅'}</b></p>
-        <div class="extra-actions"><button id="openCaseBtn" ${!streamOnline || !cs.unlocked || cs.remainingMs ? 'disabled' : ''}>🎰 Открыть кейс</button><button id="showCaseHistoryBtn" class="ghost-action">📜 Последние кейсы</button></div>
-        <small>${streamOnline ? 'Кейс доступен во время онлайн-стрима.' : 'Кейс закрыт: стрим сейчас оффлайн.'}</small>
+      <div class="combat-card compact-extra-card polished-extra-card">
+        <div class="compact-extra-title">🎰 Кейс</div>
+        <div class="compact-extra-lines">
+          <p>Доступ: <b>${streamOnline ? (cs.unlocked ? 'можно открыть' : 'с 30 ур.') : 'только при стриме'}</b></p>
+          <p>Цена: <b>${pFmt(cs.cost || 0)}💰</b> | x<b>${Number(cs.finalMultiplier || 1).toFixed(2)}</b></p>
+          <p>Кулдаун: <b>${cs.remainingMs ? formatTime(cs.remainingMs) : 'готово ✅'}</b></p>
+        </div>
+        <div class="compact-extra-actions">
+          <button id="openCaseBtn" ${!streamOnline || !cs.unlocked || cs.remainingMs ? 'disabled' : ''}>🎰 Открыть кейс</button>
+          <button id="showCaseHistoryBtn" class="ghost-action">📜 Последние кейсы</button>
+        </div>
       </div>
-      <div class="combat-card">
-        <h3>🧠 GAMUS</h3>
-        <p>Тир: <b>${pFmt(ranges.tierLevel || 0)}</b> | шахта: <b>${pFmt(ranges.mineLevel || 0)}</b></p>
-        <p>Награда: <b>${pFmt(ranges.minMoney || 0)}-${pFmt(ranges.maxMoney || 0)}💎</b> / <b>${pFmt(ranges.minParts || 0)}-${pFmt(ranges.maxParts || 0)}🔧</b></p>
-        <p>Ресет: <b>06:00 МСК</b> | ${gamus.available ? 'готово ✅' : 'через ' + formatTime(gamus.remainingMs || 0)}</p>
-        <button id="gamusBtn" ${!gamus.available ? 'disabled' : ''}>🎁 Забрать GAMUS</button>
+      <div class="combat-card compact-extra-card">
+        <div class="compact-extra-title">🧠 GAMUS</div>
+        <div class="compact-extra-lines">
+          <p>Тир: <b>${pFmt(ranges.tierLevel || 0)}</b> | шахта: <b>${pFmt(ranges.mineLevel || 0)}</b></p>
+          <p>Награда: <b>${pFmt(ranges.minMoney || 0)}-${pFmt(ranges.maxMoney || 0)}💎</b> / <b>${pFmt(ranges.minParts || 0)}-${pFmt(ranges.maxParts || 0)}🔧</b></p>
+          <p>Ресет: <b>06:00 МСК</b> | ${gamus.available ? 'готово ✅' : 'через ' + formatTime(gamus.remainingMs || 0)}</p>
+        </div>
+        <div class="compact-extra-actions">
+          <button id="gamusBtn" ${!gamus.available ? 'disabled' : ''}>🎁 Забрать GAMUS</button>
+        </div>
       </div>
-      <div class="combat-card">
-        <h3>🌙 Оффсбор</h3>
-        <p>50% от общего дохода в час. Запчасти даёт только завод / 2.</p>
-        <p>Баланс сейчас: <b>${pFmt(p.farm_balance || 0)}🌾</b> / <b>${pFmt(p.parts || 0)}🔧</b></p>
-        <button id="offCollectBtn" ${streamOnline ? 'disabled' : ''}>🌙 Оффсбор</button>
-        <small>${streamOnline ? 'Оффсбор закрыт: стрим сейчас онлайн.' : 'Оффсбор доступен только когда стрим оффлайн.'}</small>
+      <div class="combat-card compact-extra-card">
+        <div class="compact-extra-title">🌙 Оффсбор</div>
+        <div class="compact-extra-lines">
+          <p>50% от дохода в час. Завод даёт <b>/2</b>.</p>
+          <p>Баланс: <b>${pFmt(p.farm_balance || 0)}🌾</b> / <b>${pFmt(p.parts || 0)}🔧</b></p>
+          <p><b>${streamOnline ? 'доступен только оффлайн' : 'доступен сейчас'}</b></p>
+        </div>
+        <div class="compact-extra-actions">
+          <button id="offCollectBtn" ${streamOnline ? 'disabled' : ''}>🌙 Оффсбор</button>
+        </div>
       </div>
     `;
     document.getElementById('openCaseBtn')?.addEventListener('click', openCase);
@@ -127,45 +139,6 @@
     });
     document.getElementById('gamusBtn')?.addEventListener('click', claimGamus);
     document.getElementById('offCollectBtn')?.addEventListener('click', offCollect);
-  };
-
-  const baseDoRaid = typeof doRaid === 'function' ? doRaid : null;
-  doRaid = async function doRaid() {
-    if (!streamIsOnline()) {
-      showMessage('⛔ Рейд доступен только когда стрим онлайн.');
-      await loadMe(true);
-      return;
-    }
-    return baseDoRaid ? baseDoRaid() : undefined;
-  };
-
-  const baseOpenCase = typeof openCase === 'function' ? openCase : null;
-  openCase = async function openCase() {
-    if (!streamIsOnline()) {
-      showMessage('⛔ Кейс доступен только когда стрим онлайн.');
-      await loadMe(true);
-      return;
-    }
-    return baseOpenCase ? baseOpenCase() : undefined;
-  };
-
-  offCollect = async function offCollect() {
-    if (state?.streamOnline || state?.profile?.stream_online) {
-      showMessage('⛔ Оффсбор доступен только когда стрим оффлайн.');
-      return;
-    }
-    const data = await postJson('/api/farm/off-collect');
-    if (!data.ok) {
-      showMessage(data.error === 'cooldown' ? `⏳ Оффсбор через ${formatTime(data.remainingMs || 0)}` : `❌ Оффсбор: ${streamErrorLabel(data.error)}`);
-      await loadMe();
-      return;
-    }
-    showActionToast('🌙 Оффсбор получен', [
-      `Монеты: <b>+${pFmt(data.income || 0)}💰</b>`,
-      `Запчасти: <b>+${pFmt(data.partsIncome || 0)}🔧</b>`,
-      data.minutes ? `Период: <b>${pFmt(data.minutes)} мин</b>` : ''
-    ].filter(Boolean), { kind: 'success' });
-    await loadMe();
   };
 
   renderInfo = function renderInfo(data){
