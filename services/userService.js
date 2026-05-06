@@ -356,7 +356,7 @@ function listOnlineFarmers({ withinMs = 3 * 60 * 1000, limit = 30 } = {}) {
     JOIN twitch_users u ON u.twitch_id = p.twitch_id
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE p.last_seen_at >= ?
-    ORDER BY LOWER(COALESCE(u.display_name, u.login)) ASC, p.last_seen_at DESC
+    ORDER BY COALESCE(f.level, 0) DESC, LOWER(COALESCE(u.display_name, u.login)) ASC, p.last_seen_at DESC
     LIMIT ?
   `).all(cutoff, limit);
 

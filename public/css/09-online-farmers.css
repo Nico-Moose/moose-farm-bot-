@@ -8,6 +8,7 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 18px 42px rgba(0,0,0,.26);
 }
 .farm-online-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:14px; }
+.farm-online-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .farm-online-head h2 { margin:0; font-size:22px; }
 .farm-online-head p { margin:6px 0 0; color:rgba(244,255,242,.68); font-size:13px; font-weight:700; }
 .farm-online-all-btn { min-height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.06); color:#f4fff2; font-weight:900; }
@@ -17,8 +18,8 @@
 .online-farmer-item:hover { background:rgba(125,207,88,.12); }
 .online-farmer-avatar { width:40px; height:40px; border-radius:12px; object-fit:cover; background:#162e18; }
 .online-farmer-copy { min-width:0; flex:1; }
-.online-farmer-name { display:block; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.online-farmer-meta { display:block; margin-top:2px; color:rgba(244,255,242,.68); font-size:12px; }
+.online-farmer-name { display:block; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#f6fff2; text-shadow:0 1px 0 rgba(0,0,0,.35); }
+.online-farmer-meta { display:block; margin-top:2px; color:rgba(235,248,230,.88); font-size:12px; font-weight:700; }
 .online-farmer-dot { width:10px; height:10px; border-radius:999px; background:#93ea6a; box-shadow:0 0 0 4px rgba(147,234,106,.12); flex:0 0 auto; }
 .online-farmers-empty { color:rgba(244,255,242,.76); padding:10px 4px; }
 .farmer-modal, .farmers-list-modal { position:fixed; inset:0; z-index:120; }
@@ -42,7 +43,7 @@
 .farmer-building-chip { border-radius:16px; padding:12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.05); }
 .farmer-building-chip strong { display:block; font-size:16px; }
 .farmer-building-chip small { display:block; margin-top:6px; color:rgba(244,255,242,.72); }
-.farmers-list-tools { margin-bottom:14px; }
+.farmers-list-tools { margin-bottom:14px; position:sticky; top:0; z-index:3; padding-bottom:10px; background:linear-gradient(180deg, rgba(12,32,16,.98), rgba(12,32,16,.92)); backdrop-filter: blur(6px); }
 .farmers-list-tools input { width:100%; min-height:48px; border-radius:14px; padding:0 14px; }
 .all-farmers-list { display:flex; flex-direction:column; gap:10px; }
 .all-farmer-item { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); cursor:pointer; }
@@ -52,5 +53,61 @@
 .all-farmer-badge.offline { background:rgba(255,255,255,.06); color:rgba(244,255,242,.72); }
 @media (min-width:1600px){ .main-dashboard-layout{display:grid;grid-template-columns:280px minmax(0,1fr) 332px;gap:18px;align-items:start;} .farm-online-side{margin-top:0;position:sticky;top:84px;} }
 @media (max-width:1599px){ .farm-online-side{order:-1;} }
-@media (max-width:980px){ .farm-online-head{flex-direction:column;align-items:stretch;} .farm-online-all-btn{width:100%;} .farmer-popup-profile{grid-template-columns:1fr;} .farmer-popup-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));} .farmer-popup-buildings-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media (max-width:980px){ .farm-online-head{flex-direction:column;align-items:stretch;} .farm-online-actions{display:grid;grid-template-columns:1fr;}.farm-online-all-btn{width:100%;} .farmer-popup-profile{grid-template-columns:1fr;} .farmer-popup-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));} .farmer-popup-buildings-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media (max-width:640px){ .farmer-modal-dialog,.farmers-list-dialog{width:min(100% - 12px, 100%);margin:12px auto;padding:14px;border-radius:18px;} .farmer-popup-stats-grid,.farmer-popup-buildings-grid{grid-template-columns:1fr;} }
+
+
+.online-farmer-item,
+.all-farmer-item {
+  justify-content: space-between;
+}
+
+.online-farmer-copy,
+.all-farmer-item .online-farmer-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.all-farmer-item .online-farmer-name {
+  color: #f6fff2;
+  text-shadow: 0 1px 0 rgba(0,0,0,.35);
+}
+
+.all-farmer-item .online-farmer-meta {
+  color: rgba(235,248,230,.88);
+  font-weight: 700;
+}
+
+.farmers-list-dialog {
+  width: min(1120px, calc(100% - 24px));
+}
+
+@media (min-width: 1450px) {
+  .app-shell {
+    width: min(1680px, calc(100% - 40px));
+    margin: 20px auto;
+  }
+
+  .main-dashboard-layout {
+    display: grid !important;
+    grid-template-columns: 260px minmax(0, 1fr) 332px !important;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .farm-online-side {
+    margin-top: 0;
+    position: sticky;
+    top: 84px;
+  }
+
+  .main-dashboard-side {
+    margin-top: 0;
+    position: relative;
+  }
+
+  .main-twitch-chat-card {
+    position: sticky;
+    top: 84px;
+  }
+}
