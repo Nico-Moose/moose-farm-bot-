@@ -1,11 +1,10 @@
 /* Safe patch: stream tab mounted into existing farm.html containers.
    Online -> Twitch player in #streamVideoEmbed.
    Offline -> custom branded card in #streamVideoEmbed.
-   Chat is always mounted into #streamChatEmbed. */
+   Right-side persistent chat remains the only chat on page. */
 (function () {
   const CHANNEL = 'Nico_Moose';
   let lastOnline = null;
-  let chatMounted = false;
 
   function buildParentList() {
     const parents = new Set(['farm-moose.bothost.tech', 'localhost']);
@@ -24,11 +23,6 @@
     return `https://player.twitch.tv/?${params.toString()}`;
   }
 
-  function buildChatUrl(channel) {
-    const params = new URLSearchParams();
-    buildParentList().forEach((parent) => params.append('parent', parent));
-    return `https://www.twitch.tv/embed/${encodeURIComponent(channel)}/chat?${params.toString()}&darkpopout`;
-  }
 
   async function getStreamStatus() {
     const res = await fetch('/api/stream/embed-status', { credentials: 'same-origin' });
@@ -51,27 +45,11 @@
 
   function offlineMarkup(channel) {
     return `
-      <a class="stream-offline-banner" href="https://www.twitch.tv/${channel}" target="_blank" rel="noopener noreferrer" aria-label="Открыть канал ${channel} на Twitch">
-        <img src="/img/stream-offline-banner.png" alt="Стрим скоро начнётся" loading="lazy" />
-      </a>`;
+      <div class="stream-offline-shell stream-offline-shell-banner">
+        <img class="stream-offline-banner" src="/img/stream-offline-banner.png" alt="Стрим скоро начнётся">
+      </div>`;
   }
 
-  function mountChat(force) {
-    const box = document.getElementById('streamChatEmbed');
-    if (!box) return;
-    if (chatMounted && !force && box.dataset.loaded === '1') return;
-    const channel = box.dataset.channel || CHANNEL;
-    box.innerHTML = '';
-    const iframe = document.createElement('iframe');
-    iframe.src = buildChatUrl(channel);
-    iframe.title = `Twitch chat ${channel}`;
-    iframe.loading = 'lazy';
-    iframe.allowFullscreen = false;
-    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
-    box.appendChild(iframe);
-    box.dataset.loaded = '1';
-    chatMounted = true;
-  }
 
   async function render(force) {
     const panel = document.querySelector('[data-farm-panel="stream"]');
@@ -79,7 +57,6 @@
     if (!panel || !videoBox) return;
     if (!force && !panel.classList.contains('active')) return;
 
-    mountChat(force);
 
     try {
       const online = await getStreamStatus();
@@ -110,12 +87,10 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       hookTabs();
-      mountChat(true);
       if (document.querySelector('[data-farm-panel="stream"]')?.classList.contains('active')) render(true);
     }, { once: true });
   } else {
     hookTabs();
-    mountChat(true);
     if (document.querySelector('[data-farm-panel="stream"]')?.classList.contains('active')) render(true);
   }
 })();

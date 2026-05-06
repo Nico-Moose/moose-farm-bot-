@@ -290,20 +290,61 @@
 }
 
 
-.stream-offline-banner {
+/* Stream tab single-column layout with persistent right chat only. */
+.stream-layout.stream-layout-single {
   display: block;
-  width: 100%;
-  border-radius: 20px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(0,0,0,0.18);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 12px 30px rgba(0,0,0,0.24);
 }
 
-.stream-offline-banner img {
+.stream-card-head-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.stream-card-head-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.07);
+  color: #fff;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.stream-card-head-btn:hover {
+  background: rgba(145,226,109,.16);
+}
+
+.stream-offline-shell-banner {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
   display: block;
+}
+
+.stream-offline-banner {
   width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
+  display: block;
+  border-radius: 24px;
   object-fit: cover;
+}
+
+@media (max-width: 900px) {
+  .stream-card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stream-card-head-actions {
+    justify-content: stretch;
+  }
+
+  .stream-card-head-btn {
+    width: 100%;
+  }
 }
