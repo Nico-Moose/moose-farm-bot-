@@ -299,6 +299,10 @@
     if (t === 'case_open') return '🎰 Кейс открыт';
     if (t === 'gamus_claim') return '🎁 GAMUS получен';
     if (t === 'off_collect') return '🌙 Оффсбор получен';
+    if (t === 'admin_set_field') return '👑 Админ изменил поле';
+    if (t === 'admin_set_fields_batch') return '👑 Админ изменил поля';
+    if (t === 'admin_set_building') return '👑 Админ изменил здание';
+    if (t === 'admin_set_buildings_batch') return '👑 Админ изменил здания';
     return '📌 Событие';
   }
 
@@ -321,6 +325,16 @@
     if (t === 'case_open') return `Открыт кейс${p.prizeValue ? `, получено ${hsFmt(p.prizeValue)}${p.prizeType === 'parts' ? '🔧' : '💎'}.` : '.'}`;
     if (t === 'gamus_claim') return `Получен GAMUS${p.tier ? ` тира ${hsFmt(p.tier)}.` : '.'}`;
     if (t === 'off_collect') return `Получен оффсбор${p.income ? `: ${hsFmt(p.income)}💰.` : '.'}${p.partsIncome ? ` Запчасти: ${hsFmt(p.partsIncome)}🔧.` : ''}`;
+    if (t === 'admin_set_fields_batch') {
+      const changes = Array.isArray(p.changes) ? p.changes : [];
+      return changes.length ? changes.map((item) => `${hsEsc(item.label || item.field || 'поле')} = ${hsFmt(item.value)}`).join(' · ') : 'Админ сохранил поля игрока.';
+    }
+    if (t === 'admin_set_field') return `Установлено поле «${hsEsc(p.label || p.field || 'поле')}» = ${hsFmt(p.value)}`;
+    if (t === 'admin_set_buildings_batch') {
+      const changes = Array.isArray(p.changes) ? p.changes : [];
+      return changes.length ? changes.map((item) => `«${hsEsc(item.building || 'здание')}» → ${hsFmt(item.level)} ур.`).join(' · ') : 'Админ сохранил здания игрока.';
+    }
+    if (t === 'admin_set_building') return `Установлено здание «${hsEsc(p.building || 'здание')}» = ${hsFmt(p.level)} ур.`;
 
     const details = [];
     if (p.eventTitle) details.push(p.eventTitle);
@@ -348,7 +362,7 @@
       }
     }
     buttons.push(`<button type="button" data-history-page="next" ${page >= totalPages ? 'disabled' : ''}>Вперёд →</button>`);
-    pager.innerHTML = `<div class="history-pager-inner">${buttons.join('')}</div>`;
+    pager.innerHTML = `<div class="history-pager-current">Страница ${page} из ${totalPages}</div><div class="history-pager-inner">${buttons.join('')}</div>`;
   }
 
   function hsRenderList(events){

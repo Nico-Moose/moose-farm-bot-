@@ -409,3 +409,18 @@ button.danger {
   text-align: center;
   opacity: .8;
 }
+
+
+/* User journal: show all 10 events on page without inner scrolling. */
+#historyBox,
+.history-paged-list.events-list {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.history-pager-current {
+  text-align: center;
+  font-weight: 900;
+  color: #dfffd4;
+  margin: 10px 0 8px;
+}

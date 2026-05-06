@@ -320,19 +320,11 @@ function logFarmEvent(twitchId, type, payload = {}) {
     VALUES (?, ?, ?, ?)
   `).run(twitchId, type, JSON.stringify(payload), createdAt);
 
-  // Храним только последние 10 записей каждого типа для игрока.
-  // Это экономит место и не даёт журналу разрастаться бесконечно.
+  // Журнал храним 7 дней. Это сохраняет историю по дням и не режет полезные события по типам.
   db.prepare(`
     DELETE FROM farm_events
-    WHERE twitch_id = ?
-      AND type = ?
-      AND id NOT IN (
-        SELECT id FROM farm_events
-        WHERE twitch_id = ? AND type = ?
-        ORDER BY created_at DESC, id DESC
-        LIMIT 10
-      )
-  `).run(twitchId, type, twitchId, type);
+    WHERE created_at < ?
+  `).run(createdAt - 7 * 24 * 60 * 60 * 1000);
 }
 
 function listFarmEvents({ twitchId = null, login = '', type = '', limit = 100, days = 0 } = {}) {

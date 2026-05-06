@@ -38,6 +38,10 @@
       admin_delete_turret: '👑 Админ: удаление турели',
       admin_restore_backup: '👑 Админ: backup',
       admin_set_roulette_tickets: '👑 Админ: билеты рулетки',
+      admin_set_field: '👑 Админ: поле игрока',
+      admin_set_fields_batch: '👑 Админ: поля игрока',
+      admin_set_building: '👑 Админ: здание',
+      admin_set_buildings_batch: '👑 Админ: здания',
       admin_sync_from_wizebot: '👑 Админ: импорт из WizeBot',
       admin_push_to_wizebot: '👑 Админ: пуш в WizeBot',
       sync_wizebot_harvest: '🔄 WizeBot → сайт'
@@ -95,7 +99,7 @@
     total: 0,
     hasMore: false,
     days: 7,
-    limit: 100,
+    limit: 10,
     loading: false,
   };
 

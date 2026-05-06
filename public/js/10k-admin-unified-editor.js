@@ -147,25 +147,33 @@
     const login = currentLogin();
     if (!login) throw new Error('Укажи ник игрока');
 
+    const fields = {};
     for (const [field] of fieldDefinitions) {
       const input = document.querySelector(`[data-admin-field="${CSS.escape(field)}"]`);
-      await postAdmin('player/set-field', { login, field, value: input ? input.value : '' });
+      if (input) fields[field] = input.value || '0';
     }
 
-    await reloadPlayer('Все поля игрока сохранены');
+    const data = await postAdmin('player/set-fields-batch', { login, fields });
+    if (data.profile) renderUnifiedEditor(data.profile);
+    else await reloadPlayer();
+    status(data.message || 'Все поля игрока сохранены');
   }
 
   async function saveAllBuildings() {
     const login = currentLogin();
     if (!login) throw new Error('Укажи ник игрока');
 
+    const buildings = {};
     const nodes = Array.from(document.querySelectorAll('[data-admin-building]'));
     for (const input of nodes) {
       const key = input.getAttribute('data-admin-building');
-      await postAdmin('player/set-building', { login, building: key, level: input.value || '0' });
+      if (key) buildings[key] = input.value || '0';
     }
 
-    await reloadPlayer('Все здания игрока сохранены');
+    const data = await postAdmin('player/set-buildings-batch', { login, buildings });
+    if (data.profile) renderUnifiedEditor(data.profile);
+    else await reloadPlayer();
+    status(data.message || 'Все здания игрока сохранены');
   }
 
   async function resetCooldown(path, message) {
