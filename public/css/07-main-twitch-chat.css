@@ -505,30 +505,22 @@
 }
 
 
+/* PATCH: keep Twitch chat aligned below hero/tabs at page top on desktop.
+   Some previous sticky/fixed tweaks could pull the right chat card too high.
+   We reserve top space on the right column, while preserving sticky behavior on scroll. */
 @media (min-width: 1450px) {
-  .app-shell {
-    width: min(1760px, calc(100% - 32px)) !important;
+  .persistent-twitch-chat-side {
+    align-self: start;
+    padding-top: 92px !important;
   }
 
   .main-dashboard-side {
-    width: 332px;
-    min-width: 332px;
+    margin-top: 0 !important;
   }
 
   .main-twitch-chat-card {
-    position: fixed !important;
-    top: var(--main-twitch-fixed-top, 84px);
-    right: max(16px, calc((100vw - 1760px) / 2 + 22px));
-    width: 332px;
-    max-height: calc(100vh - var(--main-twitch-fixed-top, 84px) - 24px);
-    overflow: hidden;
-  }
-
-  .main-twitch-chat-frame,
-  .main-twitch-chat-embed,
-  .main-twitch-chat-embed iframe,
-  .main-twitch-chat-placeholder {
-    height: calc(100vh - var(--main-twitch-fixed-top, 84px) - 132px);
-    min-height: 420px;
+    position: sticky !important;
+    top: 24px !important;
+    margin-top: 0 !important;
   }
 }
