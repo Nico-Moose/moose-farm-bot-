@@ -232,6 +232,62 @@ module.exports = function (db) {
 
   router.use(requireAdmin);
 
+  router.post('/trigger-legacy-migration', async (req, res) => {
+    try {
+      const login = String(req.body?.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+      if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник игрока' });
+
+      const profile = getProfileByLogin(db, login);
+      if (!profile) {
+        return res.status(404).json({
+          ok: false,
+          error: 'Игрок не найден на сайте. Он должен хотя бы раз войти на сайт через Twitch.'
+        });
+      }
+
+      const beforeSyncAt = Number(profile.last_wizebot_sync_at || 0);
+      let trigger = null;
+      try {
+        trigger = await triggerWizebotLegacyFarmMigration(login);
+      } catch (error) {
+        trigger = { ok: false, error: error.message || String(error) };
+      }
+
+      if (!trigger || !trigger.ok) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Не удалось отправить WizeBot-команду миграции. Проверь подключение Twitch-бота и команду !сайтмигрферма.',
+          wizebot_trigger: trigger || null
+        });
+      }
+
+      const migratedProfile = await waitForLegacyMigrationPush(login, beforeSyncAt, 25000);
+      if (!migratedProfile) {
+        return res.status(504).json({
+          ok: false,
+          error: 'WizeBot-команда отправлена, но сайт не получил новые данные вовремя. Проверь Twitch chat / WizeBot и попробуй ещё раз.',
+          wizebot_trigger: trigger
+        });
+      }
+
+      logAdminEvent(db, migratedProfile.twitch_id || profile.twitch_id, 'admin_trigger_legacy_migration', {
+        login,
+        beforeSyncAt,
+        afterSyncAt: Number(migratedProfile.last_wizebot_sync_at || 0),
+        trigger
+      });
+
+      return res.json({
+        ok: true,
+        message: `WizeBot данные синхронизированы: ${login}`,
+        profile: migratedProfile,
+        wizebot_trigger: trigger
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
+  });
+
 
   // Admin: set one editable player field from profile preview
     router.post('/player/set-field', (req, res) => {

@@ -184,11 +184,8 @@
 
     status('Отправляю WizeBot-команду миграции...');
     const data = await postAdmin('trigger-legacy-migration', { login });
-    if (data.profile) {
-      renderUnifiedEditor(data.profile);
-    } else {
-      await reloadPlayer();
-    }
+    if (data.profile) renderUnifiedEditor(data.profile);
+    else await reloadPlayer();
     status(data.message || 'WizeBot данные синхронизированы');
     return data;
   }
