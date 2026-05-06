@@ -221,3 +221,285 @@
     z-index: 60;
   }
 }
+
+/* PATCH 2026-05-06: strict mobile layout for phones.
+   Fixes horizontal overflow on the main farm screen without changing desktop UI. */
+@media (max-width: 700px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    display: block;
+    place-items: initial;
+  }
+
+  .app-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 0 !important;
+    overflow: hidden;
+  }
+
+  .farm-hero {
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .farm-title-row {
+    min-width: 0;
+    gap: 10px !important;
+    align-items: center;
+  }
+
+  .farm-logo {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    border-radius: 14px !important;
+    font-size: 24px !important;
+  }
+
+  .farm-hero h1 {
+    font-size: clamp(26px, 9vw, 34px) !important;
+    line-height: 1.02 !important;
+    letter-spacing: -0.6px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .farm-hero p {
+    margin-top: 4px !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+  }
+
+  .admin-entry {
+    margin: 8px 0 0 !important;
+  }
+
+  .admin-entry button {
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    border-radius: 13px !important;
+    font-size: 12px !important;
+  }
+
+  .farm-tabs {
+    position: static !important;
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    padding: 6px !important;
+    margin-bottom: 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .farm-tab,
+  .back-main-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 38px !important;
+    padding: 7px 6px !important;
+    border-radius: 12px !important;
+    font-size: 12px !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+  }
+
+  .farm-tab[data-farm-tab="history"] {
+    grid-column: 1 / -1;
+  }
+
+  .main-dashboard-layout,
+  .main-dashboard-primary,
+  .main-dashboard-side,
+  .profile-shell,
+  .quick-status,
+  .visual-section,
+  .farm-tab-panel.active {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .profile-shell {
+    min-height: 0 !important;
+    margin-bottom: 12px !important;
+  }
+
+  .profile-card-final,
+  .profile-card-final.visual-profile-patch {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+    padding: 12px !important;
+    border-radius: 20px !important;
+  }
+
+  .profile-main-left {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 10px !important;
+    gap: 9px !important;
+    flex-direction: column !important;
+    text-align: center !important;
+    border-radius: 18px !important;
+  }
+
+  .profile-main-left > div:not(.profile-avatar-big) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profile-avatar-big {
+    width: 82px !important;
+    height: 82px !important;
+    border-radius: 18px !important;
+  }
+
+  .profile-avatar-fallback {
+    font-size: 36px !important;
+  }
+
+  .profile-kicker {
+    font-size: 10px !important;
+    letter-spacing: 1px !important;
+  }
+
+  .profile-name-final,
+  .profile-main-left .profile-name-final {
+    max-width: 100% !important;
+    margin: 3px 0 7px !important;
+    font-size: clamp(20px, 7vw, 25px) !important;
+    line-height: 1.08 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .profile-status-pill {
+    max-width: 100%;
+    padding: 6px 9px !important;
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+  }
+
+  .profile-stats-final,
+  .stats-2row-grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .stat-tile {
+    min-width: 0 !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .stat-tile span {
+    font-size: 10.5px !important;
+    line-height: 1.15 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .stat-tile b {
+    font-size: 15px !important;
+    line-height: 1.1 !important;
+  }
+
+  .stat-tile small {
+    font-size: 10px !important;
+  }
+
+  .stat-tile.wide {
+    grid-column: 1 / -1 !important;
+  }
+
+  .quick-status,
+  .visual-section,
+  .market-section,
+  .combat-section,
+  .extra-section,
+  .info-section,
+  .history-section,
+  .buildings-section,
+  .license-section {
+    padding: 12px !important;
+    border-radius: 18px !important;
+    margin-top: 12px !important;
+  }
+
+  .quick-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .farm-grid,
+  .action-grid-top,
+  .combat-grid,
+  .info-grid,
+  .tops-grid,
+  .buildings-grid,
+  .buildings-grid-clean,
+  .buildings-resources-grid,
+  .market-actions,
+  .market-hero,
+  .polished-market-hero,
+  .stage-market-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .farm-grid button,
+  .action-grid-top button,
+  #upgrade1Btn,
+  #upgrade10Btn,
+  #collectBtn,
+  #raidActionBtn,
+  #raidHistoryBtn {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 46px !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+  }
+
+  .farm-grid button small,
+  .action-grid-top button small {
+    font-size: 11px !important;
+  }
+
+  .main-twitch-chat-card {
+    margin-top: 12px !important;
+    padding: 10px !important;
+    border-radius: 18px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .profile-stats-final,
+  .stats-2row-grid,
+  .quick-status-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .farm-tabs {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
