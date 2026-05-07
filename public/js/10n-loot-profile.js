@@ -2,6 +2,8 @@
   let lootState = null;
   let modalReady = false;
   let selectedLootTileIds = new Set();
+  let selectedLootCounts = new Map();
+  let lootStreamOnline = false;
 
   const SUPPORT_LINK = 'https://donatex.gg/donate/nico_moose';
 
@@ -63,41 +65,8 @@
     }).filter(Boolean).join(' + ');
   }
 
-  function expandPartToTiles(part, meta) {
-    const name = trimText(part?.name);
-    const total = Math.max(1, Number(part?.count || 1));
-    const key = getItemVisualKey(name);
-    const tiles = [];
-
-    function pushTile(count) {
-      tiles.push({
-        name,
-        count,
-        stackRule: key,
-        icon: getItemIcon(name),
-        ...meta
-      });
-    }
-
-    if (!name) return tiles;
-
-    if (key === 'smoke') {
-      let left = total;
-      while (left > 0) {
-        const amount = left >= 6 ? 6 : left;
-        pushTile(amount);
-        left -= amount;
-      }
-      return tiles;
-    }
-
-    if (key === 'incendiary' || key === 'tea') {
-      pushTile(total);
-      return tiles;
-    }
-
-    for (let i = 0; i < total; i += 1) pushTile(1);
-    return tiles;
+  function isFixedStackItemName(name) {
+    return getItemVisualKey(name) === 'incendiary';
   }
 
   function getTileSortWeight(tile) {
@@ -146,36 +115,69 @@
   }
 
   function buildInventoryTiles(inventory) {
-    const tiles = [];
+    const stackMap = new Map();
+    const fixedStacks = [];
+
     (inventory || []).forEach((entry) => {
       const entryId = Number(entry?.entryId || 0);
       const rarity = entry?.rarity || 'common';
       const visualLevel = Number(entry?.visualLevel || 1);
       const caseName = trimText(entry?.caseName || 'Лут');
       const wonDate = trimText(entry?.wonDate || '');
+
       parsePrizeLabel(entry?.prizeLabel || '').forEach((part, index) => {
-        const expanded = expandPartToTiles(part, {
-          entryId,
-          rarity,
-          visualLevel,
-          caseName,
-          wonDate,
-          sourceIndex: index
-        });
-        expanded.forEach((tile, tileIndex) => {
-          tiles.push({
-            selectionId: `${entryId}::${getItemVisualKey(tile.name)}::${index}::${tileIndex}::${tile.count}`,
+        const name = trimText(part.name);
+        const count = Math.max(1, Number(part.count || 1));
+        const visualKey = getItemVisualKey(name);
+        const icon = getItemIcon(name);
+
+        if (visualKey === 'incendiary') {
+          fixedStacks.push({
+            selectionId: `${entryId}::${visualKey}::${index}::${count}`,
             entryId,
-            name: trimText(tile.name),
-            count: Math.max(1, Number(tile.count || 1)),
+            name,
+            count,
+            available: count,
+            takeCount: count,
+            fixedStack: true,
             rarity,
             visualLevel,
             caseName,
             wonDate,
-            icon: tile.icon || getItemIcon(tile.name)
+            icon
           });
-        });
+          return;
+        }
+
+        const key = visualKey || normalizeKey(name);
+        if (!stackMap.has(key)) {
+          stackMap.set(key, {
+            selectionId: `stack::${key}`,
+            entryId: 0,
+            name,
+            count: 0,
+            available: 0,
+            takeCount: 1,
+            fixedStack: false,
+            rarity,
+            visualLevel,
+            caseName,
+            wonDate,
+            icon
+          });
+        }
+        const tile = stackMap.get(key);
+        tile.count += count;
+        tile.available += count;
+        tile.visualLevel = Math.max(Number(tile.visualLevel || 1), visualLevel);
+        if (getTileSortWeight({ name: tile.name }) > getTileSortWeight({ name })) tile.name = name;
+        if (!tile.icon && icon) tile.icon = icon;
       });
+    });
+
+    const tiles = [...stackMap.values(), ...fixedStacks];
+    tiles.forEach((tile) => {
+      if (!selectedLootTileIds.has(tile.selectionId)) tile.takeCount = tile.fixedStack ? tile.count : Math.min(1, tile.available || tile.count || 1);
     });
 
     tiles.sort((a, b) => {
@@ -183,8 +185,6 @@
       if (weightDiff !== 0) return weightDiff;
       const nameDiff = trimText(a.name).localeCompare(trimText(b.name), 'ru');
       if (nameDiff !== 0) return nameDiff;
-      const countDiff = Number(a.count || 1) - Number(b.count || 1);
-      if (countDiff !== 0) return countDiff;
       const caseDiff = trimText(a.caseName).localeCompare(trimText(b.caseName), 'ru');
       if (caseDiff !== 0) return caseDiff;
       const dateDiff = trimText(a.wonDate).localeCompare(trimText(b.wonDate), 'ru');
@@ -203,7 +203,11 @@
     const selected = [];
     const ids = selectedLootTileIds;
     getLootTiles().forEach((tile) => {
-      if (ids.has(tile.selectionId)) selected.push(tile);
+      if (ids.has(tile.selectionId)) {
+        const max = Math.max(1, Number(tile.available || tile.count || 1));
+        const chosen = tile.fixedStack ? Number(tile.count || 1) : Math.min(max, Math.max(1, Number(selectedLootCounts.get(tile.selectionId) || 1)));
+        selected.push({ ...tile, takeCount: chosen });
+      }
     });
     return selected;
   }
@@ -211,7 +215,10 @@
   function pruneSelectedLootTiles() {
     const available = new Set(getLootTiles().map((tile) => tile.selectionId));
     selectedLootTileIds.forEach((id) => {
-      if (!available.has(id)) selectedLootTileIds.delete(id);
+      if (!available.has(id)) {
+        selectedLootTileIds.delete(id);
+        selectedLootCounts.delete(id);
+      }
     });
   }
 
@@ -224,6 +231,21 @@
     renderLootSummary();
     renderLootModalBody();
     return lootState;
+  }
+
+
+  async function fetchLootStreamStatus() {
+    try {
+      const res = await fetch('/api/stream/status', { credentials: 'same-origin' });
+      const data = await res.json();
+      lootStreamOnline = !!(data && data.streamOnline);
+      renderLootModalBody();
+      return lootStreamOnline;
+    } catch (_) {
+      lootStreamOnline = false;
+      renderLootModalBody();
+      return false;
+    }
   }
 
   function ensureLootModal() {
@@ -261,6 +283,7 @@
     if (!modal) return;
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
+    fetchLootStreamStatus().catch(() => {});
     if (!lootState) {
       fetchLootState().catch((e) => {
         const body = document.getElementById('lootModalBody');
@@ -332,7 +355,7 @@
     if (!selectedTiles.length) {
       return '<div class="loot-empty inline">Выбери один или несколько предметов в инвентаре.</div>';
     }
-    const merged = mergePartMaps(selectedTiles.map((tile) => ({ name: tile.name, count: tile.count })));
+    const merged = mergePartMaps(selectedTiles.map((tile) => ({ name: tile.name, count: tile.takeCount || tile.count }))); 
     return merged.map((part) => `
       <div class="loot-selection-pill">
         <span>${esc(part.name)}</span>
@@ -345,22 +368,37 @@
     if (!tiles.length) {
       return '<div class="loot-empty">Инвентарь пуст. Открой кейс или активируй промокод.</div>';
     }
-    const selectedIds = new Set((selectedTiles || []).map((tile) => tile.selectionId));
-    return `<div class="loot-icon-grid">${tiles.map((tile) => `
-      <button type="button" class="loot-icon-tile rarity-${esc(tile.rarity || 'common')}${selectedIds.has(tile.selectionId) ? ' selected' : ''}" data-loot-select-id="${esc(tile.selectionId)}">
-        <div class="loot-icon-topline">
-          <span>${esc(tile.caseName || 'Лут')}</span>
-          <strong>${esc(tile.rarity || 'common')}</strong>
-        </div>
-        <div class="loot-icon-frame">
-          ${tile.icon ? `<img src="${esc(tile.icon)}" alt="${esc(tile.name)}">` : `<div class="loot-icon-fallback">${esc((tile.name || '?').slice(0, 2).toUpperCase())}</div>`}
-          <div class="loot-icon-count">x${Number(tile.count || 1)}</div>
-          <div class="loot-icon-check">✓</div>
-        </div>
-        <div class="loot-icon-name">${esc(tile.name)}</div>
-        <div class="loot-icon-date">${esc(tile.wonDate || '')}</div>
-      </button>
-    `).join('')}</div>`;
+    const selectedById = new Map((selectedTiles || []).map((tile) => [tile.selectionId, tile]));
+    return `<div class="loot-icon-grid loot-stacked-grid">${tiles.map((tile) => {
+      const selected = selectedById.get(tile.selectionId);
+      const selectedClass = selected ? ' selected' : '';
+      const max = Math.max(1, Number(tile.available || tile.count || 1));
+      const value = selected ? Number(selected.takeCount || 1) : 1;
+      const slider = selected && !tile.fixedStack ? `
+        <div class="loot-amount-control" data-loot-amount-wrap="${esc(tile.selectionId)}">
+          <input type="range" min="1" max="${max}" value="${Math.min(max, value)}" data-loot-amount-id="${esc(tile.selectionId)}" />
+          <div class="loot-amount-row"><span>Взять</span><b>${Math.min(max, value)} / ${max}</b></div>
+        </div>` : '';
+      const locked = tile.fixedStack ? '<div class="loot-fixed-note">только весь стак</div>' : '';
+      return `
+      <article class="loot-icon-tile rarity-${esc(tile.rarity || 'common')}${selectedClass}" data-loot-select-id="${esc(tile.selectionId)}">
+        <button type="button" class="loot-icon-main-btn" data-loot-select-button="${esc(tile.selectionId)}">
+          <div class="loot-icon-topline">
+            <span>${esc(tile.caseName || 'Лут')}</span>
+            <strong>${tile.fixedStack ? 'СТАК' : esc(tile.rarity || 'common')}</strong>
+          </div>
+          <div class="loot-icon-frame">
+            ${tile.icon ? `<img src="${esc(tile.icon)}" alt="${esc(tile.name)}">` : `<div class="loot-icon-fallback">${esc((tile.name || '?').slice(0, 2).toUpperCase())}</div>`}
+            <div class="loot-icon-count">x${Number(tile.count || 1)}</div>
+            <div class="loot-icon-check">✓</div>
+          </div>
+          <div class="loot-icon-name">${esc(tile.name)}</div>
+          <div class="loot-icon-date">${esc(tile.wonDate || '')}</div>
+          ${locked}
+        </button>
+        ${slider}
+      </article>`;
+    }).join('')}</div>`;
   }
 
   function renderLootModalBody() {
@@ -408,7 +446,6 @@
             <div class="loot-cases-card premium">
               <div class="loot-card-headline">
                 <h4>🎰 Кейсы</h4>
-                <a class="loot-support-link subtle" href="${SUPPORT_LINK}" target="_blank" rel="noopener noreferrer">Поддержать</a>
               </div>
               <div class="loot-case-grid premium">${renderCaseButtons(lootState.allowedCaseAmounts)}</div>
             </div>
@@ -435,8 +472,9 @@
               </div>
               <div class="loot-selection-pills-wrap">${renderSelectionPills(selectedTiles)}</div>
               <div class="loot-selection-actions">
+                <div class="loot-stream-state ${lootStreamOnline ? 'online' : 'offline'}">${lootStreamOnline ? '🟢 Стрим онлайн' : '🔴 Стрим оффлайн'}</div>
                 <button type="button" class="loot-action-btn ghost" id="lootClearSelectionBtn" ${selectedTiles.length ? '' : 'disabled'}>Сбросить</button>
-                <button type="button" class="loot-action-btn" id="lootTakeSelectedBtn" ${selectedTiles.length ? '' : 'disabled'}>Забрать выбранное</button>
+                <button type="button" class="loot-action-btn" id="lootTakeSelectedBtn" ${(selectedTiles.length && lootStreamOnline) ? '' : 'disabled'}>Забрать выбранное</button>
               </div>
             </div>
 
@@ -447,7 +485,8 @@
     `;
 
     body.querySelectorAll('[data-loot-open]').forEach((btn) => btn.addEventListener('click', () => openLootCase(Number(btn.getAttribute('data-loot-open')))));
-    body.querySelectorAll('[data-loot-select-id]').forEach((btn) => btn.addEventListener('click', () => toggleLootSelection(btn.getAttribute('data-loot-select-id'))));
+    body.querySelectorAll('[data-loot-select-button]').forEach((btn) => btn.addEventListener('click', () => toggleLootSelection(btn.getAttribute('data-loot-select-button'))));
+    body.querySelectorAll('[data-loot-amount-id]').forEach((input) => input.addEventListener('input', () => updateLootAmount(input.getAttribute('data-loot-amount-id'), input.value)));
     document.getElementById('lootPromoBtn')?.addEventListener('click', activatePromo);
     document.getElementById('lootTakeSelectedBtn')?.addEventListener('click', takeSelectedLoot);
     document.getElementById('lootClearSelectionBtn')?.addEventListener('click', clearLootSelection);
@@ -455,13 +494,26 @@
 
   function toggleLootSelection(selectionId) {
     if (!selectionId) return;
-    if (selectedLootTileIds.has(selectionId)) selectedLootTileIds.delete(selectionId);
-    else selectedLootTileIds.add(selectionId);
+    if (selectedLootTileIds.has(selectionId)) {
+      selectedLootTileIds.delete(selectionId);
+      selectedLootCounts.delete(selectionId);
+    } else {
+      selectedLootTileIds.add(selectionId);
+      selectedLootCounts.set(selectionId, 1);
+    }
+    renderLootModalBody();
+  }
+
+  function updateLootAmount(selectionId, rawValue) {
+    if (!selectionId || !selectedLootTileIds.has(selectionId)) return;
+    const n = Math.max(1, Number(rawValue || 1));
+    selectedLootCounts.set(selectionId, n);
     renderLootModalBody();
   }
 
   function clearLootSelection() {
     selectedLootTileIds.clear();
+    selectedLootCounts.clear();
     renderLootModalBody();
   }
 
@@ -513,6 +565,7 @@
       return;
     }
     selectedLootTileIds.clear();
+    selectedLootCounts.clear();
     const winnerLabel = data.winner?.label || data.prizeLabel || 'предмет';
     showMessage?.(`🎰 Выпало: ${winnerLabel}`);
     await refreshLootAfterAction(data);
@@ -524,10 +577,16 @@
       showMessage?.('❌ Сначала выбери предметы.');
       return;
     }
+    const online = await fetchLootStreamStatus();
+    if (!online) {
+      showMessage?.('❌ Забрать можно только когда стрим онлайн.');
+      return;
+    }
     const selections = selectedTiles.map((tile) => ({
-      entryId: Number(tile.entryId || 0),
+      entryId: tile.fixedStack ? Number(tile.entryId || 0) : 0,
       itemName: tile.name,
-      amount: Number(tile.count || 1)
+      amount: Number(tile.takeCount || tile.count || 1),
+      fixedStack: !!tile.fixedStack
     }));
     const data = await postJson('/api/loot/take-selection', { selections });
     if (!data.ok) {
@@ -535,13 +594,15 @@
         loot_selection_empty: '❌ Ничего не выбрано.',
         inventory_empty: '📦 Инвентарь пуст.',
         inventory_entry_not_found: '❌ Один из выбранных предметов уже исчез из инвентаря.',
-        inventory_item_not_found: '❌ Один из выбранных предметов больше недоступен.'
+        inventory_item_not_found: '❌ Один из выбранных предметов больше недоступен.',
+        stream_offline: '❌ Забрать можно только когда стрим онлайн.'
       };
       showMessage?.(labels[data.error] || `❌ Не удалось забрать выбранные предметы: ${data.error}`);
       await fetchLootState().catch(() => {});
       return;
     }
     selectedLootTileIds.clear();
+    selectedLootCounts.clear();
     showMessage?.(`✅ Забрано: ${data.prizeLabel}`);
     await refreshLootAfterAction(data);
   }

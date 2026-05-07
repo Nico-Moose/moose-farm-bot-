@@ -431,8 +431,17 @@ router.post('/loot/open', requireAuth, async (req, res) => {
   }
 });
 
+function isLootTakeAllowedByStream() {
+  try {
+    return !!getStreamStatusSnapshot().online;
+  } catch (_) {
+    return false;
+  }
+}
+
 router.post('/loot/take', requireAuth, async (req, res) => {
   try {
+    if (!isLootTakeAllowedByStream()) return res.status(400).json({ ok: false, error: 'stream_offline' });
     const request = req.body?.request && typeof req.body.request === 'object'
       ? req.body.request
       : parseTakeRequest(String(req.body?.query || req.body?.request || '').trim());
@@ -446,6 +455,7 @@ router.post('/loot/take', requireAuth, async (req, res) => {
 
 router.post('/loot/take-selection', requireAuth, async (req, res) => {
   try {
+    if (!isLootTakeAllowedByStream()) return res.status(400).json({ ok: false, error: 'stream_offline' });
     const result = await takeLootSelectionForUser(req.session.twitchUser, req.body?.selections);
     if (!result.ok) return res.status(400).json(result);
     res.json(result);

@@ -427,9 +427,10 @@ function normalizeBulkSelections(rawSelections) {
     if (entryId <= 0 || !itemName) continue;
     const key = `${entryId}::${resolveItemAlias(itemName)}`;
     if (!merged.has(key)) {
-      merged.set(key, { entryId, itemName, amount: 0 });
+      merged.set(key, { entryId, itemName, amount: 0, fixedStack: !!raw?.fixedStack });
     }
     merged.get(key).amount += amount;
+    if (raw?.fixedStack) merged.get(key).fixedStack = true;
   }
 
   for (const item of merged.values()) result.push(item);
@@ -448,7 +449,7 @@ function takeLootSelectionForUser(user, rawSelections) {
   const db = getDb();
   const now = nowFormatted();
   let combinedPrizeLabel = '';
-  let remainLabels = [];
+  const remainLabels = [];
   let isPartialTake = false;
   let maxVisualLevel = 1;
   let maxRarity = 'common';
@@ -458,48 +459,96 @@ function takeLootSelectionForUser(user, rawSelections) {
   let firstWonDate = '';
   const caseNames = [];
 
+  function appendTaken(row, takeResult) {
+    combinedPrizeLabel = combinedPrizeLabel ? mergePrizeLabels(combinedPrizeLabel, takeResult.takenLabel) : takeResult.takenLabel;
+    if (takeResult.remainLabel) remainLabels.push(`[${toInt(row.entry_id, 0)}] ${takeResult.remainLabel}`);
+    if (!takeResult.isFullTake) isPartialTake = true;
+    if (!firstEntryId) firstEntryId = toInt(row.entry_id, 0);
+    if (!firstWonDate) firstWonDate = row.won_date || '';
+    caseNames.push(row.case_name || '');
+    totalDonateSum += Math.max(0, toInt(row.donate_sum, 0));
+    maxVisualLevel = Math.max(maxVisualLevel, Math.max(1, toInt(row.visual_level, 1)));
+    const rarityWeight = getRarityWeight(row.rarity || 'common');
+    if (rarityWeight > maxRarityWeight) {
+      maxRarityWeight = rarityWeight;
+      maxRarity = row.rarity || 'common';
+    }
+  }
+
+  function applyTake(row, takeResult) {
+    if (takeResult.isFullTake) {
+      db.prepare('DELETE FROM loot_inventory WHERE twitch_id = ? AND entry_id = ?').run(twitchId, row.entry_id);
+    } else {
+      db.prepare('UPDATE loot_inventory SET prize_label = ?, updated_at = ? WHERE twitch_id = ? AND entry_id = ?').run(takeResult.remainLabel, Date.now(), twitchId, row.entry_id);
+    }
+  }
+
   try {
     const transaction = db.transaction(() => {
       for (const selection of selections) {
-        const row = db.prepare(`
-          SELECT entry_id, prize_id, prize_label, rarity, visual_level, donate_sum, case_name, won_date, status, updated_at
-          FROM loot_inventory
-          WHERE twitch_id = ? AND entry_id = ?
-        `).get(twitchId, selection.entryId);
+        const itemName = trimText(selection.itemName || selection.name || '');
+        const amount = Math.max(1, toInt(selection.amount || selection.count || 1, 1));
+        const itemKey = resolveItemAlias(itemName);
 
-        if (!row) {
-          const error = new Error('inventory_entry_not_found');
-          error.code = 'inventory_entry_not_found';
+        if (!itemName || !itemKey) {
+          const error = new Error('inventory_item_not_found');
+          error.code = 'inventory_item_not_found';
           throw error;
         }
 
-        const takeResult = takeSpecificItemFromLabel(trimText(row.prize_label || ''), selection.itemName, selection.amount, { allowRestricted: true });
-        if (!takeResult?.ok) {
-          const error = new Error(takeResult?.restricted ? 'restricted_item_take' : 'inventory_item_not_found');
-          error.code = error.message;
+        // Фиксированные стаки, например Incendiary 5.56, забираются только выбранным стаком.
+        if (toInt(selection.entryId, 0) > 0 || selection.fixedStack) {
+          const row = db.prepare(`
+            SELECT entry_id, prize_id, prize_label, rarity, visual_level, donate_sum, case_name, won_date, status, updated_at
+            FROM loot_inventory
+            WHERE twitch_id = ? AND entry_id = ?
+          `).get(twitchId, toInt(selection.entryId, 0));
+
+          if (!row) {
+            const error = new Error('inventory_entry_not_found');
+            error.code = 'inventory_entry_not_found';
+            throw error;
+          }
+
+          const takeResult = takeSpecificItemFromLabel(trimText(row.prize_label || ''), itemName, amount, { allowRestricted: true });
+          if (!takeResult?.ok) {
+            const error = new Error(takeResult?.restricted ? 'restricted_item_take' : 'inventory_item_not_found');
+            error.code = error.message;
+            throw error;
+          }
+
+          applyTake(row, takeResult);
+          appendTaken(row, takeResult);
+          continue;
+        }
+
+        if (itemKey === 'incendiary') {
+          const error = new Error('fixed_stack_required');
+          error.code = 'fixed_stack_required';
           throw error;
         }
 
-        if (takeResult.isFullTake) {
-          db.prepare('DELETE FROM loot_inventory WHERE twitch_id = ? AND entry_id = ?').run(twitchId, row.entry_id);
-        } else {
-          db.prepare('UPDATE loot_inventory SET prize_label = ?, updated_at = ? WHERE twitch_id = ? AND entry_id = ?').run(takeResult.remainLabel, Date.now(), twitchId, row.entry_id);
+        let left = amount;
+        const rows = getInventoryRowsByTwitchId(twitchId);
+        for (const row of rows) {
+          if (left <= 0) break;
+          const parts = parsePrizeLabel(row.prize_label || '');
+          const part = parts.find((candidate) => matchItemKey(candidate.name, itemKey));
+          if (!part) continue;
+          const available = Math.max(0, toInt(part.count, 0));
+          if (available <= 0) continue;
+          const takeAmount = Math.min(left, available);
+          const takeResult = takeSpecificItemFromLabel(trimText(row.prize_label || ''), itemName, takeAmount, { allowRestricted: false });
+          if (!takeResult?.ok) continue;
+          applyTake(row, takeResult);
+          appendTaken(row, takeResult);
+          left -= takeAmount;
         }
 
-        combinedPrizeLabel = combinedPrizeLabel ? mergePrizeLabels(combinedPrizeLabel, takeResult.takenLabel) : takeResult.takenLabel;
-        if (takeResult.remainLabel) {
-          remainLabels.push(`[${toInt(row.entry_id, 0)}] ${takeResult.remainLabel}`);
-        }
-        if (!takeResult.isFullTake) isPartialTake = true;
-        if (!firstEntryId) firstEntryId = toInt(row.entry_id, 0);
-        if (!firstWonDate) firstWonDate = row.won_date || '';
-        caseNames.push(row.case_name || '');
-        totalDonateSum += Math.max(0, toInt(row.donate_sum, 0));
-        maxVisualLevel = Math.max(maxVisualLevel, Math.max(1, toInt(row.visual_level, 1)));
-        const rarityWeight = getRarityWeight(row.rarity || 'common');
-        if (rarityWeight > maxRarityWeight) {
-          maxRarityWeight = rarityWeight;
-          maxRarity = row.rarity || 'common';
+        if (left > 0) {
+          const error = new Error('inventory_item_not_found');
+          error.code = 'inventory_item_not_found';
+          throw error;
         }
       }
 
