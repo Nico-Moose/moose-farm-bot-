@@ -1,0 +1,334 @@
+/* Moose Farm — Lunar final layout + Twitch chat restore
+   SAFE PATCH: CSS-only.
+   Fixes:
+   - return Twitch iframe back into the right column (no fixed floating iframe)
+   - make chat clickable without huge z-index/fixed hacks
+   - remove remaining green from main panels and badges
+*/
+
+:root {
+  --l17-bg-a: #050718;
+  --l17-bg-b: #091024;
+  --l17-bg-c: #0d1733;
+  --l17-panel: rgba(8, 12, 30, 0.96);
+  --l17-panel-2: rgba(12, 19, 44, 0.94);
+  --l17-line: rgba(126, 158, 255, 0.24);
+  --l17-line-2: rgba(116, 236, 255, 0.28);
+  --l17-text: #f6f8ff;
+  --l17-soft: rgba(221, 228, 255, 0.74);
+  --l17-muted: rgba(178, 190, 230, 0.62);
+  --l17-cyan: #74ecff;
+  --l17-violet: #9b7cff;
+  --l17-pink: #ff72d2;
+  --l17-shadow: 0 18px 54px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* prevent horizontal scroll without forcing the chat out of its column */
+html,
+body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
+body {
+  background:
+    radial-gradient(circle at 14% -10%, rgba(116,236,255,.12), transparent 30%),
+    radial-gradient(circle at 82% -8%, rgba(155,124,255,.12), transparent 27%),
+    radial-gradient(circle at 52% 115%, rgba(255,114,210,.08), transparent 34%),
+    linear-gradient(180deg, #070a1d 0%, #050718 62%, #02030b 100%) !important;
+}
+
+/* kill the last green/teal patches on main blocks */
+.farm-hero,
+.visual-section,
+.tab-page-card,
+.profile-card-final,
+.profile-card-final.visual-profile-patch,
+.profile-main-left,
+.main-actions-card,
+.main-twitch-chat-card,
+.farm-online-side,
+.stat-tile,
+.info-stat,
+.quick-status,
+.market-card,
+.building-card,
+.combat-card,
+.loot-modal-card,
+.loot-modal-head.premium,
+.loot-stat-card,
+.loot-promo-card,
+.loot-cases-card,
+.loot-recent-card,
+.loot-inventory-card,
+.pretty-modal-card,
+.farmer-popup-card,
+.farmers-list-dialog,
+.farmer-modal-dialog,
+.admin-card,
+.admin-panel,
+.admin-player-card,
+.admin-mini-card,
+.admin-view-section,
+.admin-unified-section,
+.admin-field-card,
+.admin-building-card,
+.admin-status,
+#adminStatus,
+.admin-loaded,
+#message.message-panel,
+.level-badge,
+.status-badge,
+.building-badge,
+.profile-status-pill,
+.profile-loot-chip,
+.loot-selection-pill,
+.loot-icon-count,
+.loot-section-head > span {
+  color: var(--l17-text) !important;
+  border-color: var(--l17-line) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(116,236,255,.07), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(255,114,210,.045), transparent 28%),
+    linear-gradient(180deg, var(--l17-panel-2), var(--l17-panel)) !important;
+  box-shadow: var(--l17-shadow) !important;
+}
+
+.profile-status-pill,
+.profile-loot-chip,
+.level-badge,
+.status-badge,
+.building-badge,
+[class*="badge"],
+[class*="pill"] {
+  border-color: rgba(116,236,255,.28) !important;
+  background:
+    radial-gradient(circle at top, rgba(116,236,255,.12), transparent 46%),
+    linear-gradient(180deg, rgba(18, 29, 62, .96), rgba(8, 12, 30, .96)) !important;
+}
+
+.farm-logo {
+  background:
+    radial-gradient(circle at 35% 25%, rgba(116,236,255,.18), transparent 42%),
+    linear-gradient(145deg, rgba(11,20,48,.98), rgba(6,9,26,.98)) !important;
+  border-color: rgba(116,236,255,.28) !important;
+}
+
+.farm-logo::after {
+  background: linear-gradient(180deg, #c9fbff, #7ddcff 62%, #9b7cff) !important;
+  color: #081020 !important;
+  border-color: rgba(255,255,255,.42) !important;
+  right: -10px !important;
+  top: -8px !important;
+}
+
+p, small, label,
+.muted, .text-muted,
+.section-head p,
+.farm-hero p,
+.visual-section p,
+.stat-tile span,
+.info-stat span,
+.profile-loot-chip span,
+.farm-online-head p,
+.main-twitch-chat-head p {
+  color: var(--l17-soft) !important;
+}
+
+/* Desktop layout: slightly narrower site + normal right chat column */
+@media (min-width: 1450px) {
+  .app-shell {
+    width: min(1880px, calc(100vw - 22px)) !important;
+    max-width: calc(100vw - 22px) !important;
+    overflow: visible !important;
+  }
+
+  .main-dashboard-layout,
+  .farm-content-with-chat {
+    display: grid !important;
+    grid-template-columns: 250px minmax(0, 1fr) 380px !important;
+    gap: 14px !important;
+    align-items: start !important;
+    overflow: visible !important;
+    transform: none !important;
+    contain: none !important;
+    isolation: auto !important;
+  }
+
+  .main-dashboard-primary,
+  .farm-content-primary,
+  .profile-shell {
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .main-dashboard-side,
+  .persistent-twitch-chat-side {
+    position: sticky !important;
+    top: 96px !important;
+    width: 380px !important;
+    min-width: 380px !important;
+    max-width: 380px !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    z-index: 12 !important;
+    transform: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    contain: none !important;
+    isolation: auto !important;
+  }
+}
+
+/* CRITICAL: Twitch iframe must stay inside its own card, not fixed over the page */
+.main-twitch-chat-card,
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  pointer-events: auto !important;
+  user-select: auto !important;
+  touch-action: auto !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  contain: none !important;
+  isolation: auto !important;
+  opacity: 1 !important;
+}
+
+.main-twitch-chat-card {
+  position: relative !important;
+  overflow: visible !important;
+  z-index: 12 !important;
+  padding: 12px !important;
+}
+
+.main-twitch-chat-frame {
+  position: relative !important;
+  overflow: hidden !important;
+  z-index: 13 !important;
+  border-radius: 16px !important;
+  background: #18181b !important;
+}
+
+.main-twitch-chat-embed {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: clamp(620px, calc(100vh - 210px), 780px) !important;
+  min-height: clamp(620px, calc(100vh - 210px), 780px) !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  z-index: 14 !important;
+}
+
+.main-twitch-chat-embed iframe {
+  position: relative !important;
+  inset: auto !important;
+  right: auto !important;
+  top: auto !important;
+  left: auto !important;
+  bottom: auto !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  border: 0 !important;
+  z-index: 15 !important;
+  pointer-events: auto !important;
+  background: #18181b !important;
+}
+
+/* remove fake/decorative layers around chat only */
+.main-twitch-chat-card::before,
+.main-twitch-chat-card::after,
+.main-twitch-chat-frame::before,
+.main-twitch-chat-frame::after,
+.main-twitch-chat-embed::before,
+.main-twitch-chat-embed::after,
+.persistent-twitch-chat-side::before,
+.persistent-twitch-chat-side::after,
+.main-dashboard-side::before,
+.main-dashboard-side::after {
+  content: none !important;
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* site overlays should never sit on the chat input in normal state */
+#message,
+#message.message-panel,
+.site-toast-root,
+.action-toast-root,
+#scrollTopBtn {
+  z-index: 30 !important;
+  right: auto !important;
+}
+
+.site-toast-root,
+.action-toast-root {
+  left: 18px !important;
+  bottom: 18px !important;
+  top: auto !important;
+  pointer-events: none !important;
+}
+
+.site-toast,
+.action-toast {
+  pointer-events: auto !important;
+}
+
+/* real open modals still cover the page intentionally */
+.farmer-modal:not(.hidden),
+.farmers-list-modal:not(.hidden),
+.loot-modal:not(.hidden),
+.pretty-modal-root.is-open,
+.case-overlay[style*="display: flex"] {
+  z-index: 3000 !important;
+}
+
+/* buttons remain lunar, not green */
+button,
+.btn,
+.button,
+.farm-tab,
+.back-main-btn,
+.admin-entry button,
+.farm-online-all-btn,
+.stream-card-head-btn,
+.loot-modal-close,
+.loot-inline-form button,
+.loot-case-btn,
+.loot-action-btn,
+.market-step-btn,
+.market-buy-btn,
+.market-sell-btn,
+.action-grid-top button,
+.combat-card button,
+.building-card button,
+.quick-actions-section button,
+.pretty-modal-actions button,
+#openAdminPanel,
+#toggleHideSelfBtn,
+#openAllFarmersBtn {
+  border-color: rgba(126,158,255,.30) !important;
+  color: var(--l17-text) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(116,236,255,.12), transparent 50%),
+    linear-gradient(180deg, rgba(22,32,72,.96), rgba(8,12,31,.96)) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+
+.farm-tab.active,
+.farm-tab[aria-selected="true"] {
+  color: #071021 !important;
+  border-color: rgba(255,255,255,.48) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.55), transparent 36%),
+    linear-gradient(110deg, #c8f9ff 0%, #74ecff 32%, #8e8aff 68%, #ff72d2 100%) !important;
+}
