@@ -1,0 +1,335 @@
+/* Moose Farm — Lunar final polish: no green panels, centered case buttons, no scroll-top.
+   SAFE PATCH: CSS only, no logic changes. */
+
+:root {
+  --lunar-bg-0: #030716;
+  --lunar-bg-1: #071026;
+  --lunar-bg-2: #0b1836;
+  --lunar-bg-3: #101b3a;
+  --lunar-edge: rgba(105, 135, 255, 0.34);
+  --lunar-edge-soft: rgba(105, 135, 255, 0.18);
+  --lunar-cyan: #73e7ff;
+  --lunar-violet: #a988ff;
+  --lunar-pink: #ff7adf;
+  --lunar-gold: #ffd166;
+  --lunar-good: #9dff83;
+  --lunar-text: #f7fbff;
+  --lunar-muted: rgba(218, 228, 255, 0.72);
+}
+
+/* 1) Remove the floating scroll-to-top button completely */
+#scrollTopBtn,
+#scrollTopBtn.visible,
+button#scrollTopBtn {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+/* 2) Keep horizontal overflow away without moving Twitch chat */
+html,
+body,
+.app-shell,
+.farm-content-with-chat,
+.main-dashboard-layout,
+.main-dashboard-primary,
+.farm-content-primary {
+  max-width: 100% !important;
+  overflow-x: clip !important;
+}
+
+/* 3) Final no-green pass for main panels / modals / raid details */
+.visual-section,
+.profile-card-final,
+.profile-shell,
+.main-actions-card,
+.tab-page-card,
+.market-card,
+.info-card,
+.history-controls,
+.license-card,
+.combat-card,
+.building-card,
+.building-card-clean,
+.building-card-v3,
+.market-section,
+.info-section,
+.history-section,
+.stream-section,
+.main-twitch-chat-card,
+.farm-online-side,
+.online-farmers-card,
+.farmer-popup-card,
+.pretty-modal-card,
+.admin-panel,
+.admin-card,
+.admin-player-card,
+.admin-mini-card,
+.admin-view-section,
+.admin-unified-section,
+.admin-field-card,
+.admin-building-card,
+.top-card,
+.analytics-card,
+.raid-primary-card,
+.raid-log-row,
+.pretty-event-row,
+.history-human-row,
+.loot-modal-card,
+.loot-promo-card,
+.loot-cases-card,
+.loot-recent-card,
+.loot-inventory-card,
+.loot-stat-card,
+.loot-icon-tile,
+.stream-video-card,
+.farmer-modal-dialog,
+.farmers-list-dialog,
+.farmer-popup-stats,
+.farmer-popup-buildings,
+.farmer-building-chip,
+.raid-modal,
+.raid-modal-card,
+.raid-detail-card,
+.raid-result-card,
+.raid-details-card,
+.raid-details-panel,
+.raid-history-card,
+.raid-summary-card,
+.modal-content,
+.popup,
+.dialog {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(115, 231, 255, 0.085), transparent 32%),
+    radial-gradient(circle at 0% 100%, rgba(169, 136, 255, 0.07), transparent 30%),
+    linear-gradient(180deg, rgba(8, 16, 38, 0.98), rgba(4, 7, 18, 0.98)) !important;
+  border-color: var(--lunar-edge-soft) !important;
+  color: var(--lunar-text) !important;
+  box-shadow: 0 22px 66px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+
+/* dark sub-cells, no green wash */
+.stat-tile,
+.info-stat,
+.quick-status,
+.profile-status-pill,
+.profile-loot-chip,
+.building-summary-v3 > div,
+.building-main-v3 > div,
+.building-pack-v3,
+.building-card-clean__meta > div,
+.building-card-clean__effects,
+.building-card-clean__pack,
+.clean-building-status > div,
+.clean-cost-grid > div,
+.top-building-cell,
+.farmer-popup-stats-grid > div,
+.farmer-popup-buildings-grid > div,
+.loot-selection-bar,
+.loot-recent-row,
+.history-item,
+.history-human-row,
+.pretty-event-row,
+.raid-detail-card > div,
+.raid-result-card > div,
+.raid-summary-card > div,
+.admin-status,
+.admin-message,
+.admin-loaded,
+.admin-player-loaded,
+#admin-status,
+#admin-message {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(115, 231, 255, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(13, 24, 52, 0.94), rgba(6, 10, 24, 0.96)) !important;
+  border-color: rgba(105, 135, 255, 0.24) !important;
+  color: var(--lunar-text) !important;
+}
+
+/* remove green borders left from old patches */
+*[style*="green"],
+*[style*="#0f3"],
+*[style*="#16"],
+*[style*="#1b"],
+*[style*="#22"] {
+  border-color: var(--lunar-edge-soft) !important;
+}
+
+/* 4) Center case amount buttons */
+.loot-case-grid.premium {
+  align-items: stretch !important;
+}
+
+.loot-case-btn,
+.loot-case-grid .loot-case-btn,
+button.loot-case-btn {
+  min-height: 52px !important;
+  height: 52px !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 6px !important;
+  line-height: 1 !important;
+}
+
+.loot-case-btn span,
+.loot-case-grid .loot-case-btn span {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  transform: translateY(0) !important;
+  font-size: 18px !important;
+}
+
+.loot-case-btn small,
+.loot-case-grid .loot-case-btn small {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  transform: translateY(1px) !important;
+}
+
+/* 5) Highlight building requirements/status levels in the requested bright style */
+.building-card-clean__level,
+.building-badge,
+.building-summary-v3 b,
+.building-main-v3 b,
+.clean-building-status b,
+.clean-cost-grid b,
+.top-building-cell span,
+.farmer-building-chip small,
+.building-card-clean__meta b,
+.building-card-clean__pack b,
+.stage-building-meta b,
+.stage-cost-grid b,
+.info-building-cell span,
+.info-building-cell b {
+  color: var(--lunar-good) !important;
+  text-shadow: 0 0 14px rgba(157, 255, 131, 0.18) !important;
+}
+
+.building-card-clean__level,
+.building-badge,
+.clean-building-status b,
+.building-card-clean__pack,
+.building-pack-v3 {
+  border-color: rgba(157, 255, 131, 0.26) !important;
+  background:
+    linear-gradient(180deg, rgba(157, 255, 131, 0.12), rgba(10, 18, 38, 0.56)) !important;
+}
+
+/* 6) Buttons should stay Lunar, not green */
+button,
+.btn,
+.button,
+.farm-tab,
+.back-main-btn,
+.admin-entry button,
+.farm-online-all-btn,
+.main-twitch-chat-link,
+.stream-card-head-btn,
+.loot-modal-close,
+.loot-inline-form button,
+.loot-case-btn,
+.loot-action-btn,
+.market-step-btn,
+.market-buy-btn,
+.market-sell-btn,
+.action-grid-top button,
+.combat-card button,
+.building-card button,
+.building-card-clean__actions button,
+.compact-extra-actions button,
+.quick-actions-section button,
+.pretty-modal-actions button {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(115,231,255,.16), transparent 46%),
+    linear-gradient(180deg, rgba(19, 31, 78, 0.98), rgba(7, 10, 32, 0.98)) !important;
+  border-color: rgba(105, 135, 255, 0.38) !important;
+  color: var(--lunar-text) !important;
+}
+
+button:hover,
+.btn:hover,
+.button:hover,
+.farm-tab:hover,
+.back-main-btn:hover,
+.farm-online-all-btn:hover,
+.stream-card-head-btn:hover,
+.loot-case-btn:hover,
+.loot-action-btn:hover,
+.market-step-btn:hover,
+.market-buy-btn:hover,
+.market-sell-btn:hover,
+.action-grid-top button:hover,
+.combat-card button:hover,
+.building-card button:hover,
+.building-card-clean__actions button:hover {
+  border-color: rgba(115, 231, 255, 0.58) !important;
+  box-shadow: 0 18px 38px rgba(0,0,0,.32), 0 0 24px rgba(115,231,255,.14) !important;
+}
+
+.farm-tab.active,
+.farm-tab[aria-selected="true"] {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.38), transparent 34%),
+    linear-gradient(135deg, #a9f7ff 0%, #8798ff 48%, #f27be9 100%) !important;
+  color: #071026 !important;
+  border-color: rgba(208, 246, 255, 0.72) !important;
+}
+
+/* 7) Raid modal exact green leftover cleanup */
+.pretty-modal-card .raid-detail-card,
+.pretty-modal-card .raid-detail-card > div,
+.pretty-modal-card .raid-result-card,
+.pretty-modal-card .raid-result-card > div,
+.pretty-modal-card details,
+.pretty-modal-card summary {
+  background:
+    linear-gradient(180deg, rgba(13, 24, 52, 0.96), rgba(6, 10, 24, 0.96)) !important;
+  border-color: rgba(105, 135, 255, 0.24) !important;
+  color: var(--lunar-text) !important;
+}
+
+/* 8) Twitch chat: keep the working state, do not overlay it */
+.main-dashboard-side,
+.persistent-twitch-chat-side,
+.main-twitch-chat-card,
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  position: relative !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  pointer-events: auto !important;
+  z-index: 20 !important;
+}
+
+.main-twitch-chat-card::before,
+.main-twitch-chat-card::after,
+.main-twitch-chat-frame::before,
+.main-twitch-chat-frame::after,
+.main-twitch-chat-embed::before,
+.main-twitch-chat-embed::after {
+  display: none !important;
+  content: none !important;
+  pointer-events: none !important;
+}
+
+/* notifications stay bottom-left and never over chat */
+#message.message-panel {
+  left: 18px !important;
+  right: auto !important;
+  bottom: 18px !important;
+  top: auto !important;
+  z-index: 12 !important;
+  max-width: min(440px, calc(100vw - 36px)) !important;
+}
