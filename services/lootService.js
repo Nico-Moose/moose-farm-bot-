@@ -165,10 +165,24 @@ function isRestrictedItemAlias(itemKey) {
   return itemKey === 'incendiary';
 }
 
+function getStackStepByItemKey(itemKey) {
+  if (itemKey === 'smoke') return 6;
+  if (itemKey === 'incendiary') return 16;
+  return 1;
+}
+
+function normalizeTakeAmountForItem(itemKey, amount) {
+  const step = getStackStepByItemKey(itemKey);
+  const safeAmount = Math.max(step, toInt(amount, step));
+  if (step <= 1) return safeAmount;
+  return Math.max(step, Math.floor(safeAmount / step) * step);
+}
+
 function getIdTakeCount(partName, partCount) {
   const key = normalizeItemName(partName);
   const count = Math.max(1, toInt(partCount, 1));
   if (key === 'smoke') return count >= 6 ? 6 : count;
+  if (key === 'incendiary') return count >= 16 ? 16 : count;
   return 1;
 }
 
@@ -424,8 +438,10 @@ function normalizeBulkSelections(rawSelections) {
     const entryId = toInt(raw?.entryId, 0);
     const itemName = trimText(raw?.itemName || raw?.name || '');
     const amount = Math.max(1, toInt(raw?.amount || raw?.count || 1, 1));
-    if (entryId <= 0 || !itemName) continue;
-    const key = `${entryId}::${resolveItemAlias(itemName)}`;
+    if (!itemName) continue;
+    const itemKey = resolveItemAlias(itemName);
+    if (!itemKey) continue;
+    const key = `${entryId}::${itemKey}`;
     if (!merged.has(key)) {
       merged.set(key, { entryId, itemName, amount: 0, fixedStack: !!raw?.fixedStack });
     }
@@ -487,8 +503,8 @@ function takeLootSelectionForUser(user, rawSelections) {
     const transaction = db.transaction(() => {
       for (const selection of selections) {
         const itemName = trimText(selection.itemName || selection.name || '');
-        const amount = Math.max(1, toInt(selection.amount || selection.count || 1, 1));
         const itemKey = resolveItemAlias(itemName);
+        const amount = normalizeTakeAmountForItem(itemKey, selection.amount || selection.count || 1);
 
         if (!itemName || !itemKey) {
           const error = new Error('inventory_item_not_found');
@@ -522,12 +538,6 @@ function takeLootSelectionForUser(user, rawSelections) {
           continue;
         }
 
-        if (itemKey === 'incendiary') {
-          const error = new Error('fixed_stack_required');
-          error.code = 'fixed_stack_required';
-          throw error;
-        }
-
         let left = amount;
         const rows = getInventoryRowsByTwitchId(twitchId);
         for (const row of rows) {
@@ -537,8 +547,11 @@ function takeLootSelectionForUser(user, rawSelections) {
           if (!part) continue;
           const available = Math.max(0, toInt(part.count, 0));
           if (available <= 0) continue;
-          const takeAmount = Math.min(left, available);
-          const takeResult = takeSpecificItemFromLabel(trimText(row.prize_label || ''), itemName, takeAmount, { allowRestricted: false });
+          let takeAmount = Math.min(left, available);
+          const step = getStackStepByItemKey(itemKey);
+          if (step > 1) takeAmount = Math.floor(takeAmount / step) * step;
+          if (takeAmount <= 0) continue;
+          const takeResult = takeSpecificItemFromLabel(trimText(row.prize_label || ''), itemName, takeAmount, { allowRestricted: itemKey === 'incendiary' });
           if (!takeResult?.ok) continue;
           applyTake(row, takeResult);
           appendTaken(row, takeResult);

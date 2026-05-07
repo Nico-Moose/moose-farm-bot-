@@ -66,7 +66,14 @@
   }
 
   function isFixedStackItemName(name) {
-    return getItemVisualKey(name) === 'incendiary';
+    return false;
+  }
+
+  function getStackStepByName(name) {
+    const key = getItemVisualKey(name);
+    if (key === 'smoke') return 6;
+    if (key === 'incendiary') return 16;
+    return 1;
   }
 
   function getTileSortWeight(tile) {
@@ -131,24 +138,6 @@
         const visualKey = getItemVisualKey(name);
         const icon = getItemIcon(name);
 
-        if (visualKey === 'incendiary') {
-          fixedStacks.push({
-            selectionId: `${entryId}::${visualKey}::${index}::${count}`,
-            entryId,
-            name,
-            count,
-            available: count,
-            takeCount: count,
-            fixedStack: true,
-            rarity,
-            visualLevel,
-            caseName,
-            wonDate,
-            icon
-          });
-          return;
-        }
-
         const key = visualKey || normalizeKey(name);
         if (!stackMap.has(key)) {
           stackMap.set(key, {
@@ -159,6 +148,7 @@
             available: 0,
             takeCount: 1,
             fixedStack: false,
+            step: getStackStepByName(name),
             rarity,
             visualLevel,
             caseName,
@@ -169,6 +159,7 @@
         const tile = stackMap.get(key);
         tile.count += count;
         tile.available += count;
+        tile.step = Math.max(1, getStackStepByName(tile.name));
         tile.visualLevel = Math.max(Number(tile.visualLevel || 1), visualLevel);
         if (getTileSortWeight({ name: tile.name }) > getTileSortWeight({ name })) tile.name = name;
         if (!tile.icon && icon) tile.icon = icon;
@@ -177,7 +168,15 @@
 
     const tiles = [...stackMap.values(), ...fixedStacks];
     tiles.forEach((tile) => {
-      if (!selectedLootTileIds.has(tile.selectionId)) tile.takeCount = tile.fixedStack ? tile.count : Math.min(1, tile.available || tile.count || 1);
+      const max = Math.max(1, Number(tile.available || tile.count || 1));
+      const step = Math.max(1, Number(tile.step || getStackStepByName(tile.name) || 1));
+      if (!selectedLootTileIds.has(tile.selectionId)) {
+        tile.takeCount = tile.fixedStack ? tile.count : Math.min(step, max);
+      } else {
+        const rawValue = Math.min(Number(selectedLootCounts.get(tile.selectionId) || step), max);
+        if (step > 1) tile.takeCount = Math.max(step, Math.floor(rawValue / step) * step);
+        else tile.takeCount = Math.max(1, rawValue);
+      }
     });
 
     tiles.sort((a, b) => {
@@ -205,7 +204,9 @@
     getLootTiles().forEach((tile) => {
       if (ids.has(tile.selectionId)) {
         const max = Math.max(1, Number(tile.available || tile.count || 1));
-        const chosen = tile.fixedStack ? Number(tile.count || 1) : Math.min(max, Math.max(1, Number(selectedLootCounts.get(tile.selectionId) || 1)));
+        const step = Math.max(1, Number(tile.step || getStackStepByName(tile.name) || 1));
+        const raw = Math.min(max, Math.max(step, Number(selectedLootCounts.get(tile.selectionId) || step)));
+        const chosen = tile.fixedStack ? Number(tile.count || 1) : (step > 1 ? Math.max(step, Math.floor(raw / step) * step) : raw);
         selected.push({ ...tile, takeCount: chosen });
       }
     });
@@ -373,11 +374,14 @@
       const selected = selectedById.get(tile.selectionId);
       const selectedClass = selected ? ' selected' : '';
       const max = Math.max(1, Number(tile.available || tile.count || 1));
-      const value = selected ? Number(selected.takeCount || 1) : 1;
+      const step = Math.max(1, Number(tile.step || getStackStepByName(tile.name) || 1));
+      const min = Math.min(step, max);
+      const value = selected ? Number(selected.takeCount || min) : min;
+      const safeValue = step > 1 ? Math.max(min, Math.floor(Math.min(max, value) / step) * step) : Math.min(max, value);
       const slider = selected && !tile.fixedStack ? `
         <div class="loot-amount-control" data-loot-amount-wrap="${esc(tile.selectionId)}">
-          <input type="range" min="1" max="${max}" value="${Math.min(max, value)}" data-loot-amount-id="${esc(tile.selectionId)}" />
-          <div class="loot-amount-row"><span>Взять</span><b>${Math.min(max, value)} / ${max}</b></div>
+          <input type="range" min="${min}" max="${max}" step="${step}" value="${safeValue}" data-loot-amount-id="${esc(tile.selectionId)}" />
+          <div class="loot-amount-row"><span>Взять</span><b>${safeValue} / ${max}</b></div>
         </div>` : '';
       const locked = tile.fixedStack ? '<div class="loot-fixed-note">только весь стак</div>' : '';
       return `
@@ -499,14 +503,19 @@
       selectedLootCounts.delete(selectionId);
     } else {
       selectedLootTileIds.add(selectionId);
-      selectedLootCounts.set(selectionId, 1);
+      const tile = getLootTiles().find((item) => item.selectionId === selectionId);
+      const step = Math.max(1, Number(tile?.step || getStackStepByName(tile?.name) || 1));
+      selectedLootCounts.set(selectionId, Math.min(step, Math.max(1, Number(tile?.available || tile?.count || step))));
     }
     renderLootModalBody();
   }
 
   function updateLootAmount(selectionId, rawValue) {
     if (!selectionId || !selectedLootTileIds.has(selectionId)) return;
-    const n = Math.max(1, Number(rawValue || 1));
+    const tile = getLootTiles().find((item) => item.selectionId === selectionId);
+    const step = Math.max(1, Number(tile?.step || getStackStepByName(tile?.name) || 1));
+    let n = Math.max(step, Number(rawValue || step));
+    if (step > 1) n = Math.max(step, Math.floor(n / step) * step);
     selectedLootCounts.set(selectionId, n);
     renderLootModalBody();
   }
