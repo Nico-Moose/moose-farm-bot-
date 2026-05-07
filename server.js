@@ -17,6 +17,7 @@ const apiRoutes = require('./routes/apiRoutes');
 const bridgeRoutes = require('./routes/bridgeRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const adminJournalRoutes = require('./routes/adminJournalRoutes');
+const { addClient: addLootOverlayClient } = require('./services/lootOverlayBus');
 
 function startWebServer() {
   const app = express();
@@ -43,6 +44,47 @@ function startWebServer() {
   }));
 
   app.use(express.static(path.join(__dirname, 'public')));
+
+
+  app.get('/api/overlay/loot/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
+
+    res.write('event: ping\n');
+    res.write(`data: ${JSON.stringify({ ok: true, connectedAt: Date.now() })}\n\n`);
+    if (typeof res.flush === 'function') {
+      res.flush();
+    }
+
+    addLootOverlayClient(res);
+
+    const pingTimer = setInterval(() => {
+      try {
+        res.write('event: ping\n');
+        res.write(`data: ${JSON.stringify({ ts: Date.now() })}\n\n`);
+        if (typeof res.flush === 'function') {
+          res.flush();
+        }
+      } catch (_) {
+        clearInterval(pingTimer);
+        try { res.end(); } catch (__) {}
+      }
+    }, 15000);
+
+    res.on('close', () => {
+      clearInterval(pingTimer);
+    });
+  });
+
+  app.get('/farm/overlay/loot', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'overlay', 'loot.html'));
+  });
 
   app.use('/auth', authRoutes);
 

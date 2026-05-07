@@ -1,6 +1,7 @@
 const { getDb } = require('./dbService');
 const { getProfileByLogin, logFarmEvent } = require('./userService');
 const { sayToChannel } = require('./twitchChatService');
+const { sendEvent: sendLootOverlayEvent } = require('./lootOverlayBus');
 
 const PLAYER_ALLOWED_AMOUNTS = [100, 200, 300, 500];
 const PROMO_CODE = 'nico_moose';
@@ -512,6 +513,15 @@ async function openLootCaseForUser(user, amount) {
     donateBalance: currentBalance - donateSum
   });
 
+  sendLootOverlayEvent('loot_open', {
+    user: login,
+    display: displayName,
+    donateSum,
+    caseName: lootData.caseName,
+    items: lootData.items,
+    winner
+  });
+
   const visual = await maybeTriggerChatVisual('open', {
     login,
     displayName,
@@ -627,6 +637,17 @@ async function takeLootForUser(user, rawRequest) {
     caseName: foundItem.case_name || '',
     partial: isPartialTake,
     remainLabel: remainLabelAfterTake || ''
+  });
+
+  sendLootOverlayEvent('loot_take', {
+    user: login,
+    display: displayName,
+    prizeLabel: takenLabel,
+    caseName: foundItem.case_name || '',
+    rarity: foundItem.rarity || 'common',
+    visualLevel: Math.max(1, toInt(foundItem.visual_level, 1)),
+    donateSum: toInt(foundItem.donate_sum, 0),
+    entryId: toInt(foundItem.entry_id, 0)
   });
 
   const visual = await maybeTriggerChatVisual('take', {

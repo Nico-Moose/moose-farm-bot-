@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moose Loot Overlay</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    #overlay-root {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    .hidden { display: none !important; }
+
+    .status-dot {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(90, 255, 130, 0.7);
+      box-shadow: 0 0 12px rgba(90, 255, 130, 0.55);
+      opacity: 0.45;
+    }
+
+    .take-toast {
+      position: absolute;
+      top: 28px;
+      right: 28px;
+      width: min(560px, calc(100vw - 56px));
+      opacity: 0;
+      transform: translateX(140%);
+      pointer-events: none;
+    }
+
+    .take-toast.show {
+      animation: takeIn 0.62s cubic-bezier(.2,.8,.2,1) forwards, takeOut 0.6s ease-in forwards 8.6s;
+    }
+
+    @keyframes takeIn { to { opacity: 1; transform: translateX(0); } }
+    @keyframes takeOut { to { opacity: 0; transform: translateX(120%); } }
+
+    .take-card {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 18px;
+      border: 2px solid rgba(255,140,40,0.9);
+      background: linear-gradient(135deg, rgba(10,10,10,0.96), rgba(24,18,12,0.96), rgba(38,26,16,0.96));
+      box-shadow: 0 18px 50px rgba(0,0,0,0.62), 0 0 30px rgba(255,120,20,0.24);
+      color: #fff;
+    }
+
+    .take-user {
+      font-size: 30px;
+      font-weight: 900;
+      color: #ff4d4d;
+      text-shadow: 0 0 10px rgba(255,80,80,0.8), 0 0 20px rgba(255,0,0,0.5);
+    }
+
+    .take-item {
+      font-size: 19px;
+      font-weight: 800;
+      line-height: 1.28;
+    }
+
+    .take-item span {
+      color: #ff4d4d;
+      text-shadow: 0 0 8px rgba(255,80,80,0.6);
+    }
+
+    .take-case {
+      font-size: 14px;
+      color: rgba(255,232,206,0.82);
+      font-weight: 700;
+    }
+
+    .take-parts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .take-part {
+      width: 92px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .take-part-box {
+      position: relative;
+      width: 92px;
+      height: 92px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.42);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .take-part-box img {
+      max-width: 82px;
+      max-height: 82px;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 14px rgba(0,0,0,0.6));
+    }
+
+    .take-part-count {
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      color: #fff;
+      background: rgba(255,77,77,0.92);
+      box-shadow: 0 0 8px rgba(255,80,80,0.45);
+    }
+
+    .take-part-name {
+      max-width: 92px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.15;
+      text-align: center;
+      color: rgba(255,232,206,0.88);
+      word-break: break-word;
+    }
+
+    .loot-open {
+      position: absolute;
+      inset: 0;
+      color: #fff;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .loot-open.show {
+      opacity: 1;
+    }
+
+    .loot-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(255,255,255,0.04), transparent 30%),
+        linear-gradient(180deg, rgba(8,10,14,0.94), rgba(3,4,7,0.98));
+    }
+
+    .loot-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+      padding: 34px 42px;
+      font-family: 'Arial Black', Arial, Helvetica, sans-serif;
+    }
+
+    .loot-top, .loot-bottom { text-align: center; }
+
+    .loot-title {
+      font-size: clamp(30px, 4vw, 54px);
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    .loot-subtitle, .loot-case-name {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 20px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #f0d7ad;
+      font-size: clamp(15px, 1.8vw, 22px);
+      font-weight: 800;
+    }
+
+    .loot-case-name {
+      margin-top: 14px;
+      border-radius: 16px;
+      font-size: clamp(20px, 2.4vw, 30px);
+      color: #fff;
+    }
+
+    .loot-arena {
+      position: relative;
+      width: 100%;
+      height: 372px;
+      overflow: hidden;
+      border-radius: 28px;
+      background: rgba(7,9,14,0.88);
+      border: 1px solid rgba(255,255,255,0.07);
+      box-shadow: inset 0 0 24px rgba(255,255,255,0.02);
+    }
+
+    .loot-arena::before,
+    .loot-arena::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      width: 240px;
+      height: 100%;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .loot-arena::before { left: 0; background: linear-gradient(90deg, rgba(0,0,0,0.95), transparent); }
+    .loot-arena::after { right: 0; background: linear-gradient(270deg, rgba(0,0,0,0.95), transparent); }
+
+    .loot-track-wrap {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      z-index: 2;
+    }
+
+    .loot-track {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translate3d(0, -50%, 0);
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 0 60px;
+      will-change: transform;
+    }
+
+    .loot-card {
+      position: relative;
+      width: 242px;
+      height: 276px;
+      flex: 0 0 242px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(20,24,32,0.98), rgba(9,12,18,0.99));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 14px 18px;
+      transform: scale(0.96);
+      transition: transform 0.25s ease, opacity 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .loot-card-topline {
+      position: absolute;
+      top: 0;
+      left: 10%;
+      width: 80%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--rarity-accent), transparent);
+      opacity: 0.9;
+    }
+
+    .loot-card-rarity {
+      position: relative;
+      z-index: 2;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: var(--rarity-accent);
+      text-shadow: 0 0 8px rgba(0,0,0,0.9);
+    }
+
+    .loot-card-icon-wrap {
+      position: relative;
+      z-index: 2;
+      width: 196px;
+      height: 154px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+
+    .card-icons-grid,
+    .reward-icons-grid { width: 100%; height: 100%; }
+    .card-icons-grid.parts-1,
+    .reward-icons-grid.parts-1 { display: flex; align-items: center; justify-content: center; }
+    .card-icons-grid.parts-2,
+    .reward-icons-grid.parts-2 { display: grid; grid-template-columns: repeat(2,1fr); align-items: center; justify-items: center; column-gap: 12px; }
+    .card-icons-grid.parts-3,
+    .card-icons-grid.parts-4,
+    .card-icons-grid.parts-5,
+    .card-icons-grid.parts-6 { display: grid; grid-template-columns: repeat(3,1fr); grid-auto-rows: 68px; gap: 8px; align-content: center; justify-items: center; }
+    .reward-icons-grid.parts-3,
+    .reward-icons-grid.parts-4,
+    .reward-icons-grid.parts-5,
+    .reward-icons-grid.parts-6 { display: grid; grid-template-columns: repeat(3,1fr); grid-auto-rows: 96px; gap: 12px; align-content: center; justify-items: center; }
+
+    .loot-part {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+      overflow: hidden;
+    }
+
+    .card-icons-grid.parts-1 .loot-part { width: 92px; height: 92px; }
+    .card-icons-grid.parts-2 .loot-part { width: 84px; height: 84px; }
+    .reward-icons-grid.parts-1 .loot-part { width: 126px; height: 126px; }
+    .reward-icons-grid.parts-2 .loot-part { width: 112px; height: 112px; }
+
+    .card-part-icon, .reward-part-icon {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(0,0,0,0.45));
+    }
+
+    .card-part-count, .reward-part-count {
+      position: absolute;
+      right: 4px;
+      bottom: 4px;
+      min-width: 28px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-weight: 900;
+      text-align: center;
+      background: rgba(0,0,0,0.82);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 0 8px rgba(0,0,0,0.35);
+    }
+
+    .card-part-count { font-size: 12px; }
+    .reward-part-count { font-size: 17px; right: 6px; bottom: 6px; min-width: 38px; padding: 4px 9px; }
+
+    .loot-card-noicon, .loot-reward-noicon {
+      width: 98px;
+      height: 98px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 52px;
+      font-weight: 900;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .loot-card-name {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 900;
+      line-height: 1.2;
+      text-shadow: 0 0 8px rgba(0,0,0,0.9);
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loot-card.rarity-common { border-color: rgba(201,209,217,0.12); }
+    .loot-card.rarity-rare { border-color: rgba(74,163,255,0.16); }
+    .loot-card.rarity-epic { border-color: rgba(168,92,255,0.18); }
+    .loot-card.rarity-legendary { border-color: rgba(255,154,31,0.22); }
+    .loot-card.rarity-mythic { border-color: rgba(255,66,92,0.24); }
+
+    .loot-center-line {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 4px;
+      height: 100%;
+      transform: translateX(-50%);
+      z-index: 6;
+      background: linear-gradient(180deg, transparent, rgba(255,255,255,0.55), transparent);
+    }
+
+    .loot-center-frame {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 270px;
+      height: 314px;
+      transform: translate(-50%, -50%);
+      border-radius: 28px;
+      z-index: 7;
+      pointer-events: none;
+      border: 2px solid rgba(255,255,255,0.18);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+    }
+
+    .loot-bottom { min-height: 84px; }
+    .loot-status {
+      font-size: clamp(24px, 2.5vw, 34px);
+      font-weight: 900;
+      text-shadow: 0 0 10px rgba(0,0,0,0.88);
+      opacity: 0.96;
+    }
+
+    .loot-status-win {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .loot-open.reveal .loot-card { opacity: 0.42; transform: scale(0.92); }
+    .loot-open.reveal .loot-card.near-winner { opacity: 0.68; transform: scale(0.98); }
+    .loot-open.reveal .loot-card.winner-card {
+      opacity: 1;
+      transform: scale(1.09);
+      border-color: var(--winner-color, rgba(255,255,255,0.28));
+      box-shadow: 0 0 24px var(--winner-glow, rgba(255,255,255,0.14));
+      z-index: 10;
+    }
+
+    .loot-open.reveal .loot-center-frame {
+      border-color: var(--winner-color, rgba(255,255,255,0.32));
+      box-shadow: 0 0 20px var(--winner-glow, rgba(255,255,255,0.16));
+      transform: translate(-50%, -50%) scale(1.02);
+    }
+
+    .loot-reward {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+    }
+
+    .loot-reward.show { opacity: 1; }
+
+    .loot-reward-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.62);
+    }
+
+    .loot-reward-card {
+      position: relative;
+      width: min(980px, 88vw);
+      min-height: 360px;
+      border-radius: 30px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: linear-gradient(180deg, rgba(20,24,32,0.98), rgba(8,10,14,0.99));
+      box-shadow: 0 0 28px rgba(0,0,0,0.35);
+      transform: translateY(18px) scale(0.96);
+      opacity: 0;
+    }
+
+    .loot-reward.show .loot-reward-card { animation: rewardShow 0.45s ease forwards; }
+    @keyframes rewardShow { to { transform: translateY(0) scale(1); opacity: 1; } }
+
+    .loot-reward-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top, var(--winner-glow, rgba(255,255,255,0.10)), transparent 44%);
+      pointer-events: none;
+    }
+
+    .loot-reward-inner {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      align-items: center;
+      min-height: 360px;
+      gap: 24px;
+      padding: 34px 36px;
+    }
+
+    .loot-reward-left {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .loot-reward-right {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      justify-content: center;
+      text-align: left;
+    }
+
+    .loot-reward-user {
+      font-size: clamp(24px, 2.2vw, 34px);
+      font-weight: 900;
+      color: #ff5555;
+    }
+
+    .loot-reward-case {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #f1d6a2;
+    }
+
+    .loot-reward-rarity {
+      font-size: 16px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--winner-color, #fff);
+    }
+
+    .loot-reward-name {
+      font-size: clamp(26px, 2.5vw, 42px);
+      font-weight: 900;
+      line-height: 1.06;
+      text-shadow: 0 0 14px rgba(0,0,0,0.45);
+    }
+
+    .loot-reward-sum {
+      font-size: 18px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.85);
+    }
+
+    @media (max-width: 980px) {
+      .loot-reward-inner { grid-template-columns: 1fr; text-align: center; }
+      .loot-reward-right { text-align: center; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay-root">
+    <div class="status-dot"></div>
+    <div id="takeToast" class="take-toast hidden"></div>
+    <div id="lootOpen" class="loot-open hidden"></div>
+  </div>
+
+  <script>
+    const rarityConfig = {
+      common: { color: '#c9d1d9', accent: '#e7edf2', glow: 'rgba(201,209,217,0.16)', text: 'ОБЫЧНЫЙ' },
+      rare: { color: '#4aa3ff', accent: '#8fd0ff', glow: 'rgba(74,163,255,0.18)', text: 'РЕДКИЙ' },
+      epic: { color: '#a85cff', accent: '#d3a2ff', glow: 'rgba(168,92,255,0.20)', text: 'ЭПИЧЕСКИЙ' },
+      legendary: { color: '#ff9a1f', accent: '#ffd08a', glow: 'rgba(255,154,31,0.24)', text: 'ЛЕГЕНДАРНЫЙ' },
+      mythic: { color: '#ff425c', accent: '#ff9dad', glow: 'rgba(255,66,92,0.28)', text: 'МИФИЧЕСКИЙ' }
+    };
+
+    const weaponIcons = {
+      m4: 'https://ru-wiki.rustclash.com/img/items180/shotgun.m4.png',
+      bolt: 'https://wiki.rustclash.com/img/skins/324/11429.png',
+      l96: 'https://ru-wiki.rustclash.com/img/items180/rifle.l96.png',
+      smoke: 'https://wiki.rustclash.com/img/items180/ammo.grenadelauncher.smoke.png',
+      silencer: 'https://ru-wiki.rustclash.com/img/items180/weapon.mod.silencer.png',
+      m249: 'https://ru-wiki.rustclash.com/img/items180/lmg.m249.png',
+      mlrs: 'https://wiki.rustclash.com/img/items180/ammo.rocket.mlrs.png',
+      drone: 'https://ru-wiki.rustclash.com/img/items180/drone.png',
+      jagger: 'https://ru-wiki.rustclash.com/img/items180/heavy.plate.helmet.png',
+      incendiary: 'https://ru-wiki.rustclash.com/img/items180/ammo.rifle.incendiary.png'
+    };
+
+    const overlayRoot = document.getElementById('overlay-root');
+    const takeToast = document.getElementById('takeToast');
+    const lootOpen = document.getElementById('lootOpen');
+    let queue = [];
+    let busy = false;
+    let currentOpenTimer = null;
+    let reconnectTimer = null;
+    let eventSource = null;
+
+    function esc(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function trimText(value) {
+      return String(value || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function normalizeItemName(value) {
+      return String(value || '')
+        .toLowerCase()
+        .replace(/ё/g, 'е')
+        .replace(/[^a-zа-я0-9.]+/gi, '')
+        .trim();
+    }
+
+    function parsePrizeLabel(label) {
+      const text = trimText(label);
+      if (!text) return [];
+      return text.split(/\s+\+\s+/).map((part) => trimText(part)).filter(Boolean).map((part) => {
+        const m = part.match(/^(.*?)(?:\s+x(\d+))?$/i);
+        if (!m) return { name: part, count: 1 };
+        return {
+          name: trimText(m[1]) || part,
+          count: Math.max(1, parseInt(m[2], 10) || 1)
+        };
+      });
+    }
+
+    function getItemImageByName(name) {
+      const n = normalizeItemName(name);
+      if (n.includes('m4')) return weaponIcons.m4;
+      if (n.includes('bolt')) return weaponIcons.bolt;
+      if (n.includes('l96') || n.includes('l9')) return weaponIcons.l96;
+      if (n.includes('smoke') || n.includes('смок')) return weaponIcons.smoke;
+      if (n.includes('silencer') || n.includes('глуш')) return weaponIcons.silencer;
+      if (n.includes('m249') || n === 'm2') return weaponIcons.m249;
+      if (n.includes('mlrs') || n.includes('млрс')) return weaponIcons.mlrs;
+      if (n.includes('drone') || n.includes('дрон')) return weaponIcons.drone;
+      if (n.includes('jagger') || n.includes('джаггер')) return weaponIcons.jagger;
+      if (n.includes('incendiary') || n.includes('зажига') || n === 'inc') return weaponIcons.incendiary;
+      return '';
+    }
+
+    function parseLootParts(item) {
+      if (item && Array.isArray(item.parts) && item.parts.length) {
+        const prepared = [];
+        item.parts.forEach((p) => {
+          const type = String(p?.type || '').toLowerCase().trim();
+          const count = parseInt(p?.count, 10);
+          if (type && weaponIcons[type] && Number.isFinite(count) && count > 0) {
+            prepared.push({ type, count, icon: weaponIcons[type] });
+          }
+        });
+        if (prepared.length) return prepared;
+      }
+
+      const id = String(item?.id || '').toLowerCase().trim().replace(/mrls/g, 'mlrs');
+      const order = ['bolt', 'l96', 'm4', 'm249', 'smoke', 'silencer', 'jagger', 'drone', 'mlrs', 'incendiary'];
+      const counts = {};
+
+      function add(name, count) {
+        if (!name || !count || count <= 0) return;
+        counts[name] = (counts[name] || 0) + count;
+      }
+
+      function extractCount(key) {
+        const re = new RegExp('(?:^|_)' + key + '(?:(\\d+)|_(\\d+))?(?=_|$)', 'g');
+        let total = 0;
+        let match;
+        while ((match = re.exec(id)) !== null) {
+          const count = parseInt(match[1] || match[2] || '1', 10) || 1;
+          if (count > 0) total += count;
+        }
+        return total;
+      }
+
+      order.forEach((name) => {
+        let count = 0;
+        if (name === 'incendiary') count = extractCount('incendiary') + extractCount('inc');
+        else count = extractCount(name);
+        if (count > 0) add(name, count);
+      });
+
+      const result = [];
+      order.forEach((name) => {
+        if (counts[name]) result.push({ type: name, count: counts[name], icon: weaponIcons[name] || '' });
+      });
+      if (result.length) return result;
+
+      parsePrizeLabel(item?.label || item?.prizeLabel || '').forEach((part) => {
+        const icon = getItemImageByName(part.name);
+        if (icon) result.push({ type: normalizeItemName(part.name), count: part.count, icon });
+      });
+      return result;
+    }
+
+    function renderItemIcons(item, bigMode) {
+      const parts = parseLootParts(item);
+      if (!parts.length) {
+        return `<div class="${bigMode ? 'loot-reward-noicon' : 'loot-card-noicon'}">?</div>`;
+      }
+      const wrapClass = bigMode ? 'reward-icons-grid' : 'card-icons-grid';
+      const layoutClass = 'parts-' + Math.min(parts.length, 6);
+      const clsIcon = bigMode ? 'reward-part-icon' : 'card-part-icon';
+      const clsBadge = bigMode ? 'reward-part-count' : 'card-part-count';
+      return `<div class="${wrapClass} ${layoutClass}">${parts.map((p) => `
+        <div class="loot-part">
+          ${p.icon ? `<img src="${esc(p.icon)}" class="${clsIcon}" alt="">` : `<div class="${clsIcon}">?</div>`}
+          <div class="${clsBadge}">x${p.count}</div>
+        </div>
+      `).join('')}</div>`;
+    }
+
+    function getCfgByRarity(rarity) {
+      return rarityConfig[String(rarity || 'common').toLowerCase().trim()] || rarityConfig.common;
+    }
+
+    function rarityText(rarity) {
+      return getCfgByRarity(rarity).text;
+    }
+
+    function shuffleArray(arr) {
+      const out = arr.slice();
+      for (let i = out.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = out[i];
+        out[i] = out[j];
+        out[j] = t;
+      }
+      return out;
+    }
+
+    function isSameLoot(a, b) {
+      return !!a && !!b && String(a.id || '') === String(b.id || '') && String(a.label || a.prizeLabel || '') === String(b.label || b.prizeLabel || '');
+    }
+
+    function pickDifferentLoot(items, leftItem, rightItem) {
+      const pool = shuffleArray(items || []);
+      for (let i = 0; i < pool.length; i += 1) {
+        const item = pool[i];
+        if (!isSameLoot(item, leftItem) && !isSameLoot(item, rightItem)) return item;
+      }
+      return pool[0] || null;
+    }
+
+    function buildSpinList(items, winner) {
+      const minLength = 80;
+      const winIndex = 60 + Math.floor(Math.random() * 7);
+      const out = new Array(minLength);
+      out[winIndex] = winner;
+      for (let i = 0; i < out.length; i += 1) {
+        if (i === winIndex) continue;
+        const left = i > 0 ? out[i - 1] : null;
+        const right = i < out.length - 1 ? out[i + 1] : null;
+        out[i] = pickDifferentLoot(items, left, right);
+      }
+      return { list: out, winnerIndex: winIndex };
+    }
+
+    function preloadImages(urls) {
+      const list = Array.from(new Set((urls || []).filter(Boolean)));
+      if (!list.length) return Promise.resolve();
+      return new Promise((resolve) => {
+        let done = 0;
+        let finished = false;
+        function next() {
+          done += 1;
+          if (!finished && done >= list.length) {
+            finished = true;
+            resolve();
+          }
+        }
+        list.forEach((url) => {
+          const img = new Image();
+          img.onload = next;
+          img.onerror = next;
+          img.src = url;
+        });
+        setTimeout(() => {
+          if (!finished) {
+            finished = true;
+            resolve();
+          }
+        }, 1500);
+      });
+    }
+
+    function enqueue(job) {
+      queue.push(job);
+      runQueue();
+    }
+
+    async function runQueue() {
+      if (busy || !queue.length) return;
+      busy = true;
+      const job = queue.shift();
+      try {
+        if (job.type === 'loot_take') await showTake(job.payload || {});
+        if (job.type === 'loot_open') await showOpen(job.payload || {});
+      } catch (err) {
+        console.error('[overlay] render failed', err);
+      }
+      busy = false;
+      if (queue.length) runQueue();
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function showTake(payload) {
+      const playerName = trimText(payload.display || payload.user || 'Игрок');
+      const itemTitle = trimText(payload.prizeLabel || payload.itemName || 'Предмет');
+      const caseName = trimText(payload.caseName || '');
+      const parts = parsePrizeLabel(itemTitle);
+      const imagesHtml = parts.map((part) => {
+        const image = getItemImageByName(part.name);
+        if (!image) return '';
+        return `<div class="take-part">
+          <div class="take-part-box">
+            <img src="${esc(image)}" alt="${esc(part.name)}">
+            ${part.count > 1 ? `<div class="take-part-count">x${part.count}</div>` : ''}
+          </div>
+          <div class="take-part-name">${esc(part.name)}</div>
+        </div>`;
+      }).join('');
+
+      takeToast.innerHTML = `<div class="take-card">
+        <div class="take-user">${esc(playerName)}</div>
+        <div class="take-item">Забрал предмет: <span>${esc(itemTitle)}</span></div>
+        ${caseName ? `<div class="take-case">Кейс: ${esc(caseName)}</div>` : ''}
+        ${imagesHtml ? `<div class="take-parts">${imagesHtml}</div>` : ''}
+      </div>`;
+      takeToast.classList.remove('hidden');
+      void takeToast.offsetWidth;
+      takeToast.classList.add('show');
+      await wait(9300);
+      takeToast.classList.remove('show');
+      await wait(350);
+      takeToast.classList.add('hidden');
+      takeToast.innerHTML = '';
+    }
+
+    async function showOpen(payload) {
+      const items = Array.isArray(payload.items) ? payload.items.filter(Boolean) : [];
+      const winner = payload.winner || null;
+      if (!items.length || !winner) return;
+
+      const title = 'КЕЙС ЛУТ';
+      const caseName = trimText(payload.caseName || 'КЕЙС');
+      const display = trimText(payload.display || payload.user || 'Игрок');
+      const donateSum = parseInt(payload.donateSum, 10) || 0;
+      const prepared = buildSpinList(items, winner);
+      const renderItems = prepared.list;
+      const winnerIndex = prepared.winnerIndex;
+      const winnerCfg = getCfgByRarity(winner.rarity);
+
+      const imageUrls = [];
+      renderItems.forEach((item) => parseLootParts(item).forEach((part) => part.icon && imageUrls.push(part.icon)));
+      await preloadImages(imageUrls);
+
+      const cardsHtml = renderItems.map((item, idx) => {
+        const cfg = getCfgByRarity(item.rarity);
+        return `<div class="loot-card rarity-${esc(String(item.rarity || 'common').toLowerCase())}" data-index="${idx}" style="--rarity-color:${cfg.color}; --rarity-accent:${cfg.accent}; --rarity-glow:${cfg.glow};">
+          <div class="loot-card-topline"></div>
+          <div class="loot-card-rarity">${esc(rarityText(item.rarity))}</div>
+          <div class="loot-card-icon-wrap">${renderItemIcons(item, false)}</div>
+          <div class="loot-card-name">${esc(item.label || item.prizeLabel || 'Предмет')}</div>
+        </div>`;
+      }).join('');
+
+      lootOpen.innerHTML = `
+        <div class="loot-bg"></div>
+        <div class="loot-content" style="--winner-color:${winnerCfg.color}; --winner-glow:${winnerCfg.glow};">
+          <div class="loot-top">
+            <div class="loot-title">${esc(title)}</div>
+            <div class="loot-subtitle">${esc(display)} открывает кейс${donateSum > 0 ? ' на ' + esc(String(donateSum)) + ' ₽' : ''}</div>
+            <div class="loot-case-name">${esc(caseName)}</div>
+          </div>
+          <div class="loot-arena">
+            <div class="loot-track-wrap"><div id="lootTrack" class="loot-track">${cardsHtml}</div></div>
+            <div class="loot-center-line"></div>
+            <div class="loot-center-frame"></div>
+            <div id="lootReward" class="loot-reward">
+              <div class="loot-reward-backdrop"></div>
+              <div class="loot-reward-card" style="--winner-color:${winnerCfg.color}; --winner-glow:${winnerCfg.glow};">
+                <div class="loot-reward-inner">
+                  <div class="loot-reward-left">${renderItemIcons(winner, true)}</div>
+                  <div class="loot-reward-right">
+                    <div class="loot-reward-user">${esc(display)}</div>
+                    <div class="loot-reward-case">${esc(caseName)}</div>
+                    <div class="loot-reward-rarity">${esc(rarityText(winner.rarity))}</div>
+                    <div class="loot-reward-name">${esc(winner.label || 'Предмет')}</div>
+                    ${donateSum > 0 ? `<div class="loot-reward-sum">Открыт кейс на ${esc(String(donateSum))} ₽</div>` : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="loot-bottom"><div id="lootStatus" class="loot-status"><span class="loot-status-win">Крутится рулетка...</span></div></div>
+        </div>`;
+
+      lootOpen.classList.remove('hidden');
+      void lootOpen.offsetWidth;
+      lootOpen.classList.add('show');
+
+      const track = document.getElementById('lootTrack');
+      const reward = document.getElementById('lootReward');
+      const cards = Array.from(track.querySelectorAll('.loot-card'));
+      const arena = lootOpen.querySelector('.loot-arena');
+      const arenaWidth = arena.clientWidth;
+      const targetCenter = arenaWidth / 2;
+      const winnerEl = cards[winnerIndex];
+      const winnerCardCenter = winnerIndex * (242 + 18) + 60 + 121;
+      const finalTranslate = -(winnerCardCenter - targetCenter);
+
+      track.style.transition = 'none';
+      track.style.transform = 'translate3d(0, -50%, 0)';
+      void track.offsetWidth;
+      track.style.transition = 'transform 6.4s cubic-bezier(.08,.85,.12,1)';
+      track.style.transform = `translate3d(${finalTranslate}px, -50%, 0)`;
+
+      await wait(6500);
+      lootOpen.classList.add('reveal');
+      cards.forEach((card, idx) => {
+        if (idx === winnerIndex) card.classList.add('winner-card');
+        if (Math.abs(idx - winnerIndex) <= 1) card.classList.add('near-winner');
+      });
+      if (winnerEl) winnerEl.scrollIntoView({ block: 'nearest', inline: 'center' });
+      reward.classList.add('show');
+      const status = document.getElementById('lootStatus');
+      if (status) status.innerHTML = `<span class="loot-status-win">Выпало: ${esc(winner.label || 'Предмет')}</span>`;
+      await wait(4200);
+      lootOpen.className = 'loot-open hidden';
+      lootOpen.innerHTML = '';
+    }
+
+    function connectEvents() {
+      if (eventSource) {
+        try { eventSource.close(); } catch (_) {}
+      }
+      clearTimeout(reconnectTimer);
+
+      eventSource = new EventSource('/api/overlay/loot/events');
+      eventSource.addEventListener('loot_open', (event) => {
+        const packet = JSON.parse(event.data || '{}');
+        enqueue({ type: 'loot_open', payload: packet.payload || {} });
+      });
+      eventSource.addEventListener('loot_take', (event) => {
+        const packet = JSON.parse(event.data || '{}');
+        enqueue({ type: 'loot_take', payload: packet.payload || {} });
+      });
+      eventSource.onerror = () => {
+        try { eventSource.close(); } catch (_) {}
+        reconnectTimer = setTimeout(connectEvents, 3000);
+      };
+    }
+
+    connectEvents();
+  </script>
+</body>
+</html>
