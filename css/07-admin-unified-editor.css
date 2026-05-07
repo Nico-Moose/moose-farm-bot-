@@ -1,0 +1,437 @@
+/* Admin unified editor safe patch. Isolated from farm UI. */
+.admin-tabs-compact {
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+}
+
+.admin-player-search {
+  margin-bottom: 12px;
+}
+
+.admin-result:empty {
+  display: none;
+}
+
+.admin-unified-editor {
+  margin: 14px 0 18px;
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(30, 34, 44, 0.96);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.admin-unified-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.admin-unified-head h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.admin-unified-head small {
+  opacity: .7;
+  font-weight: 700;
+}
+
+.admin-unified-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.admin-unified-actions button,
+.admin-field-card button,
+.admin-building-card button {
+  min-height: 36px;
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.admin-unified-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.admin-field-card,
+.admin-building-card {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(15, 17, 23, 0.72);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.admin-field-card label,
+.admin-building-card label {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(255,255,255,.72);
+  font-weight: 900;
+}
+
+.admin-field-card input,
+.admin-building-card input {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.admin-field-card small,
+.admin-building-card small {
+  display: block;
+  min-height: 18px;
+  opacity: .65;
+}
+
+.admin-unified-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+}
+
+.admin-unified-section h3 {
+  margin: 0 0 12px;
+}
+
+.admin-buildings-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.admin-danger-grid {
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+}
+
+.admin-global-danger button {
+  background: #e1d848;
+  color: #111;
+}
+
+@media (max-width: 1100px) {
+  .admin-unified-grid,
+  .admin-buildings-editor-grid {
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-tabs-compact,
+  .admin-danger-grid,
+  .admin-unified-grid,
+  .admin-buildings-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-unified-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-unified-actions {
+    justify-content: stretch;
+  }
+
+  .admin-unified-actions button {
+    width: 100%;
+  }
+}
+
+
+/* Safe UX patch: player is loaded immediately after nickname selection. */
+.admin-player-search-autoload #admin-load-player {
+  display: none !important;
+}
+
+.admin-player-search-autoload .admin-suggestions {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-player-search-autoload .admin-suggestions.hidden {
+  display: none;
+}
+
+.admin-player-search-autoload .admin-suggestions button {
+  width: 100%;
+  text-align: left;
+  min-height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #fff;
+}
+
+.admin-player-search-autoload .admin-suggestions button:hover {
+  background: rgba(145,226,109,.14);
+}
+
+.admin-player-search-autoload .admin-suggestions b,
+.admin-player-search-autoload .admin-suggestions small {
+  display: block;
+}
+
+.admin-player-search-autoload .admin-suggestions small {
+  color: rgba(255,255,255,.62);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+
+/* Compact editor mode: only one editor view, save-all buttons, editable buildings. */
+.admin-unified-editor-compact .admin-unified-grid {
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+}
+
+.admin-field-card-compact,
+.admin-building-card-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-field-card-compact input,
+.admin-building-card-compact input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(12,14,21,.92);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.admin-field-card-compact input:focus,
+.admin-building-card-compact input:focus {
+  outline: none;
+  border-color: rgba(145,226,109,.40);
+  box-shadow: 0 0 0 3px rgba(145,226,109,.12);
+}
+
+.admin-save-all-row {
+  margin-top: 14px;
+}
+
+.admin-save-all-row button {
+  min-height: 40px;
+  border-radius: 14px;
+  padding: 8px 18px;
+}
+
+.admin-save-buildings-row {
+  margin-top: 16px;
+}
+
+.compact-buildings-grid {
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .admin-unified-editor-compact .admin-unified-grid,
+  .admin-unified-editor-compact .admin-buildings-editor-grid {
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-unified-editor-compact .admin-unified-grid,
+  .admin-unified-editor-compact .admin-buildings-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.admin-tabs-4 {
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+}
+
+.admin-farmers-panel {
+  min-height: 420px;
+}
+
+.admin-farmers-toolbar {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) minmax(180px, 220px);
+  gap: 12px;
+  align-items: end;
+  margin: 12px 0;
+}
+
+.admin-farmers-toolbar label {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(255,255,255,.78);
+  font-weight: 800;
+}
+
+.admin-farmers-search-wrap,
+.admin-farmers-sort-wrap {
+  position: relative;
+}
+
+.admin-farmers-meta {
+  margin: 18px 0 12px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.admin-farmers-list {
+  max-height: 560px;
+  overflow: auto;
+  display: grid;
+  gap: 12px;
+  padding-right: 6px;
+}
+
+.admin-farmer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 152px;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.admin-farmer-card {
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: linear-gradient(90deg, rgba(42,47,61,.92) 0%, rgba(34,38,49,.96) 45%, rgba(24,31,51,.94) 100%);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+}
+
+.admin-farmer-card:hover {
+  border-color: rgba(145,226,109,.35);
+  box-shadow: 0 0 0 1px rgba(145,226,109,.12), 0 14px 30px rgba(0,0,0,.16);
+}
+
+.admin-farmer-index {
+  color: #ffe36d;
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.admin-farmer-main {
+  min-width: 0;
+}
+
+.admin-farmer-name {
+  color: #f5f7ff;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.admin-farmer-login {
+  margin-top: 4px;
+  color: #9fb0dc;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-farmer-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 14px;
+  color: #f0f2f8;
+  font-weight: 800;
+}
+
+.admin-farmer-stats span {
+  white-space: nowrap;
+}
+
+.admin-farmer-delete {
+  min-height: 100%;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(121,57,70,.95), rgba(104,44,55,.95));
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.08);
+  font-weight: 900;
+}
+
+.admin-farmer-delete:hover {
+  background: linear-gradient(180deg, rgba(141,63,79,.98), rgba(116,49,62,.98));
+}
+
+.admin-farmers-suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 5;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(20,24,33,.98);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+.admin-farmers-suggestions.hidden {
+  display: none;
+}
+
+.admin-farmers-suggestions button {
+  width: 100%;
+  text-align: left;
+  min-height: 42px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.07);
+  color: #fff;
+}
+
+.admin-farmers-suggestions button:hover {
+  background: rgba(145,226,109,.14);
+}
+
+.admin-farmers-empty {
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.72);
+}
+
+@media (max-width: 900px) {
+  .admin-farmers-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .admin-farmer-row {
+    grid-template-columns: 1fr;
+  }
+  .admin-farmer-card {
+    grid-template-columns: 74px minmax(0, 1fr);
+  }
+  .admin-farmer-stats {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+  .admin-farmer-delete {
+    min-height: 46px;
+  }
+}
+
+
+.admin-unified-migrate-farm {
+  background: linear-gradient(180deg, rgba(193,58,72,.98), rgba(154,36,52,.98));
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.10);
+  font-weight: 900;
+}
+
+.admin-unified-migrate-farm:hover {
+  background: linear-gradient(180deg, rgba(210,70,86,.98), rgba(171,45,62,.98));
+}

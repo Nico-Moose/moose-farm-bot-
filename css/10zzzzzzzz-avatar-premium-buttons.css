@@ -1,0 +1,270 @@
+/* Moose Farm — Avatar premium buttons + profile cleanup
+   UI/CSS only safe patch. */
+
+:root {
+  --mf-ava-orange-1: #ffb33f;
+  --mf-ava-orange-2: #ff8a1f;
+  --mf-ava-orange-3: #ff6a00;
+  --mf-ava-brown: #3c1807;
+  --mf-ava-black: #0c0907;
+  --mf-ava-cream: #fff5d9;
+  --mf-ava-border: rgba(255, 170, 57, 0.34);
+  --mf-ava-glow: rgba(255, 125, 20, 0.28);
+}
+
+html,
+body {
+  overflow-x: hidden !important;
+}
+
+body {
+  scrollbar-gutter: stable;
+}
+
+@media (min-width: 1201px) {
+  .app-shell {
+    width: min(1910px, calc(100vw - 14px)) !important;
+    max-width: calc(100vw - 14px) !important;
+  }
+}
+
+/* Profile block cleanup */
+.profile-card-final.visual-profile-patch {
+  padding: 18px 18px 16px !important;
+}
+
+.profile-main-left {
+  align-items: center !important;
+  gap: 16px !important;
+}
+
+.profile-main-left > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-name-final {
+  font-size: clamp(28px, 2.15vw, 48px) !important;
+  line-height: 0.98 !important;
+  margin-bottom: 8px !important;
+}
+
+.profile-status-pill {
+  width: 100% !important;
+  max-width: 290px;
+  margin-bottom: 10px !important;
+  font-size: 14px !important;
+}
+
+.profile-loot-summary {
+  width: 100%;
+  margin-top: 4px !important;
+}
+
+.profile-loot-summary-card,
+.profile-loot-summary-card.compact-main-profile-loot {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  width: 100%;
+  max-width: 320px;
+}
+
+.profile-loot-chip {
+  min-width: 0;
+  min-height: 82px;
+  padding: 10px 12px !important;
+  border-radius: 18px !important;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 179, 63, 0.22), transparent 48%),
+    linear-gradient(180deg, rgba(33, 14, 8, 0.98), rgba(12, 8, 7, 0.98)) !important;
+  border: 1px solid var(--mf-ava-border) !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(255,138,31,.04) !important;
+}
+
+.profile-loot-chip span {
+  font-size: 10px !important;
+  letter-spacing: 0.08em;
+  color: rgba(255, 230, 188, 0.78) !important;
+}
+
+.profile-loot-chip b {
+  font-size: 24px !important;
+  line-height: 1 !important;
+  color: #fff8ea !important;
+  text-shadow: 0 2px 10px rgba(255,106,0,.16);
+  white-space: nowrap;
+}
+
+.loot-chip-inventory b {
+  font-size: 22px !important;
+}
+
+.profile-loot-chip:hover {
+  border-color: rgba(255, 184, 88, 0.52) !important;
+  box-shadow: 0 18px 36px rgba(0,0,0,.33), 0 0 24px rgba(255,125,20,.12) !important;
+  transform: translateY(-2px);
+}
+
+/* Buttons everywhere — avatar color palette */
+button,
+.farm-tab,
+.back-main-btn,
+.admin-entry button,
+.farm-online-all-btn,
+.main-twitch-chat-link,
+.stream-card-head-btn,
+.loot-modal-close,
+.loot-inline-form button,
+.loot-case-btn,
+.loot-action-btn,
+.loot-support-link,
+.market-step-btn,
+.market-buy-btn,
+.market-sell-btn,
+.action-grid-top button,
+.combat-card button,
+.building-card button,
+.building-card-clean__actions button,
+.compact-extra-actions button,
+.quick-actions-section button,
+.pretty-modal-actions button,
+#openAdminPanel,
+#toggleHideSelfBtn,
+#openAllFarmersBtn {
+  color: var(--mf-ava-cream) !important;
+  border: 1px solid rgba(255, 172, 69, 0.32) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 177, 68, 0.22), transparent 52%),
+    linear-gradient(180deg, rgba(54, 24, 10, 0.98), rgba(20, 9, 7, 0.98)) !important;
+  box-shadow: 0 12px 26px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+
+button:hover,
+.farm-tab:hover,
+.back-main-btn:hover,
+.admin-entry button:hover,
+.farm-online-all-btn:hover,
+.main-twitch-chat-link:hover,
+.stream-card-head-btn:hover,
+.loot-modal-close:hover,
+.loot-inline-form button:hover,
+.loot-case-btn:hover,
+.loot-action-btn:hover,
+.loot-support-link:hover,
+.market-step-btn:hover,
+.market-buy-btn:hover,
+.market-sell-btn:hover,
+.action-grid-top button:hover,
+.combat-card button:hover,
+.building-card button:hover,
+.building-card-clean__actions button:hover,
+.compact-extra-actions button:hover,
+.quick-actions-section button:hover,
+.pretty-modal-actions button:hover,
+#openAdminPanel:hover,
+#toggleHideSelfBtn:hover,
+#openAllFarmersBtn:hover {
+  border-color: rgba(255, 196, 116, 0.58) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 216, 135, 0.28), transparent 52%),
+    linear-gradient(180deg, rgba(78, 31, 11, 0.98), rgba(28, 12, 7, 0.98)) !important;
+  box-shadow: 0 16px 34px rgba(0,0,0,.3), 0 0 24px rgba(255,125,20,.14) !important;
+}
+
+button:disabled,
+.farm-tab:disabled,
+.market-buy-btn:disabled,
+.market-sell-btn:disabled,
+.loot-action-btn:disabled,
+.action-grid-top button:disabled,
+.combat-card button:disabled,
+.building-card button:disabled {
+  opacity: .6 !important;
+  filter: saturate(.65);
+  box-shadow: none !important;
+}
+
+.farm-tab.active,
+.farm-tab[aria-selected="true"] {
+  color: #fff7dd !important;
+  border-color: rgba(255, 208, 121, 0.62) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 228, 156, 0.38), transparent 42%),
+    linear-gradient(180deg, rgba(255, 132, 23, 0.98), rgba(112, 42, 10, 0.98)) !important;
+  box-shadow: 0 16px 36px rgba(0,0,0,.3), 0 0 26px rgba(255,106,0,.24) !important;
+}
+
+#openAdminPanel {
+  color: #2d1207 !important;
+  border-color: rgba(255,255,255,.34) !important;
+  background: linear-gradient(180deg, #ffe291, #ffac31) !important;
+}
+
+/* Text on button small labels */
+button small,
+.farm-tab small,
+.market-card button small,
+.action-grid-top button small,
+.combat-card button small,
+.building-card button small {
+  color: rgba(255, 234, 199, 0.72) !important;
+}
+
+/* tighter general blocks to reduce overflow */
+.visual-section,
+.profile-card-final,
+.main-actions-card,
+.tab-page-card,
+.main-twitch-chat-card,
+.farm-online-side,
+.market-card,
+.building-card,
+.combat-card,
+.history-item,
+.info-stat,
+.stat-tile {
+  min-width: 0;
+}
+
+.stat-tile b,
+.info-stat b {
+  overflow-wrap: anywhere;
+}
+
+/* keep desktop left buttons contained */
+.farm-online-actions {
+  width: 100%;
+  align-items: stretch;
+}
+
+#toggleHideSelfBtn,
+#openAllFarmersBtn,
+.farm-online-all-btn {
+  padding-inline: 6px !important;
+}
+
+/* tablet/mobile safety */
+@media (max-width: 900px) {
+  .profile-loot-summary-card,
+  .profile-loot-summary-card.compact-main-profile-loot {
+    max-width: none;
+  }
+
+  .profile-loot-chip b {
+    font-size: 20px !important;
+  }
+}
+
+.main-dashboard-layout,
+.farm-content-with-chat,
+.farm-content-primary,
+.main-dashboard-primary,
+.profile-shell {
+  min-width: 0 !important;
+  overflow-x: clip;
+}

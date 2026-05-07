@@ -1,0 +1,329 @@
+/* Moose Farm — Premium Aurora redesign
+   UI/CSS only. Loaded last. */
+
+:root {
+  --aur-bg-0: #020807;
+  --aur-bg-1: #061713;
+  --aur-bg-2: #0a221c;
+  --aur-card-a: rgba(8, 23, 19, 0.92);
+  --aur-card-b: rgba(11, 31, 24, 0.90);
+  --aur-card-c: rgba(16, 44, 33, 0.82);
+  --aur-line: rgba(130, 255, 220, 0.12);
+  --aur-line-strong: rgba(175, 255, 240, 0.22);
+  --aur-text: #f4fff9;
+  --aur-soft: rgba(220, 239, 230, 0.78);
+  --aur-muted: rgba(178, 204, 194, 0.58);
+  --aur-teal: #78ffd6;
+  --aur-teal-2: #3ee5c5;
+  --aur-cyan: #7cdfff;
+  --aur-lime: #c9ff9a;
+  --aur-gold: #ffe39a;
+  --aur-purple: #b79cff;
+  --aur-shadow: 0 24px 70px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.04);
+  --aur-shadow-soft: 0 14px 34px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.05);
+  --aur-glow: 0 0 0 1px rgba(123, 255, 214, 0.08) inset, 0 0 38px rgba(62, 229, 197, 0.08);
+}
+
+html { background: var(--aur-bg-0) !important; }
+body {
+  background:
+    radial-gradient(circle at 12% -8%, rgba(124,223,255,0.12), transparent 22%),
+    radial-gradient(circle at 78% 0%, rgba(120,255,214,0.13), transparent 24%),
+    radial-gradient(circle at 40% 110%, rgba(183,156,255,0.11), transparent 28%),
+    linear-gradient(180deg, #04100d 0%, #020807 52%, #010403 100%) !important;
+  color: var(--aur-text) !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.020) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at center, #000 0%, transparent 72%);
+  opacity: .34;
+}
+
+@media (min-width: 1201px) {
+  .app-shell {
+    width: min(1920px, calc(100vw - 12px)) !important;
+    max-width: calc(100vw - 12px) !important;
+    padding: 18px !important;
+    margin: 6px auto !important;
+  }
+}
+
+.app-shell {
+  border-radius: 32px !important;
+  border: 1px solid rgba(140,255,223,0.12) !important;
+  background:
+    radial-gradient(circle at top right, rgba(124,223,255,0.06), transparent 22%),
+    linear-gradient(180deg, rgba(4,16,13,0.94), rgba(2,8,7,0.96)) !important;
+  box-shadow: 0 34px 96px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* hero */
+.farm-hero {
+  border-radius: 28px !important;
+  border: 1px solid var(--aur-line) !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(120,255,214,0.14), transparent 28%),
+    radial-gradient(circle at 90% 0%, rgba(183,156,255,0.09), transparent 22%),
+    linear-gradient(135deg, rgba(7, 25, 20, 0.97), rgba(3, 12, 10, 0.98)) !important;
+  box-shadow: var(--aur-shadow) !important;
+}
+.farm-logo {
+  background:
+    radial-gradient(circle at 35% 30%, rgba(201,255,154,0.28), transparent 34%),
+    radial-gradient(circle at 80% 18%, rgba(124,223,255,0.20), transparent 24%),
+    linear-gradient(160deg, rgba(18,46,37,0.96), rgba(8,17,14,0.96)) !important;
+  border: 1px solid rgba(170,255,231,0.22) !important;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.32), 0 0 30px rgba(124,223,255,0.08) !important;
+}
+.farm-title-row h1,
+.farm-hero h1,
+.hero-greeting-title {
+  color: #f6fff9 !important;
+  text-shadow: 0 0 26px rgba(124,223,255,0.10), 0 4px 18px rgba(0,0,0,0.24) !important;
+}
+.farm-title-row p,
+.farm-hero p {
+  color: var(--aur-soft) !important;
+}
+
+/* universal cards */
+.visual-section,
+.tab-page-card,
+.profile-card-final,
+.main-actions-card,
+.main-twitch-chat-card,
+.farm-online-side,
+.combat-card,
+.market-card,
+.building-card,
+.stat-tile,
+.quick-status,
+.info-stat,
+.history-day-group,
+.history-item,
+.stream-video-card,
+.loot-modal-card,
+.loot-promo-card,
+.loot-cases-card,
+.loot-recent-card,
+.loot-inventory-card,
+.loot-stat-card,
+.loot-icon-tile {
+  border: 1px solid var(--aur-line) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(120,255,214,0.08), transparent 30%),
+    radial-gradient(circle at 0% 100%, rgba(183,156,255,0.05), transparent 24%),
+    linear-gradient(180deg, var(--aur-card-b), rgba(5, 16, 13, 0.96)) !important;
+  box-shadow: var(--aur-shadow-soft) !important;
+  color: var(--aur-text) !important;
+}
+
+/* buttons full redesign */
+button,
+.btn,
+.button,
+.farm-tab,
+.back-main-btn,
+.admin-entry button,
+.farm-online-all-btn,
+.stream-card-head-btn,
+.loot-modal-close,
+.loot-inline-form button,
+.loot-case-btn,
+.loot-action-btn,
+.market-step-btn,
+.market-buy-btn,
+.market-sell-btn,
+.action-grid-top button,
+.combat-card button,
+.building-card button,
+.building-card-clean__actions button,
+.compact-extra-actions button,
+.quick-actions-section button,
+.pretty-modal-actions button,
+#openAdminPanel,
+#toggleHideSelfBtn,
+#openAllFarmersBtn {
+  color: #f8fffb !important;
+  border: 1px solid rgba(132,255,219,0.16) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(124,223,255,0.16), transparent 52%),
+    linear-gradient(180deg, rgba(17,43,37,0.98), rgba(7,18,16,0.98)) !important;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(124,223,255,0.03) !important;
+  text-shadow: none !important;
+}
+
+button:hover,
+.btn:hover,
+.button:hover,
+.farm-tab:hover,
+.back-main-btn:hover,
+.admin-entry button:hover,
+.farm-online-all-btn:hover,
+.stream-card-head-btn:hover,
+.loot-modal-close:hover,
+.loot-inline-form button:hover,
+.loot-case-btn:hover,
+.loot-action-btn:hover,
+.market-step-btn:hover,
+.market-buy-btn:hover,
+.market-sell-btn:hover,
+.action-grid-top button:hover,
+.combat-card button:hover,
+.building-card button:hover,
+.building-card-clean__actions button:hover,
+.compact-extra-actions button:hover,
+.quick-actions-section button:hover,
+.pretty-modal-actions button:hover,
+#openAdminPanel:hover,
+#toggleHideSelfBtn:hover,
+#openAllFarmersBtn:hover {
+  border-color: rgba(169,255,232,0.34) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(201,255,154,0.20), transparent 52%),
+    linear-gradient(180deg, rgba(25,59,50,0.98), rgba(9,24,20,0.98)) !important;
+  box-shadow: 0 18px 38px rgba(0,0,0,0.30), 0 0 26px rgba(62,229,197,0.10) !important;
+  transform: translateY(-1px);
+}
+
+.farm-tab.active,
+.farm-tab[aria-selected="true"] {
+  color: #082017 !important;
+  border-color: rgba(230,255,204,0.40) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,0.38), transparent 38%),
+    linear-gradient(180deg, #d7ff9b 0%, #7effd4 56%, #63c9ff 100%) !important;
+  box-shadow: 0 16px 36px rgba(0,0,0,0.24), 0 0 34px rgba(124,223,255,0.18), inset 0 1px 0 rgba(255,255,255,0.34) !important;
+}
+
+#openAdminPanel {
+  color: #082017 !important;
+  border-color: rgba(255,255,255,0.42) !important;
+  background: linear-gradient(180deg, #fff1b9, #7effd4) !important;
+  box-shadow: 0 18px 40px rgba(124,223,255,0.16), inset 0 1px 0 rgba(255,255,255,0.40) !important;
+}
+
+button:disabled,
+.btn:disabled,
+.button:disabled,
+.farm-tab:disabled,
+.market-buy-btn:disabled,
+.market-sell-btn:disabled,
+.loot-action-btn:disabled,
+.action-grid-top button:disabled,
+.combat-card button:disabled,
+.building-card button:disabled {
+  opacity: .56 !important;
+  filter: saturate(.6) brightness(.86) !important;
+  box-shadow: none !important;
+}
+
+button small,
+.action-grid-top button small,
+.combat-card button small,
+.building-card button small,
+.market-card button small {
+  color: rgba(219, 239, 233, 0.68) !important;
+}
+
+/* tabs and filters */
+.farm-tabs {
+  border: 1px solid rgba(140,255,223,0.10) !important;
+  background: rgba(2, 10, 9, 0.76) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 18px 42px rgba(0,0,0,0.24) !important;
+}
+select,
+input,
+textarea,
+.form-control,
+.admin-input {
+  border: 1px solid rgba(140,255,223,0.12) !important;
+  background: linear-gradient(180deg, rgba(5,14,11,0.94), rgba(3,9,8,0.94)) !important;
+  color: var(--aur-text) !important;
+}
+select:focus,
+input:focus,
+textarea:focus {
+  border-color: rgba(124,223,255,0.32) !important;
+  box-shadow: 0 0 0 3px rgba(124,223,255,0.08) !important;
+}
+
+/* stats and headings */
+.visual-section h2,
+.tab-page-card h2,
+.main-actions-card h2,
+.section-head h2,
+.main-twitch-chat-head h2,
+.farm-online-head h2,
+.stream-card-head h3,
+.history-section h2 {
+  color: #f6fff9 !important;
+  text-shadow: 0 0 20px rgba(124,223,255,0.08) !important;
+}
+.stat-tile span,
+.info-stat span,
+.profile-kicker,
+.farm-online-head p,
+.main-twitch-chat-head p,
+.section-head p,
+.visual-section p,
+.history-item small,
+.building-card small,
+.market-card small {
+  color: var(--aur-muted) !important;
+}
+.stat-tile b,
+.info-stat b,
+.building-card strong,
+.market-card strong,
+.profile-name-final,
+.profile-loot-chip b {
+  color: var(--aur-text) !important;
+}
+
+/* loot chips softer premium */
+.profile-loot-chip {
+  background:
+    radial-gradient(circle at top right, rgba(124,223,255,0.16), transparent 44%),
+    linear-gradient(160deg, rgba(10, 25, 21, 0.98), rgba(5, 11, 10, 0.98)) !important;
+  border: 1px solid rgba(140,255,223,0.14) !important;
+  box-shadow: var(--aur-glow), 0 12px 28px rgba(0,0,0,0.22) !important;
+}
+.profile-loot-chip span { color: rgba(213,240,230,0.70) !important; }
+.profile-loot-chip:hover {
+  border-color: rgba(169,255,232,0.26) !important;
+  box-shadow: 0 16px 32px rgba(0,0,0,0.28), 0 0 28px rgba(124,223,255,0.10) !important;
+}
+
+/* chat and online blocks retain clarity */
+.main-twitch-chat-card,
+.farm-online-side {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(120,255,214,0.10), transparent 26%),
+    linear-gradient(180deg, rgba(10,27,22,0.94), rgba(5,13,11,0.96)) !important;
+}
+
+/* remove any leftover orange-heavy glow */
+.farm-tab,
+.back-main-btn,
+.stream-card-head-btn,
+.farm-online-all-btn,
+.market-step-btn,
+.market-buy-btn,
+.market-sell-btn,
+.action-grid-top button,
+.combat-card button,
+.building-card button,
+#openAdminPanel {
+  text-shadow: none !important;
+}

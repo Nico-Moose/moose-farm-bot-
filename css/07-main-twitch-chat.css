@@ -1,0 +1,526 @@
+/* Safe patch: right-side Twitch chat without squeezing the main modules.
+   The chat becomes a true right sidebar only on wide screens.
+   On narrower screens it goes below the main content instead of compressing the farm UI. */
+
+.main-dashboard-layout {
+  display: block;
+}
+
+.main-dashboard-primary,
+.main-dashboard-side {
+  min-width: 0;
+}
+
+.main-dashboard-side {
+  margin-top: 18px;
+}
+
+.main-twitch-chat-card {
+  position: static;
+  margin: 0;
+  padding: 14px;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(125, 207, 88, 0.10), rgba(255,255,255,0.02)),
+    rgba(10, 28, 14, 0.96);
+  border: 1px solid rgba(193,255,168,0.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 42px rgba(0,0,0,0.26);
+}
+
+.main-twitch-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.main-twitch-chat-head h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.main-twitch-chat-head p {
+  margin: 6px 0 0;
+  color: rgba(244,255,242,0.68);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.main-twitch-chat-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 900;
+  color: #f4fff2;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  white-space: nowrap;
+}
+
+.main-twitch-chat-link:hover {
+  background: linear-gradient(180deg, #a2ed76, #77c752);
+  color: #071307;
+}
+
+.main-twitch-chat-frame {
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(10, 20, 12, 0.92), rgba(17, 37, 22, 0.98));
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.main-twitch-chat-embed {
+  width: 100%;
+  min-height: 760px;
+  background: linear-gradient(180deg, rgba(8, 16, 10, 0.95), rgba(13, 29, 17, 0.98));
+}
+
+.main-twitch-chat-embed iframe {
+  display: block;
+  width: 100%;
+  height: 760px;
+  border: 0;
+  background: #0c1411;
+}
+
+.main-twitch-chat-placeholder {
+  display: grid;
+  grid-template-rows: 58px 1fr;
+  min-height: 760px;
+  background: linear-gradient(180deg, rgba(13, 23, 15, 0.96), rgba(10, 20, 12, 0.98));
+}
+
+.main-twitch-chat-placeholder-top,
+.main-twitch-chat-placeholder-body {
+  position: relative;
+  overflow: hidden;
+}
+
+.main-twitch-chat-placeholder-top {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+}
+
+.main-twitch-chat-placeholder-body {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+    rgba(0,0,0,0.08);
+}
+
+.main-twitch-chat-placeholder-top::after,
+.main-twitch-chat-placeholder-body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+  transform: translateX(-100%);
+  animation: mainTwitchChatShimmer 1.7s infinite;
+}
+
+@keyframes mainTwitchChatShimmer {
+  to { transform: translateX(100%); }
+}
+
+/* Wide desktop: reserve a separate right sidebar instead of squeezing the farm modules. */
+@media (min-width: 1450px) {
+  .app-shell {
+    width: min(1540px, calc(100% - 24px));
+  }
+
+  .main-dashboard-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 332px;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .main-dashboard-side {
+    margin-top: 0;
+  }
+
+  .main-twitch-chat-card {
+    position: sticky;
+    top: 84px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .main-twitch-chat-embed,
+  .main-twitch-chat-embed iframe,
+  .main-twitch-chat-placeholder {
+    min-height: 680px;
+    height: 680px;
+  }
+}
+
+@media (max-width: 980px) {
+  .main-twitch-chat-embed,
+  .main-twitch-chat-embed iframe,
+  .main-twitch-chat-placeholder {
+    min-height: 540px;
+    height: 540px;
+  }
+}
+
+@media (max-width: 640px) {
+  .main-twitch-chat-card {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .main-twitch-chat-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .main-twitch-chat-link {
+    width: 100%;
+  }
+
+  .main-twitch-chat-embed,
+  .main-twitch-chat-embed iframe,
+  .main-twitch-chat-placeholder {
+    min-height: 500px;
+    height: 500px;
+  }
+}
+
+
+/* Safe fix: keep Twitch chat interactive while scrolling.
+   The site has sticky/floating UI layers (tabs, message panel, scroll button).
+   Raise the chat sidebar above them so Twitch input and controls stay clickable. */
+.main-dashboard-side {
+  position: relative;
+  z-index: 60;
+}
+
+.main-twitch-chat-card {
+  z-index: 60;
+  isolation: isolate;
+}
+
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure sticky site-wide status/message bars never steal clicks from the chat area. */
+#message.message-panel {
+  z-index: 30;
+}
+
+@media (min-width: 1450px) {
+  .main-twitch-chat-card {
+    z-index: 60;
+  }
+}
+
+/* PATCH 2026-05-06: strict mobile layout for phones.
+   Fixes horizontal overflow on the main farm screen without changing desktop UI. */
+@media (max-width: 700px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    display: block;
+    place-items: initial;
+  }
+
+  .app-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 0 !important;
+    overflow: hidden;
+  }
+
+  .farm-hero {
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .farm-title-row {
+    min-width: 0;
+    gap: 10px !important;
+    align-items: center;
+  }
+
+  .farm-logo {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    border-radius: 14px !important;
+    font-size: 24px !important;
+  }
+
+  .farm-hero h1 {
+    font-size: clamp(26px, 9vw, 34px) !important;
+    line-height: 1.02 !important;
+    letter-spacing: -0.6px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .farm-hero p {
+    margin-top: 4px !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+  }
+
+  .admin-entry {
+    margin: 8px 0 0 !important;
+  }
+
+  .admin-entry button {
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    border-radius: 13px !important;
+    font-size: 12px !important;
+  }
+
+  .farm-tabs {
+    position: static !important;
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    padding: 6px !important;
+    margin-bottom: 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .farm-tab,
+  .back-main-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 38px !important;
+    padding: 7px 6px !important;
+    border-radius: 12px !important;
+    font-size: 12px !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+  }
+
+  .farm-tab[data-farm-tab="history"] {
+    grid-column: 1 / -1;
+  }
+
+  .main-dashboard-layout,
+  .main-dashboard-primary,
+  .main-dashboard-side,
+  .profile-shell,
+  .quick-status,
+  .visual-section,
+  .farm-tab-panel.active {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .profile-shell {
+    min-height: 0 !important;
+    margin-bottom: 12px !important;
+  }
+
+  .profile-card-final,
+  .profile-card-final.visual-profile-patch {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+    padding: 12px !important;
+    border-radius: 20px !important;
+  }
+
+  .profile-main-left {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 10px !important;
+    gap: 9px !important;
+    flex-direction: column !important;
+    text-align: center !important;
+    border-radius: 18px !important;
+  }
+
+  .profile-main-left > div:not(.profile-avatar-big) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profile-avatar-big {
+    width: 82px !important;
+    height: 82px !important;
+    border-radius: 18px !important;
+  }
+
+  .profile-avatar-fallback {
+    font-size: 36px !important;
+  }
+
+  .profile-kicker {
+    font-size: 10px !important;
+    letter-spacing: 1px !important;
+  }
+
+  .profile-name-final,
+  .profile-main-left .profile-name-final {
+    max-width: 100% !important;
+    margin: 3px 0 7px !important;
+    font-size: clamp(20px, 7vw, 25px) !important;
+    line-height: 1.08 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .profile-status-pill {
+    max-width: 100%;
+    padding: 6px 9px !important;
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+  }
+
+  .profile-stats-final,
+  .stats-2row-grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .stat-tile {
+    min-width: 0 !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .stat-tile span {
+    font-size: 10.5px !important;
+    line-height: 1.15 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .stat-tile b {
+    font-size: 15px !important;
+    line-height: 1.1 !important;
+  }
+
+  .stat-tile small {
+    font-size: 10px !important;
+  }
+
+  .stat-tile.wide {
+    grid-column: 1 / -1 !important;
+  }
+
+  .quick-status,
+  .visual-section,
+  .market-section,
+  .combat-section,
+  .extra-section,
+  .info-section,
+  .history-section,
+  .buildings-section,
+  .license-section {
+    padding: 12px !important;
+    border-radius: 18px !important;
+    margin-top: 12px !important;
+  }
+
+  .quick-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .farm-grid,
+  .action-grid-top,
+  .combat-grid,
+  .info-grid,
+  .tops-grid,
+  .buildings-grid,
+  .buildings-grid-clean,
+  .buildings-resources-grid,
+  .market-actions,
+  .market-hero,
+  .polished-market-hero,
+  .stage-market-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .farm-grid button,
+  .action-grid-top button,
+  #upgrade1Btn,
+  #upgrade10Btn,
+  #collectBtn,
+  #raidActionBtn,
+  #raidHistoryBtn {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 46px !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+  }
+
+  .farm-grid button small,
+  .action-grid-top button small {
+    font-size: 11px !important;
+  }
+
+  .main-twitch-chat-card {
+    margin-top: 12px !important;
+    padding: 10px !important;
+    border-radius: 18px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .profile-stats-final,
+  .stats-2row-grid,
+  .quick-status-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .farm-tabs {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+
+/* PATCH: keep Twitch chat aligned below hero/tabs at page top on desktop.
+   Some previous sticky/fixed tweaks could pull the right chat card too high.
+   We reserve top space on the right column, while preserving sticky behavior on scroll. */
+@media (min-width: 1450px) {
+  .persistent-twitch-chat-side {
+    align-self: start;
+    padding-top: 92px !important;
+  }
+
+  .main-dashboard-side {
+    margin-top: 0 !important;
+  }
+
+  .main-twitch-chat-card {
+    position: sticky !important;
+    top: 24px !important;
+    margin-top: 0 !important;
+  }
+}

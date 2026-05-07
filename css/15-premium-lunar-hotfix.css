@@ -1,0 +1,271 @@
+/* Moose Farm — Premium Lunar hotfix
+   Fixes:
+   - move all notifications to bottom-left
+   - keep Twitch chat clickable for mods/owner
+   - remove leftover green styling in farmers/admin/raid/status panels
+   - fix 2.0 badge overlapping the title
+*/
+
+:root {
+  --lh-bg: rgba(10, 14, 30, 0.96);
+  --lh-bg2: rgba(16, 22, 44, 0.92);
+  --lh-line: rgba(132, 173, 255, 0.22);
+  --lh-line-strong: rgba(118, 239, 255, 0.34);
+  --lh-text: #f5f7ff;
+  --lh-soft: rgba(217, 224, 255, 0.76);
+  --lh-cyan: #76efff;
+  --lh-violet: #9477ff;
+  --lh-pink: #ff73d1;
+  --lh-danger: #ff547c;
+  --lh-danger2: #ff3262;
+  --lh-shadow: 0 20px 56px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* 2.0 badge — no overlap with title */
+.farm-title-row {
+  gap: 22px !important;
+}
+
+.farm-logo {
+  margin-right: 18px !important;
+  overflow: visible !important;
+}
+
+.farm-logo::after {
+  top: -6px !important;
+  right: -12px !important;
+  transform: none !important;
+}
+
+.farm-title-row > div:last-child,
+.farm-title-row h1,
+.farm-hero h1,
+.hero-greeting-title {
+  position: relative;
+  z-index: 1;
+}
+
+/* Chat must stay above all site overlays */
+.main-dashboard-side,
+.persistent-twitch-chat-side,
+.main-twitch-chat-card,
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  z-index: 999 !important;
+  position: relative;
+}
+
+.farm-tabs,
+#message,
+#message.message-panel,
+#scrollTopBtn,
+.site-toast-root,
+.action-toast-root,
+.quick-status,
+.admin-entry,
+.logout-form {
+  z-index: 30 !important;
+}
+
+/* Notifications moved to bottom-left so they never cover Twitch input */
+.site-toast-root,
+.action-toast-root {
+  position: fixed !important;
+  left: 18px !important;
+  right: auto !important;
+  bottom: 18px !important;
+  top: auto !important;
+  max-width: min(390px, calc(100vw - 24px)) !important;
+  width: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  pointer-events: none;
+}
+
+.site-toast,
+.action-toast {
+  pointer-events: auto;
+  width: min(390px, calc(100vw - 24px)) !important;
+}
+
+.site-toast-title,
+.action-toast-title {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+.site-toast {
+  border: 1px solid var(--lh-line) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(118,239,255,.10), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(255,115,209,.06), transparent 30%),
+    linear-gradient(180deg, var(--lh-bg2), var(--lh-bg)) !important;
+  box-shadow: var(--lh-shadow) !important;
+}
+
+.site-toast.danger,
+.action-toast.danger {
+  border-color: rgba(255, 84, 124, 0.36) !important;
+}
+
+/* All farmers modal / farmer profile — remove green leftovers */
+.farmer-modal-dialog,
+.farmers-list-dialog,
+.farmer-popup-card,
+.farmer-popup-stats,
+.farmer-popup-buildings,
+.farmer-popup-stat,
+.farmer-building-chip,
+.farmers-list-tools,
+.farmers-list-tools input,
+.all-farmer-item,
+.online-farmer-item,
+.all-farmer-badge.offline,
+.all-farmer-badge.online {
+  border-color: var(--lh-line) !important;
+  color: var(--lh-text) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(118,239,255,.08), transparent 32%),
+    radial-gradient(circle at 0% 100%, rgba(255,115,209,.05), transparent 26%),
+    linear-gradient(180deg, var(--lh-bg2), var(--lh-bg)) !important;
+  box-shadow: var(--lh-shadow) !important;
+}
+
+.farmers-list-head p,
+.farmer-modal-head p,
+.online-farmer-meta,
+.all-farmer-item .online-farmer-meta,
+.farmer-building-chip small,
+.all-farmer-badge.offline,
+.all-farmer-badge.online {
+  color: var(--lh-soft) !important;
+}
+
+.all-farmer-badge.online,
+.all-farmer-badge.offline {
+  border: 1px solid var(--lh-line) !important;
+}
+
+.farmer-modal-backdrop,
+.farmers-list-backdrop {
+  background: rgba(4, 6, 16, 0.78) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Raid modal / raid cards — remove green backgrounds */
+.raid-primary-card,
+.raid-log-row,
+.raid-history-mini,
+.raid-history-detail,
+.raid-breakdown-grid > div,
+.raid-rows-clean > div,
+.polished-raid-grid .raid-primary-card,
+.polished-raid-meta > div,
+.polished-raid-rows > div,
+.raid-log-list .raid-log-row,
+.compact-action-raid {
+  border-color: var(--lh-line) !important;
+  color: var(--lh-text) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(118,239,255,.08), transparent 34%),
+    linear-gradient(180deg, var(--lh-bg2), var(--lh-bg)) !important;
+  box-shadow: var(--lh-shadow) !important;
+}
+
+.raid-history-mini.active,
+.polished-raid-log-row:hover {
+  border-color: var(--lh-line-strong) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(148,119,255,.14), transparent 38%),
+    linear-gradient(180deg, rgba(19,24,52,.98), rgba(10,14,30,.98)) !important;
+}
+
+/* Level pills and status pills — remove green */
+.building-badge,
+.profile-status-pill,
+.loot-selection-pill,
+.loot-icon-count,
+.loot-section-head > span,
+.farmer-building-chip strong + small,
+[class*="level-badge"],
+[class*="status-badge"] {
+  border-color: var(--lh-line) !important;
+  background:
+    linear-gradient(180deg, rgba(148,119,255,.18), rgba(118,239,255,.08)) !important;
+  color: var(--lh-text) !important;
+}
+
+/* Admin loaded bar + admin panels */
+.admin-loaded,
+.admin-player-loaded,
+.admin-status,
+#adminStatus,
+#message.message-panel,
+.admin-modal-card,
+.admin-card,
+.admin-section,
+.admin-tab-panel,
+.admin-view-section,
+.admin-unified-section,
+.admin-field-card,
+.admin-building-card,
+.admin-player-card,
+.admin-mini-card,
+.backup-panel,
+.stage-cost-grid > div,
+.admin-suggestions {
+  border-color: var(--lh-line) !important;
+  color: var(--lh-text) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(118,239,255,.08), transparent 32%),
+    radial-gradient(circle at 0% 100%, rgba(255,115,209,.05), transparent 28%),
+    linear-gradient(180deg, var(--lh-bg2), var(--lh-bg)) !important;
+  box-shadow: var(--lh-shadow) !important;
+}
+
+/* Dangerous buttons clearly highlighted */
+button.danger,
+.btn-danger,
+.admin-danger-btn,
+[data-admin-danger],
+button[data-admin-action*="delete"],
+button[data-admin-action*="reset"],
+button[data-admin-action*="remove"],
+button[data-admin-action*="wipe"] {
+  border-color: rgba(255, 84, 124, 0.42) !important;
+  color: #fff4f7 !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255,84,124,.18), transparent 36%),
+    linear-gradient(180deg, rgba(79, 15, 35, 0.96), rgba(34, 8, 18, 0.98)) !important;
+}
+
+button.danger:hover,
+.btn-danger:hover,
+.admin-danger-btn:hover,
+[data-admin-danger]:hover,
+button[data-admin-action*="delete"]:hover,
+button[data-admin-action*="reset"]:hover,
+button[data-admin-action*="remove"]:hover,
+button[data-admin-action*="wipe"]:hover {
+  border-color: rgba(255, 115, 156, 0.58) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255,84,124,.26), transparent 38%),
+    linear-gradient(180deg, rgba(106, 20, 48, 0.96), rgba(48, 10, 24, 0.98)) !important;
+}
+
+/* mobile keep notifications reasonable */
+@media (max-width: 700px) {
+  .site-toast-root,
+  .action-toast-root {
+    left: 10px !important;
+    bottom: 10px !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+  .site-toast,
+  .action-toast {
+    width: calc(100vw - 20px) !important;
+  }
+}

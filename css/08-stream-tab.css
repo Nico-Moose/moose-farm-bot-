@@ -1,0 +1,350 @@
+/* Stream tab safe patch */
+.stream-tab-box {
+  display: grid;
+}
+
+.stream-tab-card {
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: linear-gradient(180deg, rgba(18,39,20,.74), rgba(10,24,12,.92));
+  overflow: hidden;
+}
+
+.stream-tab-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.stream-tab-head h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.stream-tab-head p {
+  margin: 4px 0 0;
+  color: rgba(255,255,255,.68);
+  font-size: 13px;
+}
+
+.stream-tab-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.stream-tab-link:hover {
+  background: rgba(145,226,109,.14);
+}
+
+.stream-player-shell {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.stream-player-shell iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.stream-offline-shell {
+  position: relative;
+  min-height: 520px;
+  padding: 40px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255,140,0,.28), transparent 30%),
+    radial-gradient(circle at 80% 30%, rgba(255,120,0,.22), transparent 28%),
+    radial-gradient(circle at 70% 75%, rgba(255,95,0,.18), transparent 25%),
+    linear-gradient(135deg, rgba(20,16,16,.96), rgba(33,22,13,.98));
+  overflow: hidden;
+}
+
+.stream-offline-shell::before,
+.stream-offline-shell::after {
+  content: "";
+  position: absolute;
+  inset: auto;
+  border-radius: 999px;
+  background: rgba(255,140,0,.10);
+  filter: blur(8px);
+}
+
+.stream-offline-shell::before {
+  width: 360px;
+  height: 360px;
+  left: -80px;
+  top: -60px;
+}
+
+.stream-offline-shell::after {
+  width: 420px;
+  height: 420px;
+  right: -120px;
+  bottom: -120px;
+}
+
+.stream-offline-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 18px;
+  justify-items: start;
+  max-width: 700px;
+}
+
+.stream-offline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.10);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.stream-offline-title {
+  margin: 0;
+  font-size: clamp(46px, 7vw, 96px);
+  line-height: .95;
+  font-weight: 1000;
+  letter-spacing: .02em;
+  color: #ff8f1f;
+  text-shadow: 0 0 18px rgba(255,140,0,.45), 0 0 42px rgba(255,120,0,.28), 0 0 2px rgba(255,255,255,.35);
+}
+
+.stream-offline-subtitle {
+  margin: 0;
+  max-width: 540px;
+  color: rgba(255,255,255,.86);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.stream-offline-note {
+  margin: 0;
+  max-width: 620px;
+  color: rgba(255,255,255,.70);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.stream-offline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stream-offline-link,
+.stream-offline-chat-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  color: #fff;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.stream-offline-link {
+  background: linear-gradient(180deg, rgba(255,141,31,.96), rgba(210,94,0,.96));
+  color: #fff;
+}
+
+.stream-offline-chat-link {
+  background: rgba(255,255,255,.07);
+}
+
+.stream-offline-link:hover,
+.stream-offline-chat-link:hover {
+  filter: brightness(1.06);
+}
+
+.stream-tab-loading {
+  padding: 24px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.72);
+}
+
+@media (max-width: 900px) {
+  .stream-offline-shell {
+    min-height: 420px;
+    padding: 28px 22px;
+  }
+  .stream-offline-subtitle {
+    font-size: 20px;
+  }
+}
+
+
+/* Offline branded card: replaces Twitch embed offline screen. */
+.stream-offline-shell {
+  min-height: 560px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 17% 18%, rgba(255,147,41,.36), transparent 27%),
+    radial-gradient(circle at 80% 22%, rgba(255,110,12,.28), transparent 26%),
+    radial-gradient(circle at 70% 75%, rgba(255,112,24,.24), transparent 24%),
+    linear-gradient(135deg, rgba(20,17,14,.98), rgba(38,23,13,.98));
+}
+
+.stream-offline-logo {
+  position: absolute;
+  top: 30px;
+  right: 34px;
+  width: 78px;
+  height: 78px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+  font-size: 42px;
+  box-shadow: 0 18px 60px rgba(0,0,0,.32);
+}
+
+.stream-offline-content {
+  justify-items: center;
+  text-align: center;
+  max-width: 780px;
+}
+
+.stream-offline-sign {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  transform: rotate(-5deg);
+  margin: 4px 0 8px;
+}
+
+.stream-offline-title {
+  display: inline-flex;
+  padding: 12px 34px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: rgba(40,29,23,.74);
+  color: #ff8f1f;
+  font-size: clamp(52px, 8vw, 112px);
+  line-height: .9;
+  font-weight: 1000;
+  letter-spacing: .04em;
+  text-shadow: 0 0 16px rgba(255,140,0,.75), 0 0 44px rgba(255,118,0,.42);
+  box-shadow: 0 22px 70px rgba(0,0,0,.34), inset 0 0 34px rgba(255,130,0,.08);
+}
+
+.stream-offline-tag,
+.stream-offline-subtitle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px 18px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.86);
+  font-weight: 950;
+  font-size: clamp(18px, 2.5vw, 30px);
+  text-transform: lowercase;
+}
+
+.stream-offline-note {
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .stream-offline-shell {
+    min-height: 430px;
+  }
+  .stream-offline-logo {
+    display: none;
+  }
+  .stream-offline-sign {
+    transform: none;
+  }
+}
+
+
+/* Stream tab single-column layout with persistent right chat only. */
+.stream-layout.stream-layout-single {
+  display: block;
+}
+
+.stream-card-head-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.stream-card-head-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.07);
+  color: #fff;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.stream-card-head-btn:hover {
+  background: rgba(145,226,109,.16);
+}
+
+.stream-offline-shell-banner {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  display: block;
+}
+
+.stream-offline-banner {
+  width: 100%;
+  display: block;
+  border-radius: 24px;
+  object-fit: cover;
+}
+
+@media (max-width: 900px) {
+  .stream-card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stream-card-head-actions {
+    justify-content: stretch;
+  }
+
+  .stream-card-head-btn {
+    width: 100%;
+  }
+}

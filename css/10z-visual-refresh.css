@@ -1,0 +1,640 @@
+:root {
+  --mf-bg-1: #041406;
+  --mf-bg-2: #0b2410;
+  --mf-bg-3: #173921;
+  --mf-surface: rgba(9, 28, 13, 0.86);
+  --mf-surface-2: rgba(17, 43, 21, 0.92);
+  --mf-surface-3: rgba(255, 255, 255, 0.045);
+  --mf-border: rgba(182, 255, 141, 0.14);
+  --mf-border-strong: rgba(182, 255, 141, 0.24);
+  --mf-text: #f6fff3;
+  --mf-muted: rgba(236, 248, 233, 0.72);
+  --mf-accent: #a8ee73;
+  --mf-accent-2: #7edb58;
+  --mf-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  --mf-shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.18);
+  --mf-radius-xl: 28px;
+  --mf-radius-lg: 20px;
+  --mf-radius-md: 16px;
+  --mf-radius-sm: 14px;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(104, 176, 74, 0.22), transparent 28%),
+    radial-gradient(circle at top right, rgba(66, 132, 53, 0.18), transparent 24%),
+    linear-gradient(135deg, #031105 0%, #0a220d 36%, #103116 68%, #163a22 100%);
+  background-attachment: fixed;
+  color: var(--mf-text);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(transparent 0, rgba(255,255,255,0.014) 1px, transparent 1px),
+    linear-gradient(90deg, transparent 0, rgba(255,255,255,0.012) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,0.16), transparent 78%);
+  opacity: 0.45;
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at top center, rgba(144, 224, 90, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(7, 24, 10, 0.96), rgba(5, 18, 8, 0.94));
+  border: 1px solid var(--mf-border-strong);
+  border-radius: 30px;
+  box-shadow:
+    0 30px 70px rgba(0,0,0,0.38),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.farm-hero {
+  padding: 8px 6px 4px;
+  margin-bottom: 18px;
+}
+
+.farm-title-row {
+  gap: 18px;
+}
+
+.farm-logo {
+  width: 62px;
+  height: 62px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255,255,255,0.14), transparent 35%),
+    linear-gradient(160deg, rgba(169, 237, 115, 0.25), rgba(7, 20, 9, 0.5));
+  border: 1px solid rgba(180, 255, 143, 0.24);
+  box-shadow: var(--mf-shadow-soft);
+}
+
+.farm-hero h1 {
+  letter-spacing: -1.8px;
+  text-wrap: balance;
+}
+
+.farm-hero p {
+  color: var(--mf-muted);
+  font-size: 15px;
+}
+
+#openAdminPanel {
+  min-width: 168px;
+}
+
+.farm-tabs {
+  padding: 12px;
+  gap: 12px;
+  border-radius: 22px;
+  background: rgba(5, 17, 8, 0.72);
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.farm-tab,
+.back-main-btn,
+.admin-entry button,
+.logout-form .secondary,
+.quick-actions-section button,
+.compact-extra-actions button,
+.building-card button,
+.building-card-clean__actions button,
+.combat-card button,
+.market-card button,
+.history-controls button,
+.admin-card button,
+.farm-online-all-btn,
+.stream-card-head-btn {
+  position: relative;
+  overflow: hidden;
+  min-height: 50px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background:
+    linear-gradient(180deg, rgba(178, 245, 127, 0.96), rgba(123, 210, 82, 0.94));
+  color: #11210e;
+  box-shadow: 0 12px 24px rgba(71, 132, 48, 0.16);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, background .18s ease;
+}
+
+.farm-tab::after,
+.back-main-btn::after,
+.admin-entry button::after,
+.logout-form .secondary::after,
+.quick-actions-section button::after,
+.compact-extra-actions button::after,
+.building-card button::after,
+.building-card-clean__actions button::after,
+.combat-card button::after,
+.market-card button::after,
+.history-controls button::after,
+.admin-card button::after,
+.farm-online-all-btn::after,
+.stream-card-head-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.16), transparent 46%);
+  pointer-events: none;
+}
+
+.farm-tab:hover,
+.back-main-btn:hover,
+.admin-entry button:hover,
+.logout-form .secondary:hover,
+.quick-actions-section button:hover,
+.compact-extra-actions button:hover,
+.building-card button:hover,
+.building-card-clean__actions button:hover,
+.combat-card button:hover,
+.market-card button:hover,
+.history-controls button:hover,
+.admin-card button:hover,
+.farm-online-all-btn:hover,
+.stream-card-head-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 16px 28px rgba(74, 144, 47, 0.24);
+}
+
+.farm-tab.active {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 16px 32px rgba(74, 144, 47, 0.28);
+}
+
+button:disabled,
+.farm-tab:disabled,
+.back-main-btn:disabled,
+.market-card button:disabled,
+.combat-card button:disabled,
+.quick-actions-section button:disabled,
+.compact-extra-actions button:disabled,
+.building-card button:disabled,
+.building-card-clean__actions button:disabled {
+  opacity: 0.58;
+  filter: saturate(0.65);
+  box-shadow: none;
+}
+
+.visual-section,
+.profile-card-final,
+.quick-status,
+.info-card,
+.market-card,
+.license-card,
+.building-card,
+.building-card-clean,
+.combat-card,
+.main-twitch-chat-card,
+.farm-online-side,
+.farmer-modal-dialog,
+.farmers-list-dialog,
+.admin-modal-card {
+  border-radius: 24px;
+  border: 1px solid var(--mf-border);
+  background:
+    radial-gradient(circle at top right, rgba(168, 238, 115, 0.06), transparent 24%),
+    linear-gradient(180deg, rgba(16, 43, 21, 0.94), rgba(8, 24, 12, 0.94));
+  box-shadow: var(--mf-shadow);
+}
+
+.visual-section,
+.profile-card-final,
+.market-card,
+.building-card,
+.building-card-clean,
+.combat-card,
+.info-card {
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.visual-section:hover,
+.profile-card-final:hover,
+.market-card:hover,
+.building-card:hover,
+.building-card-clean:hover,
+.combat-card:hover,
+.info-card:hover {
+  border-color: rgba(182, 255, 141, 0.2);
+  box-shadow: 0 20px 46px rgba(0,0,0,0.32);
+}
+
+.profile-card-final {
+  gap: 20px;
+  padding: 20px;
+}
+
+.profile-main-left {
+  align-items: center;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.16));
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.profile-avatar-big {
+  width: 116px;
+  height: 116px;
+  border-radius: 26px;
+  border: 2px solid rgba(168, 238, 115, 0.34);
+  box-shadow: 0 16px 36px rgba(0,0,0,0.34);
+}
+
+.profile-kicker {
+  color: rgba(238, 248, 234, 0.62);
+  letter-spacing: 1.8px;
+}
+
+.profile-name-final {
+  margin: 6px 0 12px;
+  font-size: clamp(32px, 3vw, 44px);
+  line-height: 1.04;
+}
+
+.profile-status-pill {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(129, 223, 92, 0.2), rgba(129, 223, 92, 0.12));
+  border-color: rgba(168, 238, 115, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.profile-stats-final {
+  gap: 12px;
+}
+
+.stat-tile {
+  padding: 13px 14px;
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.12));
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.stat-tile span {
+  margin-bottom: 7px;
+  color: rgba(238, 248, 234, 0.66);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.stat-tile b {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.stat-tile.accent,
+.stat-tile.gold {
+  background: linear-gradient(180deg, rgba(171, 238, 121, 0.12), rgba(0,0,0,0.1));
+  border-color: rgba(171, 238, 121, 0.2);
+}
+
+.quick-actions-section h2,
+.visual-section h2,
+.section-head h2,
+.main-actions-extras-head h3 {
+  letter-spacing: -0.4px;
+}
+
+.quick-actions-section {
+  gap: 18px;
+}
+
+.action-grid-top {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+#raidActionWrap {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-actions-section button,
+#raidActionBtn,
+#raidHistoryBtn,
+#upgrade1Btn,
+#upgrade10Btn,
+#openCaseBtn,
+#gamusBtn,
+#offCollectBtn,
+#showCaseHistoryBtn {
+  width: 100%;
+  min-height: 54px;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.quick-actions-section button small,
+.compact-extra-actions button small,
+#raidActionBtn small,
+#upgrade1Btn small,
+#upgrade10Btn small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(17, 33, 14, 0.78);
+}
+
+.raid-history-small-btn,
+.ghost-action,
+.logout-form .secondary,
+.farm-online-all-btn,
+.main-twitch-chat-link,
+.stream-card-head-btn,
+.back-main-btn {
+  background: linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.05));
+  color: var(--mf-text);
+  border-color: rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.raid-history-small-btn small,
+.ghost-action small,
+.logout-form .secondary small,
+.farm-online-all-btn small,
+.main-twitch-chat-link small,
+.stream-card-head-btn small,
+.back-main-btn small {
+  color: rgba(243, 255, 240, 0.78);
+}
+
+.main-actions-extras-head {
+  padding-top: 4px;
+}
+
+.main-actions-extras-head h3 {
+  color: rgba(245, 255, 242, 0.95);
+}
+
+.main-actions-extras-grid {
+  gap: 16px;
+}
+
+.compact-extra-card {
+  min-height: 235px;
+  padding: 18px;
+  gap: 14px;
+}
+
+.compact-extra-title {
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.compact-extra-lines {
+  gap: 10px;
+}
+
+.compact-extra-lines p {
+  color: rgba(242, 251, 239, 0.9);
+  font-size: 15px;
+}
+
+.compact-extra-lines b {
+  color: #ffffff;
+}
+
+.compact-extra-actions {
+  margin-top: auto;
+}
+
+.section-head,
+.main-twitch-chat-head,
+.stream-card-head,
+.farm-online-head,
+.farmers-list-head,
+.farmer-modal-head {
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.section-head p,
+.main-twitch-chat-head p,
+.farm-online-head p,
+.stream-card-head p,
+.farmers-list-head p,
+.farmer-modal-head p {
+  color: var(--mf-muted);
+}
+
+.quick-status,
+.history-controls,
+.admin-status,
+.admin-events-summary {
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.14));
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.market-card,
+.info-card,
+.tab-page-card {
+  overflow: hidden;
+}
+
+.info-card,
+.market-card {
+  padding: 16px;
+}
+
+.history-controls,
+.admin-card input,
+.admin-card select,
+.history-controls select,
+.market-actions input,
+.farmers-list-tools input {
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  color: var(--mf-text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.market-actions input,
+.admin-card input,
+.admin-card select,
+.history-controls select,
+.farmers-list-tools input {
+  min-height: 48px;
+  padding: 12px 14px;
+}
+
+.building-card-clean,
+.combat-card-v3 {
+  border-radius: 22px;
+}
+
+.building-card-clean__head,
+.building-card-clean__meta,
+.building-card-clean__effects,
+.building-card-clean__pack,
+.combat-card-v3 .combat-body,
+.combat-card-v3 .combat-actions {
+  border-radius: 16px;
+}
+
+.building-card-clean__head h3,
+.combat-card h3,
+.info-card h3,
+.market-card h3 {
+  letter-spacing: -0.3px;
+}
+
+.building-card-clean__actions,
+.compact-extra-actions,
+.market-actions,
+.history-controls,
+.admin-journal-tools,
+.admin-farmers-toolbar {
+  gap: 12px;
+}
+
+.online-farmer-item,
+.all-farmer-item {
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.07);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025));
+  transition: transform .16s ease, background .16s ease, border-color .16s ease;
+}
+
+.online-farmer-item:hover,
+.all-farmer-item:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, rgba(130, 214, 84, 0.14), rgba(255,255,255,0.04));
+  border-color: rgba(168, 238, 115, 0.18);
+}
+
+.online-farmer-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.online-farmer-meta,
+.online-farmers-empty {
+  color: var(--mf-muted);
+}
+
+.main-twitch-chat-card {
+  overflow: hidden;
+}
+
+.main-twitch-chat-head {
+  padding-bottom: 12px;
+}
+
+.main-twitch-chat-link {
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.main-twitch-chat-frame {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.16);
+}
+
+#message.message-panel {
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(4, 12, 6, 0.92);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 18px 36px rgba(0,0,0,0.28);
+}
+
+.logout-form {
+  margin-top: 20px;
+}
+
+.logout-form .secondary {
+  min-width: 120px;
+}
+
+.admin-modal-card {
+  background: linear-gradient(180deg, rgba(12, 28, 18, 0.98), rgba(7, 18, 11, 0.98));
+}
+
+@media (max-width: 1280px) {
+  .profile-card-final {
+    grid-template-columns: 1fr;
+  }
+
+  .action-grid-top {
+    grid-template-columns: 1fr;
+  }
+
+  .main-actions-extras-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    padding: 16px;
+    border-radius: 24px;
+  }
+
+  .farm-tabs {
+    gap: 10px;
+  }
+
+  .profile-name-final {
+    font-size: 28px;
+  }
+
+  .compact-extra-title {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .farm-hero {
+    padding: 2px 0 0;
+  }
+
+  .farm-logo {
+    width: 56px;
+    height: 56px;
+  }
+
+  .farm-hero h1 {
+    font-size: 34px;
+  }
+
+  .profile-main-left {
+    padding: 16px;
+  }
+
+  .profile-avatar-big {
+    width: 102px;
+    height: 102px;
+  }
+
+  .stat-tile,
+  .online-farmer-item,
+  .all-farmer-item,
+  .compact-extra-card {
+    border-radius: 16px;
+  }
+}
