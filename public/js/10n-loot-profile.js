@@ -310,19 +310,15 @@
     }
     const tiles = getLootTiles();
     host.innerHTML = `
-      <div class="profile-loot-summary-card">
+      <div class="profile-loot-summary-card compact-main-profile-loot">
         <button type="button" class="profile-loot-chip loot-chip-balance" data-loot-open-modal>
-          <span>💳 Донат-баланс</span>
+          <span>💳 Баланс</span>
           <b>${lootNumber(loot.donateBalance)} ₽</b>
         </button>
         <button type="button" class="profile-loot-chip loot-chip-inventory" data-loot-open-modal>
-          <span>🧩 Предметы</span>
-          <b>${lootNumber(tiles.length)}</b>
+          <span>🎒 Инвентарь</span>
+          <b>${lootNumber(tiles.length)} шт.</b>
         </button>
-        <a class="profile-loot-chip loot-chip-support" href="${SUPPORT_LINK}" target="_blank" rel="noopener noreferrer">
-          <span>💚 Поддержка</span>
-          <b>Donatex</b>
-        </a>
       </div>
     `;
     host.querySelectorAll('[data-loot-open-modal]').forEach((btn) => btn.addEventListener('click', openLootModal));
