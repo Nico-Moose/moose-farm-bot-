@@ -5,7 +5,7 @@ const { config } = require('../config');
 const { getNextUpgrade, listBuildings } = require('../services/farmGameService');
 const { importPayloadToSqlite, importWizebotPayloadByLogin } = require('../services/wizebotBridgeImportService');
 const { getWizebotStateByLogin } = require('../services/wizebotStateExportService');
-const { upsertTwitchUser, getProfileByLogin, updateProfile, logFarmEvent, applyWizebotLevelByLogin } = require('../services/userService');
+const { upsertTwitchUser, getProfileByLogin, updateProfile, logFarmEvent } = require('../services/userService');
 const { syncWizebotFarmToProfile } = require('../services/wizebotSyncService');
 const { buildFarmV2FromProfile } = require('../services/farmV2Service');
 const { getDb } = require('../services/dbService');
@@ -415,57 +415,5 @@ router.get('/farmers-missing-buildings-site', (req, res) => {
   }
 });
 
-router.get('/wizebot-level-push', (req, res) => {
-  const providedSecret = getProvidedSecret(req);
-  if (!providedSecret || providedSecret !== config.wizebot.bridgeSecret) {
-    return res.status(403).json({ ok: false, error: 'invalid_bridge_secret' });
-  }
-
-  const login = String(req.query.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
-  if (!login) return res.status(400).json({ ok: false, error: 'missing_login' });
-
-  let payload = {};
-  try {
-    payload = JSON.parse(String(req.query.payload || '{}')) || {};
-  } catch (_) {
-    payload = {};
-  }
-
-  const levelData = {
-    level: payload.level ?? req.query.level,
-    rank: payload.rank ?? req.query.rank,
-    exp: payload.exp ?? req.query.exp,
-    next_exp: payload.next_exp ?? payload.nextExp ?? req.query.next_exp,
-    custom_rank: payload.custom_rank ?? payload.customRank ?? req.query.custom_rank
-  };
-
-  const updated = applyWizebotLevelByLogin(login, levelData);
-
-  if (!updated) {
-    return res.status(404).json({ ok: false, error: 'profile_not_found', login });
-  }
-
-  logFarmEvent(updated.twitch_id, 'sync_wizebot_level', {
-    login,
-    level: Number(levelData.level || 0),
-    rank: Number(levelData.rank || 0),
-    exp: Number(levelData.exp || 0),
-    next_exp: Number(levelData.next_exp || 0),
-    custom_rank: String(levelData.custom_rank || '')
-  });
-
-  return res.json({
-    ok: true,
-    login,
-    wizebot_level: {
-      level: Number(updated.wizebot_level || 0),
-      rank: Number(updated.wizebot_rank || 0),
-      exp: Number(updated.wizebot_exp || 0),
-      next_exp: Number(updated.wizebot_next_exp || 0),
-      custom_rank: String(updated.wizebot_custom_rank || ''),
-      synced_at: Number(updated.wizebot_level_synced_at || 0)
-    }
-  });
-});
 
 module.exports = router;

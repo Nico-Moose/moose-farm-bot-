@@ -18,12 +18,6 @@ function normalizeProfile(row) {
     protection_level: Number(row.protection_level ?? 0),
     raid_power: Number(row.raid_power ?? 0),
     last_wizebot_sync_at: row.last_wizebot_sync_at ? Number(row.last_wizebot_sync_at) : null,
-    wizebot_level: Number(row.wizebot_level ?? 0),
-    wizebot_rank: Number(row.wizebot_rank ?? 0),
-    wizebot_exp: Number(row.wizebot_exp ?? 0),
-    wizebot_next_exp: Number(row.wizebot_next_exp ?? 0),
-    wizebot_custom_rank: String(row.wizebot_custom_rank || ''),
-    wizebot_level_synced_at: row.wizebot_level_synced_at ? Number(row.wizebot_level_synced_at) : null,
     farm: parseJsonSafe(row.farm_json, {}),
     configs: parseJsonSafe(row.configs_json, {}),
     turret: parseJsonSafe(row.turret_json, {}),
@@ -119,36 +113,6 @@ function getProfile(twitchId) {
       f.raid_power,
       f.turret_json,
       f.last_wizebot_sync_at
-      , f.wizebot_level
-      , f.wizebot_rank
-      , f.wizebot_exp
-      , f.wizebot_next_exp
-      , f.wizebot_custom_rank
-      , f.wizebot_level_synced_at
-      , f.wizebot_level
-      , f.wizebot_rank
-      , f.wizebot_exp
-      , f.wizebot_next_exp
-      , f.wizebot_custom_rank
-      , f.wizebot_level_synced_at
-      , f.wizebot_level
-      , f.wizebot_rank
-      , f.wizebot_exp
-      , f.wizebot_next_exp
-      , f.wizebot_custom_rank
-      , f.wizebot_level_synced_at
-      , f.wizebot_level
-      , f.wizebot_rank
-      , f.wizebot_exp
-      , f.wizebot_next_exp
-      , f.wizebot_custom_rank
-      , f.wizebot_level_synced_at
-      , f.wizebot_level
-      , f.wizebot_rank
-      , f.wizebot_exp
-      , f.wizebot_next_exp
-      , f.wizebot_custom_rank
-      , f.wizebot_level_synced_at
     FROM twitch_users u
     JOIN farm_profiles f ON f.twitch_id = u.twitch_id
     WHERE u.twitch_id = ?
@@ -257,12 +221,6 @@ function updateProfile(profile) {
       raid_power = @raid_power,
       turret_json = @turret_json,
       last_wizebot_sync_at = @last_wizebot_sync_at,
-      wizebot_level = @wizebot_level,
-      wizebot_rank = @wizebot_rank,
-      wizebot_exp = @wizebot_exp,
-      wizebot_next_exp = @wizebot_next_exp,
-      wizebot_custom_rank = @wizebot_custom_rank,
-      wizebot_level_synced_at = @wizebot_level_synced_at,
       updated_at = @updated_at
     WHERE twitch_id = @twitch_id
   `).run({
@@ -271,12 +229,6 @@ function updateProfile(profile) {
     configs_json: JSON.stringify(safe.configs || {}),
     turret_json: JSON.stringify(safe.turret || {}),
     last_wizebot_sync_at: safe.last_wizebot_sync_at || null,
-    wizebot_level: Number(safe.wizebot_level || 0),
-    wizebot_rank: Number(safe.wizebot_rank || 0),
-    wizebot_exp: Number(safe.wizebot_exp || 0),
-    wizebot_next_exp: Number(safe.wizebot_next_exp || 0),
-    wizebot_custom_rank: String(safe.wizebot_custom_rank || ''),
-    wizebot_level_synced_at: safe.wizebot_level_synced_at || null,
     updated_at: now
   });
 
@@ -540,21 +492,6 @@ function listFarmEvents({ twitchId = null, login = '', type = '', limit = 100, d
   });
 }
 
-
-function applyWizebotLevelByLogin(login, levelData = {}) {
-  const profile = getProfileByLogin(login);
-  if (!profile) return null;
-  return updateProfile({
-    ...profile,
-    wizebot_level: Number(levelData.level || 0),
-    wizebot_rank: Number(levelData.rank || 0),
-    wizebot_exp: Number(levelData.exp || 0),
-    wizebot_next_exp: Number(levelData.next_exp || levelData.nextExp || 0),
-    wizebot_custom_rank: String(levelData.custom_rank || levelData.customRank || ''),
-    wizebot_level_synced_at: Date.now()
-  });
-}
-
 module.exports = {
   upsertTwitchUser,
   getProfile,
@@ -570,6 +507,5 @@ module.exports = {
   getPresenceHideSetting,
   setPresenceHideSetting,
   logFarmEvent,
-  listFarmEvents,
-  applyWizebotLevelByLogin
+  listFarmEvents
 };

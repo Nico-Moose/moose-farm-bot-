@@ -92,12 +92,6 @@ function migrate(database) {
   addColumn('turret_json', `turret_json TEXT NOT NULL DEFAULT '{}'`);
   addColumn('last_wizebot_sync_at', 'last_wizebot_sync_at INTEGER');
 
-  addColumn('wizebot_level', 'wizebot_level INTEGER NOT NULL DEFAULT 0');
-  addColumn('wizebot_rank', 'wizebot_rank INTEGER NOT NULL DEFAULT 0');
-  addColumn('wizebot_exp', 'wizebot_exp INTEGER NOT NULL DEFAULT 0');
-  addColumn('wizebot_next_exp', 'wizebot_next_exp INTEGER NOT NULL DEFAULT 0');
-  addColumn('wizebot_custom_rank', "wizebot_custom_rank TEXT NOT NULL DEFAULT ''");
-  addColumn('wizebot_level_synced_at', 'wizebot_level_synced_at INTEGER');
 
   const presenceColumns = database
     .prepare(`PRAGMA table_info(farm_presence)`)
