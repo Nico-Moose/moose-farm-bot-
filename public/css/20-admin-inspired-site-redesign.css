@@ -1,0 +1,352 @@
+/* Moose Farm — site redesign to match admin panel palette
+   UI only. Admin panel intentionally left mostly untouched. */
+
+:root {
+  --site-bg: #0c111d;
+  --site-bg-2: #111827;
+  --site-panel: rgba(24, 31, 46, 0.96);
+  --site-panel-soft: rgba(30, 38, 57, 0.92);
+  --site-line: rgba(122, 154, 230, 0.16);
+  --site-line-strong: rgba(123, 158, 255, 0.32);
+  --site-text: #f6f8fc;
+  --site-text-soft: rgba(227, 233, 244, 0.76);
+  --site-text-muted: rgba(180, 192, 214, 0.58);
+  --site-accent: #4b66ff;
+  --site-accent-2: #1f47d7;
+  --site-accent-soft: rgba(73, 102, 255, 0.18);
+  --site-success: #8fdc6f;
+  --site-warn: #f1cb6b;
+  --site-danger: #ff7c90;
+  --site-shadow: 0 20px 48px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.035);
+  --site-radius-xl: 26px;
+  --site-radius-lg: 20px;
+  --site-radius-md: 14px;
+}
+
+html, body {
+  background: #0a0f19 !important;
+  color: var(--site-text) !important;
+}
+
+body {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(73, 102, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 100% 0%, rgba(73, 102, 255, 0.12), transparent 26%),
+    linear-gradient(180deg, #0d1320 0%, #09101a 58%, #070c15 100%) !important;
+}
+
+body, .app-shell, .farm-content-with-chat, .main-dashboard-layout, .main-dashboard-primary, .farm-tab-panel, .profile-shell {
+  overflow-x: clip !important;
+}
+
+.app-shell {
+  width: min(1940px, calc(100vw - 18px)) !important;
+  max-width: calc(100vw - 18px) !important;
+  margin: 8px auto !important;
+  padding: 14px !important;
+  border-radius: 30px !important;
+  background:
+    radial-gradient(circle at top right, rgba(67, 98, 224, 0.11), transparent 32%),
+    linear-gradient(180deg, rgba(14, 19, 31, 0.98), rgba(10, 14, 24, 0.98)) !important;
+  border: 1px solid var(--site-line) !important;
+  box-shadow: var(--site-shadow) !important;
+}
+
+.farm-hero {
+  padding: 18px 18px 16px !important;
+  border-radius: var(--site-radius-xl) !important;
+  border: 1px solid var(--site-line) !important;
+  background:
+    radial-gradient(circle at top right, rgba(68, 100, 225, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(18, 25, 39, 0.97), rgba(11, 16, 27, 0.97)) !important;
+  box-shadow: var(--site-shadow) !important;
+}
+
+.farm-logo {
+  background: linear-gradient(180deg, rgba(20, 29, 46, 0.98), rgba(11, 16, 28, 0.98)) !important;
+  border: 1px solid rgba(122, 154, 230, 0.18) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.24) !important;
+}
+
+.farm-title-row h1, .farm-hero h1 {
+  color: var(--site-text) !important;
+}
+
+.farm-title-row p, .farm-hero p {
+  color: var(--site-text-muted) !important;
+}
+
+.visual-section,
+.profile-card-final,
+.main-actions-card,
+.tab-page-card,
+.main-twitch-chat-card,
+.farm-online-side,
+.stat-tile,
+.info-stat,
+.quick-status,
+.history-item,
+.history-human-row,
+.combat-card,
+.building-card,
+.market-card,
+.stream-video-card,
+.loot-modal-card,
+.loot-promo-card,
+.loot-cases-card,
+.loot-recent-card,
+.loot-inventory-card,
+.loot-stat-card,
+.loot-icon-tile,
+.all-farmers-modal-card,
+.farmer-profile-modal-card,
+.farmer-popup-card,
+.raid-details-modal-card,
+.raid-history-modal-card,
+.pretty-modal-card,
+.modal-content,
+.popup,
+.dialog {
+  background:
+    radial-gradient(circle at top right, rgba(73, 102, 255, 0.10), transparent 34%),
+    linear-gradient(180deg, var(--site-panel), rgba(16, 22, 35, 0.96)) !important;
+  border: 1px solid var(--site-line) !important;
+  border-radius: var(--site-radius-lg) !important;
+  color: var(--site-text) !important;
+  box-shadow: var(--site-shadow) !important;
+}
+
+.farm-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px !important;
+  padding: 6px !important;
+  border-radius: 20px !important;
+  background: rgba(10, 15, 26, 0.86) !important;
+  border: 1px solid var(--site-line) !important;
+}
+
+.farm-tab,
+button,
+.btn,
+.button,
+a.btn,
+a.button,
+.back-main-btn,
+.farm-online-all-btn,
+.stream-card-head-btn,
+.loot-modal-close,
+.loot-inline-form button,
+.loot-case-btn,
+.loot-action-btn,
+.market-step-btn,
+.market-buy-btn,
+.market-sell-btn,
+.action-grid-top button,
+.combat-card button,
+.building-card button,
+#openAdminPanel,
+#toggleHideSelfBtn,
+#openAllFarmersBtn {
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(122, 154, 230, 0.26) !important;
+  background: linear-gradient(180deg, rgba(31, 47, 89, 0.98), rgba(17, 28, 52, 0.98)) !important;
+  color: var(--site-text) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 24px rgba(0,0,0,.18) !important;
+}
+
+.farm-tab:hover,
+button:hover,
+.btn:hover,
+.button:hover,
+.back-main-btn:hover,
+.farm-online-all-btn:hover,
+.stream-card-head-btn:hover,
+.loot-case-btn:hover,
+.loot-action-btn:hover,
+.market-step-btn:hover,
+.market-buy-btn:hover,
+.market-sell-btn:hover,
+.action-grid-top button:hover,
+.combat-card button:hover,
+.building-card button:hover,
+#openAdminPanel:hover,
+#toggleHideSelfBtn:hover,
+#openAllFarmersBtn:hover {
+  border-color: var(--site-line-strong) !important;
+  background: linear-gradient(180deg, rgba(43, 64, 117, 0.98), rgba(24, 38, 72, 0.98)) !important;
+}
+
+.farm-tab.active,
+.farm-tab[aria-selected="true"] {
+  color: white !important;
+  border-color: rgba(155, 184, 255, 0.48) !important;
+  background: linear-gradient(180deg, #5a78ff, #3452d6) !important;
+  box-shadow: 0 12px 26px rgba(52,82,214,.28) !important;
+}
+
+#openAdminPanel {
+  background: linear-gradient(180deg, #5d7bff, #3451d6) !important;
+  color: white !important;
+}
+
+h1,h2,h3,h4,
+.profile-name-final,
+.section-head h2,
+.main-twitch-chat-head h2,
+.farm-online-head h2 {
+  color: var(--site-text) !important;
+}
+
+p,small,label,.muted,.text-muted,.description,.hint,.help-text,
+.section-head p,
+.main-twitch-chat-head p,
+.farm-online-head p,
+.stat-tile span,
+.info-stat span,
+.building-card small,
+.combat-card small,
+.market-card small {
+  color: var(--site-text-soft) !important;
+}
+
+.profile-status-pill,
+.badge,
+.chip,
+.tag,
+.pill,
+.requirement-pill,
+.balance-pill,
+.resource-pill,
+.loot-selection-pill,
+.loot-icon-count,
+.building-level-badge,
+.building-status-badge,
+.online-status,
+.offline-badge,
+.level-pill {
+  background: linear-gradient(180deg, rgba(30, 45, 84, 0.96), rgba(18, 27, 51, 0.96)) !important;
+  border: 1px solid rgba(122,154,230,0.24) !important;
+  color: #edf2ff !important;
+}
+
+.profile-status-pill {
+  background: linear-gradient(180deg, rgba(50, 84, 145, 0.96), rgba(35, 58, 102, 0.96)) !important;
+}
+
+.profile-loot-chip {
+  background: linear-gradient(180deg, rgba(24, 38, 70, 0.96), rgba(15, 24, 44, 0.96)) !important;
+  border: 1px solid rgba(122,154,230,0.24) !important;
+}
+
+.profile-loot-chip b,
+.stat-tile b,
+.info-stat b {
+  color: white !important;
+}
+
+.main-twitch-chat-card,
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.main-dashboard-side,
+.persistent-twitch-chat-side {
+  position: sticky !important;
+  top: 94px !important;
+  z-index: 60 !important;
+}
+
+.main-twitch-chat-card {
+  z-index: 61 !important;
+  overflow: visible !important;
+}
+
+.main-twitch-chat-card::before,
+.main-twitch-chat-card::after,
+.main-twitch-chat-frame::before,
+.main-twitch-chat-frame::after,
+.main-twitch-chat-embed::before,
+.main-twitch-chat-embed::after {
+  content: none !important;
+  display: none !important;
+}
+
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  position: relative !important;
+  z-index: 62 !important;
+  pointer-events: auto !important;
+  width: 100% !important;
+  height: clamp(560px, calc(100vh - 205px), 790px) !important;
+  min-height: clamp(560px, calc(100vh - 205px), 790px) !important;
+}
+
+#message.message-panel {
+  left: 18px !important;
+  right: auto !important;
+  bottom: 18px !important;
+  top: auto !important;
+  z-index: 34 !important;
+  background: linear-gradient(180deg, rgba(26, 39, 67, 0.96), rgba(15, 23, 41, 0.96)) !important;
+  border: 1px solid rgba(122,154,230,0.24) !important;
+}
+
+#scrollTopBtn,
+.scroll-top,
+.back-to-top {
+  display: none !important;
+}
+
+.all-farmers-modal,
+#allFarmersModal,
+.farmerProfileModal,
+#farmerProfileModal,
+.pretty-modal,
+.modal {
+  background: rgba(8, 12, 22, 0.76) !important;
+}
+
+.all-farmers-row,
+.farmer-row,
+.online-farmer-row,
+.raid-result-row,
+.raid-detail-card,
+.raid-summary-chip {
+  background: linear-gradient(180deg, rgba(24, 38, 70, 0.96), rgba(15, 24, 44, 0.96)) !important;
+  border-color: rgba(122,154,230,0.20) !important;
+}
+
+.admin-panel,
+.admin-modal,
+.admin-card,
+.admin-player-card,
+.admin-status,
+.admin-loaded,
+.admin-success {
+  /* don't override admin much */
+}
+
+@media (max-width: 1200px) {
+  .app-shell {
+    width: min(100%, calc(100vw - 10px)) !important;
+    max-width: calc(100vw - 10px) !important;
+  }
+  .farm-content-with-chat,
+  .main-dashboard-layout {
+    display: block !important;
+  }
+  .farm-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .main-dashboard-side,
+  .persistent-twitch-chat-side {
+    position: static !important;
+    margin-top: 14px !important;
+  }
+}
