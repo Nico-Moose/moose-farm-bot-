@@ -1,6 +1,5 @@
 const { getDb } = require('./dbService');
 const { getProfileByLogin, logFarmEvent } = require('./userService');
-const { sayToChannel } = require('./twitchChatService');
 const { sendEvent: sendLootOverlayEvent } = require('./lootOverlayBus');
 
 const PLAYER_ALLOWED_AMOUNTS = [100, 200, 300, 500];
@@ -414,38 +413,6 @@ function buildLootSnapshotForTwitchId(twitchId) {
   };
 }
 
-function normalizeVisualChatText(value, maxLen = 180) {
-  return String(value || '')
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, maxLen);
-}
-
-function normalizeVisualCommand(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  return raw.startsWith('!') ? raw : `!${raw}`;
-}
-
-async function maybeTriggerChatVisual(kind, payload) {
-  const envKey = kind === 'take' ? 'WIZEBOT_LOOT_TAKE_COMMAND' : 'WIZEBOT_LOOT_OPEN_COMMAND';
-  const command = normalizeVisualCommand(process.env[envKey]);
-  if (!command) return { ok: false, skipped: true, reason: 'command_not_configured' };
-
-  const login = normalizeUser(payload?.login);
-  if (!login) return { ok: false, skipped: true, reason: 'missing_login' };
-
-  const rawLabel = normalizeVisualChatText(payload?.prizeLabel || payload?.itemName || '', 220);
-  const rawCase = normalizeVisualChatText(payload?.caseName || '', 120);
-  const parts = [command, login];
-
-  if (rawLabel) parts.push(rawLabel);
-  if (rawCase) parts.push(rawCase);
-
-  const message = parts.join(' ');
-  return sayToChannel(message);
-}
 
 function awardDonateByLogin(login, amount, actorTwitchId = null) {
   const profile = getProfileByLogin(normalizeUser(login));
@@ -522,12 +489,6 @@ async function openLootCaseForUser(user, amount) {
     winner
   });
 
-  const visual = await maybeTriggerChatVisual('open', {
-    login,
-    displayName,
-    prizeLabel: winner.label,
-    caseName: lootData.caseName
-  });
 
   return {
     ok: true,
@@ -538,7 +499,6 @@ async function openLootCaseForUser(user, amount) {
     winner,
     caseName: lootData.caseName,
     donateSum,
-    visualTrigger: visual,
     snapshot: buildLootSnapshotForTwitchId(twitchId)
   };
 }
@@ -650,12 +610,6 @@ async function takeLootForUser(user, rawRequest) {
     entryId: toInt(foundItem.entry_id, 0)
   });
 
-  const visual = await maybeTriggerChatVisual('take', {
-    login,
-    displayName,
-    prizeLabel: takenLabel,
-    caseName: foundItem.case_name || ''
-  });
 
   return {
     ok: true,
@@ -666,7 +620,6 @@ async function takeLootForUser(user, rawRequest) {
     partial: isPartialTake,
     takenDate: takenTime,
     caseName: foundItem.case_name || '',
-    visualTrigger: visual,
     snapshot: buildLootSnapshotForTwitchId(twitchId)
   };
 }
