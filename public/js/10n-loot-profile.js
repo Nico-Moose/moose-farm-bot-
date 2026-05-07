@@ -311,10 +311,6 @@
     const tiles = getLootTiles();
     host.innerHTML = `
       <div class="profile-loot-summary-card compact-main-profile-loot">
-        <button type="button" class="profile-loot-chip loot-chip-balance" data-loot-open-modal>
-          <span>💳 Баланс</span>
-          <b>${lootNumber(loot.donateBalance)} ₽</b>
-        </button>
         <button type="button" class="profile-loot-chip loot-chip-inventory" data-loot-open-modal>
           <span>🎒 Инвентарь</span>
           <b>${lootNumber(tiles.length)} шт.</b>
@@ -623,24 +619,64 @@
     renderLootSummary();
   }
 
+  let lootProfileObserver = null;
+  let afterProfileRenderQueued = false;
+
   function afterProfileRender() {
     injectLootSummaryHost();
+    if (lootState) {
+      renderLootSummary();
+      return;
+    }
     fetchLootState().catch(() => {
       const host = document.getElementById('profileLootSummary');
       if (host) host.innerHTML = '<div class="profile-loot-loading">Донат-инвентарь временно недоступен</div>';
     });
   }
 
-  document.addEventListener('DOMContentLoaded', ensureLootModal);
+  function scheduleAfterProfileRender() {
+    if (afterProfileRenderQueued) return;
+    afterProfileRenderQueued = true;
+    setTimeout(() => {
+      afterProfileRenderQueued = false;
+      afterProfileRender();
+    }, 0);
+  }
+
+  function ensureProfileObserver() {
+    if (lootProfileObserver) return;
+    const profile = document.getElementById('profile');
+    if (!profile) return;
+    lootProfileObserver = new MutationObserver(() => scheduleAfterProfileRender());
+    lootProfileObserver.observe(profile, { childList: true, subtree: true });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    ensureLootModal();
+    ensureProfileObserver();
+    scheduleAfterProfileRender();
+  });
+
   const prevLoadMe = window.loadMe;
   if (typeof prevLoadMe === 'function') {
     window.loadMe = async function patchedLoadMe() {
       const result = await prevLoadMe.apply(this, arguments);
-      setTimeout(afterProfileRender, 0);
+      ensureProfileObserver();
+      scheduleAfterProfileRender();
       return result;
     };
-  } else {
-    document.addEventListener('DOMContentLoaded', afterProfileRender);
   }
+
+  const prevRender = window.render;
+  if (typeof prevRender === 'function' && !window.__mooseLootRenderPatch) {
+    window.__mooseLootRenderPatch = true;
+    window.render = function patchedRender() {
+      const result = prevRender.apply(this, arguments);
+      ensureProfileObserver();
+      scheduleAfterProfileRender();
+      return result;
+    };
+  }
+
   window.openLootModal = openLootModal;
 })();

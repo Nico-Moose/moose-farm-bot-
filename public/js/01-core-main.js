@@ -87,7 +87,7 @@ function showMessage(text) {
     : (value.includes('✅') || lower.includes('получ') || lower.includes('куплено') || lower.includes('продано') ? 'success' : 'info');
   toast.className = `site-toast ${kind}`;
 
-  const title = kind === 'success' ? 'Готово' : 'Уведомление';
+  const title = 'Уведомление';
   const body = document.createElement('div');
   body.className = 'site-toast-body';
   body.textContent = value.replace(/^❌\s*/, '').replace(/^⛔\s*/, '');
@@ -103,6 +103,22 @@ function showMessage(text) {
 }
 
 function ensureModalRoot(id, className) {
+  const isToastRoot = id === 'siteToastRoot'
+    || id === 'actionToastRoot'
+    || className === 'site-toast-root'
+    || className === 'action-toast-root';
+
+  if (isToastRoot) {
+    let toastRoot = document.getElementById('notificationStackRoot');
+    if (!toastRoot) {
+      toastRoot = document.createElement('div');
+      toastRoot.id = 'notificationStackRoot';
+      toastRoot.className = 'site-toast-root';
+      document.body.appendChild(toastRoot);
+    }
+    return toastRoot;
+  }
+
   let root = document.getElementById(id);
   if (!root) {
     root = document.createElement('div');
