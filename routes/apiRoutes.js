@@ -94,6 +94,7 @@ const {
   redeemPromoForUser,
   openLootCaseForUser,
   takeLootForUser,
+  takeLootSelectionForUser,
   parseTakeRequest
 } = require('../services/lootService');
 
@@ -436,6 +437,16 @@ router.post('/loot/take', requireAuth, async (req, res) => {
       ? req.body.request
       : parseTakeRequest(String(req.body?.query || req.body?.request || '').trim());
     const result = await takeLootForUser(req.session.twitchUser, request);
+    if (!result.ok) return res.status(400).json(result);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.post('/loot/take-selection', requireAuth, async (req, res) => {
+  try {
+    const result = await takeLootSelectionForUser(req.session.twitchUser, req.body?.selections);
     if (!result.ok) return res.status(400).json(result);
     res.json(result);
   } catch (error) {

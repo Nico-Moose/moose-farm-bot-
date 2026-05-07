@@ -213,12 +213,12 @@ function matchItemKey(partName, wantedKey) {
   return resolvedCurrent === wantedKey || currentKey.includes(wantedKey) || resolvedCurrent.includes(wantedKey);
 }
 
-function takeSpecificItemFromLabel(label, wantedName, wantedAmount) {
+function takeSpecificItemFromLabel(label, wantedName, wantedAmount, options = {}) {
   const parts = parsePrizeLabel(label);
   const wantedKey = resolveItemAlias(wantedName);
   let amount = Math.max(1, toInt(wantedAmount, 1));
   if (!parts.length || !wantedKey) return { ok: false };
-  if (isRestrictedItemAlias(wantedKey)) return { ok: false, restricted: true };
+  if (!options.allowRestricted && isRestrictedItemAlias(wantedKey)) return { ok: false, restricted: true };
 
   const idx = parts.findIndex((part) => matchItemKey(part.name, wantedKey));
   if (idx === -1) return { ok: false };
@@ -400,6 +400,7 @@ function getTakeHistoryByTwitchId(twitchId, limit = 20) {
   }));
 }
 
+
 function buildLootSnapshotForTwitchId(twitchId) {
   const balance = getBalanceByTwitchId(twitchId);
   const inventoryRows = getInventoryRowsByTwitchId(twitchId);
@@ -410,6 +411,171 @@ function buildLootSnapshotForTwitchId(twitchId) {
     recentTakes: getTakeHistoryByTwitchId(twitchId, 6),
     allowedCaseAmounts: PLAYER_ALLOWED_AMOUNTS.slice(),
     promoCodeHint: PROMO_CODE
+  };
+}
+
+function getRarityWeight(rarity) {
+  const key = String(rarity || '').toLowerCase();
+  const map = { common: 1, rare: 2, epic: 3, legendary: 4, mythic: 5 };
+  return map[key] || 1;
+}
+
+function buildCombinedCaseName(caseNames) {
+  const values = Array.from(new Set((caseNames || []).map((value) => trimText(value)).filter(Boolean)));
+  if (!values.length) return 'ЛУТ';
+  if (values.length === 1) return values[0];
+  return 'СБОР ИЗ НЕСКОЛЬКИХ КЕЙСОВ';
+}
+
+function normalizeBulkSelections(rawSelections) {
+  if (!Array.isArray(rawSelections)) return [];
+  const result = [];
+  const merged = new Map();
+
+  for (const raw of rawSelections) {
+    const entryId = toInt(raw?.entryId, 0);
+    const itemName = trimText(raw?.itemName || raw?.name || '');
+    const amount = Math.max(1, toInt(raw?.amount || raw?.count || 1, 1));
+    if (entryId <= 0 || !itemName) continue;
+    const key = `${entryId}::${resolveItemAlias(itemName)}`;
+    if (!merged.has(key)) {
+      merged.set(key, { entryId, itemName, amount: 0 });
+    }
+    merged.get(key).amount += amount;
+  }
+
+  for (const item of merged.values()) result.push(item);
+  return result;
+}
+
+function takeLootSelectionForUser(user, rawSelections) {
+  const twitchId = user?.id;
+  const login = normalizeUser(user?.login);
+  const displayName = trimText(user?.display_name || user?.displayName || login || 'Игрок');
+  if (!twitchId || !login) return { ok: false, error: 'not_logged_in' };
+
+  const selections = normalizeBulkSelections(rawSelections);
+  if (!selections.length) return { ok: false, error: 'loot_selection_empty' };
+
+  const db = getDb();
+  const now = nowFormatted();
+  let combinedPrizeLabel = '';
+  let remainLabels = [];
+  let isPartialTake = false;
+  let maxVisualLevel = 1;
+  let maxRarity = 'common';
+  let maxRarityWeight = 1;
+  let totalDonateSum = 0;
+  let firstEntryId = 0;
+  let firstWonDate = '';
+  const caseNames = [];
+
+  try {
+    const transaction = db.transaction(() => {
+      for (const selection of selections) {
+        const row = db.prepare(`
+          SELECT entry_id, prize_id, prize_label, rarity, visual_level, donate_sum, case_name, won_date, status, updated_at
+          FROM loot_inventory
+          WHERE twitch_id = ? AND entry_id = ?
+        `).get(twitchId, selection.entryId);
+
+        if (!row) {
+          const error = new Error('inventory_entry_not_found');
+          error.code = 'inventory_entry_not_found';
+          throw error;
+        }
+
+        const takeResult = takeSpecificItemFromLabel(trimText(row.prize_label || ''), selection.itemName, selection.amount, { allowRestricted: true });
+        if (!takeResult?.ok) {
+          const error = new Error(takeResult?.restricted ? 'restricted_item_take' : 'inventory_item_not_found');
+          error.code = error.message;
+          throw error;
+        }
+
+        if (takeResult.isFullTake) {
+          db.prepare('DELETE FROM loot_inventory WHERE twitch_id = ? AND entry_id = ?').run(twitchId, row.entry_id);
+        } else {
+          db.prepare('UPDATE loot_inventory SET prize_label = ?, updated_at = ? WHERE twitch_id = ? AND entry_id = ?').run(takeResult.remainLabel, Date.now(), twitchId, row.entry_id);
+        }
+
+        combinedPrizeLabel = combinedPrizeLabel ? mergePrizeLabels(combinedPrizeLabel, takeResult.takenLabel) : takeResult.takenLabel;
+        if (takeResult.remainLabel) {
+          remainLabels.push(`[${toInt(row.entry_id, 0)}] ${takeResult.remainLabel}`);
+        }
+        if (!takeResult.isFullTake) isPartialTake = true;
+        if (!firstEntryId) firstEntryId = toInt(row.entry_id, 0);
+        if (!firstWonDate) firstWonDate = row.won_date || '';
+        caseNames.push(row.case_name || '');
+        totalDonateSum += Math.max(0, toInt(row.donate_sum, 0));
+        maxVisualLevel = Math.max(maxVisualLevel, Math.max(1, toInt(row.visual_level, 1)));
+        const rarityWeight = getRarityWeight(row.rarity || 'common');
+        if (rarityWeight > maxRarityWeight) {
+          maxRarityWeight = rarityWeight;
+          maxRarity = row.rarity || 'common';
+        }
+      }
+
+      const caseName = buildCombinedCaseName(caseNames);
+      db.prepare(`
+        INSERT INTO loot_taken_history (
+          twitch_id, login, display_name, entry_id, prize_id, prize_label, donate_sum, case_name, won_date, taken_date, rarity, visual_level, restored, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+      `).run(
+        twitchId,
+        login,
+        displayName,
+        firstEntryId || 0,
+        '',
+        combinedPrizeLabel || 'Неизвестный предмет',
+        totalDonateSum,
+        caseName,
+        firstWonDate || now,
+        now,
+        maxRarity,
+        maxVisualLevel,
+        Date.now()
+      );
+      db.prepare(`DELETE FROM loot_taken_history WHERE id NOT IN (SELECT id FROM loot_taken_history ORDER BY id DESC LIMIT ?)`).run(HISTORY_LIMIT);
+    });
+
+    transaction();
+  } catch (error) {
+    return { ok: false, error: error.code || error.message || 'loot_selection_take_failed' };
+  }
+
+  const caseName = buildCombinedCaseName(caseNames);
+  const remainLabel = remainLabels.join(' · ');
+
+  logFarmEvent(twitchId, 'loot_take_multi', {
+    entryId: firstEntryId || 0,
+    prizeLabel: combinedPrizeLabel,
+    caseName,
+    selectedCount: selections.length,
+    partial: isPartialTake,
+    remainLabel
+  });
+
+  sendLootOverlayEvent('loot_take', {
+    user: login,
+    display: displayName,
+    prizeLabel: combinedPrizeLabel,
+    caseName,
+    rarity: maxRarity,
+    visualLevel: maxVisualLevel,
+    donateSum: totalDonateSum,
+    entryId: firstEntryId || 0
+  });
+
+  return {
+    ok: true,
+    entryId: firstEntryId || 0,
+    prizeLabel: combinedPrizeLabel,
+    remainLabel,
+    partial: isPartialTake,
+    takenDate: now,
+    caseName,
+    selectedCount: selections.length,
+    snapshot: buildLootSnapshotForTwitchId(twitchId)
   };
 }
 
@@ -695,5 +861,6 @@ module.exports = {
   redeemPromoForUser,
   openLootCaseForUser,
   takeLootForUser,
+  takeLootSelectionForUser,
   rollbackLastTakeByLogin
 };

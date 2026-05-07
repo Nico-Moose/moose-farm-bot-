@@ -1,6 +1,22 @@
 (function () {
   let lootState = null;
   let modalReady = false;
+  let selectedLootTileIds = new Set();
+
+  const SUPPORT_LINK = 'https://donatex.gg/';
+
+  const ITEM_ICON_MAP = [
+    { test: /m4/i, icon: 'https://ru-wiki.rustclash.com/img/items180/shotgun.m4.png', key: 'm4' },
+    { test: /bolt/i, icon: 'https://wiki.rustclash.com/img/skins/324/11429.png', key: 'bolt' },
+    { test: /l96|l9/i, icon: 'https://ru-wiki.rustclash.com/img/items180/rifle.l96.png', key: 'l96' },
+    { test: /smoke|смок/i, icon: 'https://wiki.rustclash.com/img/items180/ammo.grenadelauncher.smoke.png', key: 'smoke' },
+    { test: /silencer|сайленсер|сайл|глуш/i, icon: 'https://ru-wiki.rustclash.com/img/items180/weapon.mod.silencer.png', key: 'silencer' },
+    { test: /m249|m2/i, icon: 'https://ru-wiki.rustclash.com/img/items180/lmg.m249.png', key: 'm249' },
+    { test: /mlrs|млрс/i, icon: 'https://wiki.rustclash.com/img/items180/ammo.rocket.mlrs.png', key: 'mlrs' },
+    { test: /drone|дрон/i, icon: 'https://ru-wiki.rustclash.com/img/items180/drone.png', key: 'drone' },
+    { test: /jagger|джаггер/i, icon: 'https://ru-wiki.rustclash.com/img/items180/heavy.plate.helmet.png', key: 'jagger' },
+    { test: /incendiary|inc|зажига/i, icon: 'https://ru-wiki.rustclash.com/img/items180/ammo.rifle.incendiary.png', key: 'incendiary' }
+  ];
 
   function esc(text) {
     return String(text || '')
@@ -18,11 +34,116 @@
     }
   }
 
+  function trimText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function normalizeKey(value) {
+    return trimText(value)
+      .toLowerCase()
+      .replace(/ё/g, 'е')
+      .replace(/[^a-zа-я0-9.]+/gi, '');
+  }
+
+  function parsePrizeLabel(label) {
+    const text = trimText(label);
+    if (!text) return [];
+    return text.split(/\s+\+\s+/).map((part) => trimText(part)).filter(Boolean).map((part) => {
+      const match = part.match(/^(.*?)(?:\s+x(\d+))?$/i);
+      const name = trimText(match?.[1] || part);
+      const count = Math.max(1, Number(match?.[2] || 1));
+      return { name, count };
+    });
+  }
+
+  function formatPartsLabel(parts) {
+    return (parts || []).map((part) => {
+      const count = Math.max(1, Number(part?.count || 1));
+      return count > 1 ? `${trimText(part?.name)} x${count}` : trimText(part?.name);
+    }).filter(Boolean).join(' + ');
+  }
+
+  function mergePartMaps(parts) {
+    const order = [];
+    const map = new Map();
+    (parts || []).forEach((part) => {
+      const name = trimText(part?.name);
+      const count = Math.max(1, Number(part?.count || 1));
+      const key = normalizeKey(name);
+      if (!name || !key) return;
+      if (!map.has(key)) {
+        map.set(key, { name, count: 0 });
+        order.push(key);
+      }
+      map.get(key).count += count;
+    });
+    return order.map((key) => map.get(key));
+  }
+
+  function getItemIcon(itemName) {
+    const text = trimText(itemName);
+    const match = ITEM_ICON_MAP.find((item) => item.test.test(text));
+    return match ? match.icon : '';
+  }
+
+  function getItemVisualKey(itemName) {
+    const text = trimText(itemName);
+    const match = ITEM_ICON_MAP.find((item) => item.test.test(text));
+    return match ? match.key : normalizeKey(text) || 'loot';
+  }
+
+  function buildInventoryTiles(inventory) {
+    const tiles = [];
+    (inventory || []).forEach((entry) => {
+      const entryId = Number(entry?.entryId || 0);
+      const rarity = entry?.rarity || 'common';
+      const visualLevel = Number(entry?.visualLevel || 1);
+      const caseName = trimText(entry?.caseName || 'Лут');
+      const wonDate = trimText(entry?.wonDate || '');
+      parsePrizeLabel(entry?.prizeLabel || '').forEach((part, index) => {
+        const selectionId = `${entryId}::${getItemVisualKey(part.name)}::${index}`;
+        tiles.push({
+          selectionId,
+          entryId,
+          name: trimText(part.name),
+          count: Math.max(1, Number(part.count || 1)),
+          rarity,
+          visualLevel,
+          caseName,
+          wonDate,
+          icon: getItemIcon(part.name)
+        });
+      });
+    });
+    return tiles;
+  }
+
+  function getLootTiles() {
+    return buildInventoryTiles(lootState?.inventory || []);
+  }
+
+  function getSelectedLootTiles() {
+    const selected = [];
+    const ids = selectedLootTileIds;
+    getLootTiles().forEach((tile) => {
+      if (ids.has(tile.selectionId)) selected.push(tile);
+    });
+    return selected;
+  }
+
+  function pruneSelectedLootTiles() {
+    const available = new Set(getLootTiles().map((tile) => tile.selectionId));
+    selectedLootTileIds.forEach((id) => {
+      if (!available.has(id)) selectedLootTileIds.delete(id);
+    });
+  }
+
   async function fetchLootState() {
     const res = await fetch('/api/loot/me', { credentials: 'same-origin' });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || 'loot_load_failed');
     lootState = data.loot || null;
+    pruneSelectedLootTiles();
     renderLootSummary();
     renderLootModalBody();
     return lootState;
@@ -38,12 +159,15 @@
     wrap.innerHTML = `
       <div class="loot-modal-backdrop" data-loot-close></div>
       <div class="loot-modal-card">
-        <div class="loot-modal-head">
+        <div class="loot-modal-head premium">
           <div>
             <h3>🎁 Донат-инвентарь</h3>
-            <p>Баланс, кейсы, промокод и предметы в одном окне.</p>
+            <p>Премиум-инвентарь лута и выдач для стрима.</p>
           </div>
-          <button type="button" class="loot-modal-close" data-loot-close>Закрыть ✕</button>
+          <div class="loot-modal-head-actions">
+            <a class="loot-support-link" href="${SUPPORT_LINK}" target="_blank" rel="noopener noreferrer">💚 Поддержать</a>
+            <button type="button" class="loot-modal-close" data-loot-close>Закрыть ✕</button>
+          </div>
         </div>
         <div id="lootModalBody" class="loot-modal-body"></div>
       </div>
@@ -83,22 +207,32 @@
       host.innerHTML = '<div class="profile-loot-loading">Загрузка донат-инвентаря...</div>';
       return;
     }
+    const tiles = getLootTiles();
     host.innerHTML = `
-      <button type="button" class="profile-loot-chip loot-chip-balance" id="openLootModalBtn">
-        <span>💳 Донат</span>
-        <b>${lootNumber(loot.donateBalance)} ₽</b>
-      </button>
-      <button type="button" class="profile-loot-chip loot-chip-inventory" id="openLootInventoryBtn">
-        <span>📦 Инвентарь</span>
-        <b>${lootNumber(loot.inventoryCount)}</b>
-      </button>
+      <div class="profile-loot-summary-card">
+        <button type="button" class="profile-loot-chip loot-chip-balance" data-loot-open-modal>
+          <span>💳 Донат-баланс</span>
+          <b>${lootNumber(loot.donateBalance)} ₽</b>
+        </button>
+        <button type="button" class="profile-loot-chip loot-chip-inventory" data-loot-open-modal>
+          <span>🧩 Предметы</span>
+          <b>${lootNumber(tiles.length)}</b>
+        </button>
+        <a class="profile-loot-chip loot-chip-support" href="${SUPPORT_LINK}" target="_blank" rel="noopener noreferrer">
+          <span>💚 Поддержка</span>
+          <b>Donatex</b>
+        </a>
+      </div>
     `;
-    host.querySelectorAll('button').forEach((btn) => btn.addEventListener('click', openLootModal));
+    host.querySelectorAll('[data-loot-open-modal]').forEach((btn) => btn.addEventListener('click', openLootModal));
   }
 
   function renderCaseButtons(allowed) {
     return (allowed || []).map((amount) => `
-      <button type="button" class="loot-case-btn" data-loot-open="${Number(amount)}">${Number(amount)} ₽</button>
+      <button type="button" class="loot-case-btn" data-loot-open="${Number(amount)}">
+        <span>${Number(amount)}</span>
+        <small>₽</small>
+      </button>
     `).join('');
   }
 
@@ -108,33 +242,47 @@
     }
     return `<div class="loot-recent-list">${takes.map((item) => `
       <div class="loot-recent-row${item.restored ? ' restored' : ''}">
-        <b>[${Number(item.entryId || 0)}]</b>
-        <span>${esc(item.prizeLabel || 'Предмет')}</span>
+        <div class="loot-recent-main">
+          <b>${esc(item.prizeLabel || 'Предмет')}</b>
+          <span>${esc(item.caseName || 'Лут')}</span>
+        </div>
         <small>${esc(item.takenDate || '')}${item.restored ? ' · откат' : ''}</small>
       </div>
     `).join('')}</div>`;
   }
 
-  function renderInventory(items) {
-    if (!items || !items.length) {
+  function renderSelectionPills(selectedTiles) {
+    if (!selectedTiles.length) {
+      return '<div class="loot-empty inline">Выбери один или несколько предметов в инвентаре.</div>';
+    }
+    const merged = mergePartMaps(selectedTiles.map((tile) => ({ name: tile.name, count: tile.count })));
+    return merged.map((part) => `
+      <div class="loot-selection-pill">
+        <span>${esc(part.name)}</span>
+        <b>x${Number(part.count || 1)}</b>
+      </div>
+    `).join('');
+  }
+
+  function renderInventoryTiles(tiles, selectedTiles) {
+    if (!tiles.length) {
       return '<div class="loot-empty">Инвентарь пуст. Открой кейс или активируй промокод.</div>';
     }
-    return `<div class="loot-items-grid">${items.map((item) => `
-      <article class="loot-item-card rarity-${esc(item.rarity || 'common')}">
-        <div class="loot-item-head">
-          <b>[${Number(item.entryId || 0)}]</b>
-          <span>${esc(item.caseName || 'Лут')}</span>
+    const selectedIds = new Set((selectedTiles || []).map((tile) => tile.selectionId));
+    return `<div class="loot-icon-grid">${tiles.map((tile) => `
+      <button type="button" class="loot-icon-tile rarity-${esc(tile.rarity || 'common')}${selectedIds.has(tile.selectionId) ? ' selected' : ''}" data-loot-select-id="${esc(tile.selectionId)}">
+        <div class="loot-icon-topline">
+          <span>${esc(tile.caseName || 'Лут')}</span>
+          <strong>${esc(tile.rarity || 'common')}</strong>
         </div>
-        <div class="loot-item-label">${esc(item.prizeLabel || 'Предмет')}</div>
-        <div class="loot-item-meta">
-          <span>Редкость: ${esc(item.rarity || 'common')}</span>
-          <span>Открыт: ${esc(item.wonDate || '')}</span>
+        <div class="loot-icon-frame">
+          ${tile.icon ? `<img src="${esc(tile.icon)}" alt="${esc(tile.name)}">` : `<div class="loot-icon-fallback">${esc((tile.name || '?').slice(0, 2).toUpperCase())}</div>`}
+          <div class="loot-icon-count">x${Number(tile.count || 1)}</div>
+          <div class="loot-icon-check">✓</div>
         </div>
-        <div class="loot-item-actions">
-          <button type="button" class="loot-action-btn" data-loot-take-id="${Number(item.entryId || 0)}">Забрать</button>
-          <button type="button" class="loot-action-btn ghost" data-loot-take-custom="${Number(item.entryId || 0)}" data-loot-label="${esc(item.prizeLabel || '')}">Часть / по названию</button>
-        </div>
-      </article>
+        <div class="loot-icon-name">${esc(tile.name)}</div>
+        <div class="loot-icon-date">${esc(tile.wonDate || '')}</div>
+      </button>
     `).join('')}</div>`;
   }
 
@@ -145,51 +293,104 @@
       body.innerHTML = '<div class="loot-empty">Загрузка...</div>';
       return;
     }
+
+    const allTiles = getLootTiles();
+    const selectedTiles = getSelectedLootTiles();
+    const inventoryCount = allTiles.length;
+
     body.innerHTML = `
-      <section class="loot-panel-grid">
-        <div class="loot-side-stack">
-          <div class="loot-balance-card">
-            <div class="loot-balance-main">
-              <span>💳 Донат-баланс</span>
-              <b>${lootNumber(lootState.donateBalance)} ₽</b>
-            </div>
-            <small>Этот баланс тратится только на донат-кейсы.</small>
+      <section class="loot-premium-dashboard">
+        <div class="loot-top-stats">
+          <div class="loot-stat-card hero">
+            <span>Баланс</span>
+            <b>${lootNumber(lootState.donateBalance)} ₽</b>
+            <small>Тратится только на кейсы</small>
           </div>
-          <div class="loot-promo-card">
-            <label for="lootPromoInput">🎟 Промокод</label>
-            <div class="loot-inline-form">
-              <input id="lootPromoInput" placeholder="Например: ${esc(lootState.promoCodeHint || '')}" autocomplete="off" />
-              <button type="button" id="lootPromoBtn">Активировать</button>
-            </div>
+          <div class="loot-stat-card">
+            <span>Предметов</span>
+            <b>${lootNumber(inventoryCount)}</b>
+            <small>Иконок в инвентаре</small>
           </div>
-          <div class="loot-cases-card">
-            <h4>🎰 Открыть кейс</h4>
-            <p>Сайт повторяет логику !лут: доступны кейсы на 100 / 200 / 300 / 500 ₽.</p>
-            <div class="loot-case-grid">${renderCaseButtons(lootState.allowedCaseAmounts)}</div>
-          </div>
-          <div class="loot-recent-card">
-            <h4>📜 Последние выдачи</h4>
-            ${renderRecentTakes(lootState.recentTakes)}
+          <div class="loot-stat-card">
+            <span>Выбрано</span>
+            <b>${lootNumber(selectedTiles.length)}</b>
+            <small>Готово к выдаче</small>
           </div>
         </div>
-        <div class="loot-inventory-card">
-          <div class="loot-section-head">
-            <h4>📦 Твой инвентарь</h4>
-            <span>${lootNumber(lootState.inventoryCount)} связок</span>
+
+        <section class="loot-panel-grid premium">
+          <div class="loot-side-stack premium">
+            <div class="loot-promo-card premium">
+              <label for="lootPromoInput">🎟 Промокод</label>
+              <div class="loot-inline-form premium">
+                <input id="lootPromoInput" placeholder="Например: ${esc(lootState.promoCodeHint || '')}" autocomplete="off" />
+                <button type="button" id="lootPromoBtn">Активировать</button>
+              </div>
+            </div>
+
+            <div class="loot-cases-card premium">
+              <div class="loot-card-headline">
+                <h4>🎰 Кейсы</h4>
+                <a class="loot-support-link subtle" href="${SUPPORT_LINK}" target="_blank" rel="noopener noreferrer">Поддержать</a>
+              </div>
+              <div class="loot-case-grid premium">${renderCaseButtons(lootState.allowedCaseAmounts)}</div>
+            </div>
+
+            <div class="loot-recent-card premium">
+              <h4>📜 Последние выдачи</h4>
+              ${renderRecentTakes(lootState.recentTakes)}
+            </div>
           </div>
-          ${renderInventory(lootState.inventory)}
-        </div>
+
+          <div class="loot-inventory-card premium">
+            <div class="loot-section-head premium">
+              <div>
+                <h4>📦 Инвентарь предметов</h4>
+                <p>Нажми на один или несколько предметов, затем забери их одной кнопкой.</p>
+              </div>
+              <span>${lootNumber(inventoryCount)} шт.</span>
+            </div>
+
+            <div class="loot-selection-bar">
+              <div class="loot-selection-meta">
+                <span>Выбрано:</span>
+                <b>${lootNumber(selectedTiles.length)}</b>
+              </div>
+              <div class="loot-selection-pills-wrap">${renderSelectionPills(selectedTiles)}</div>
+              <div class="loot-selection-actions">
+                <button type="button" class="loot-action-btn ghost" id="lootClearSelectionBtn" ${selectedTiles.length ? '' : 'disabled'}>Сбросить</button>
+                <button type="button" class="loot-action-btn" id="lootTakeSelectedBtn" ${selectedTiles.length ? '' : 'disabled'}>Забрать выбранное</button>
+              </div>
+            </div>
+
+            ${renderInventoryTiles(allTiles, selectedTiles)}
+          </div>
+        </section>
       </section>
     `;
 
     body.querySelectorAll('[data-loot-open]').forEach((btn) => btn.addEventListener('click', () => openLootCase(Number(btn.getAttribute('data-loot-open')))));
-    body.querySelectorAll('[data-loot-take-id]').forEach((btn) => btn.addEventListener('click', () => takeLoot({ mode: 'id', entryId: Number(btn.getAttribute('data-loot-take-id')) })));
-    body.querySelectorAll('[data-loot-take-custom]').forEach((btn) => btn.addEventListener('click', () => customTakePrompt(btn)));
+    body.querySelectorAll('[data-loot-select-id]').forEach((btn) => btn.addEventListener('click', () => toggleLootSelection(btn.getAttribute('data-loot-select-id'))));
     document.getElementById('lootPromoBtn')?.addEventListener('click', activatePromo);
+    document.getElementById('lootTakeSelectedBtn')?.addEventListener('click', takeSelectedLoot);
+    document.getElementById('lootClearSelectionBtn')?.addEventListener('click', clearLootSelection);
+  }
+
+  function toggleLootSelection(selectionId) {
+    if (!selectionId) return;
+    if (selectedLootTileIds.has(selectionId)) selectedLootTileIds.delete(selectionId);
+    else selectedLootTileIds.add(selectionId);
+    renderLootModalBody();
+  }
+
+  function clearLootSelection() {
+    selectedLootTileIds.clear();
+    renderLootModalBody();
   }
 
   async function refreshLootAfterAction(data) {
     lootState = data?.snapshot || data?.loot || lootState;
+    pruneSelectedLootTiles();
     if (!lootState) await fetchLootState();
     else {
       renderLootSummary();
@@ -234,35 +435,37 @@
       await fetchLootState().catch(() => {});
       return;
     }
-    showMessage?.(`🎰 Открыт кейс ${lootNumber(amount)} ₽. Выпало: ${data.merged ? 'пополнение существующей связки' : ''} ${data.prizeLabel || data.winner?.label || 'предмет'}`.trim());
+    selectedLootTileIds.clear();
+    const winnerLabel = data.winner?.label || data.prizeLabel || 'предмет';
+    showMessage?.(`🎰 Выпало: ${winnerLabel}`);
     await refreshLootAfterAction(data);
   }
 
-  function customTakePrompt(btn) {
-    const label = btn.getAttribute('data-loot-label') || '';
-    const raw = prompt('Введи название и количество, как в !забрать\nПримеры: bolt 1, smoke 6, последний\nТекущая связка: ' + label, 'последний');
-    if (!raw) return;
-    takeLoot({ query: raw });
-  }
-
-  async function takeLoot(request) {
-    const payload = typeof request?.query === 'string'
-      ? { query: request.query }
-      : { request };
-    const data = await postJson('/api/loot/take', payload);
+  async function takeSelectedLoot() {
+    const selectedTiles = getSelectedLootTiles();
+    if (!selectedTiles.length) {
+      showMessage?.('❌ Сначала выбери предметы.');
+      return;
+    }
+    const selections = selectedTiles.map((tile) => ({
+      entryId: Number(tile.entryId || 0),
+      itemName: tile.name,
+      amount: Number(tile.count || 1)
+    }));
+    const data = await postJson('/api/loot/take-selection', { selections });
     if (!data.ok) {
       const labels = {
-        restricted_item_take: '❌ Зажигательные отдельно забирать нельзя. Только через полную связку.',
+        loot_selection_empty: '❌ Ничего не выбрано.',
         inventory_empty: '📦 Инвентарь пуст.',
-        inventory_entry_not_found: '❌ Такой ID не найден в инвентаре.',
-        inventory_item_not_found: '❌ Такой предмет в нужном количестве не найден.',
-        invalid_take_request: '❌ Используй ID, последний или название + количество.'
+        inventory_entry_not_found: '❌ Один из выбранных предметов уже исчез из инвентаря.',
+        inventory_item_not_found: '❌ Один из выбранных предметов больше недоступен.'
       };
-      showMessage?.(labels[data.error] || `❌ Не удалось забрать предмет: ${data.error}`);
+      showMessage?.(labels[data.error] || `❌ Не удалось забрать выбранные предметы: ${data.error}`);
       await fetchLootState().catch(() => {});
       return;
     }
-    showMessage?.(`✅ Забрано: [${Number(data.entryId || 0)}] ${data.prizeLabel}${data.partial && data.remainLabel ? `\nОсталось: ${data.remainLabel}` : ''}`);
+    selectedLootTileIds.clear();
+    showMessage?.(`✅ Забрано: ${data.prizeLabel}`);
     await refreshLootAfterAction(data);
   }
 
