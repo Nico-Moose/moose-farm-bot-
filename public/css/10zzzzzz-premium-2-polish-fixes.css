@@ -1,0 +1,345 @@
+/* Moose Farm Premium 2.1 visual polish + layout fixes
+   UI/CSS only. Safe patch. */
+
+:root {
+  --mf-premium-glow: 0 0 0 1px rgba(184, 255, 149, 0.1) inset, 0 18px 48px rgba(0, 0, 0, 0.32);
+}
+
+/* Hero compacting */
+.farm-hero {
+  gap: 16px;
+  padding: 20px 22px 18px;
+}
+
+.farm-title-row {
+  gap: 14px;
+  min-width: 0;
+  align-items: center;
+}
+
+.farm-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  flex: 0 0 52px;
+}
+
+.farm-title-row > div {
+  min-width: 0;
+  position: relative;
+}
+
+.farm-title-row > div::before {
+  content: "Ферма 2.0";
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #102110;
+  background: linear-gradient(180deg, rgba(216, 255, 137, 0.95), rgba(146, 235, 95, 0.95));
+  box-shadow: 0 10px 24px rgba(72, 160, 56, 0.18);
+}
+
+.farm-hero h1,
+.hero-greeting-title {
+  margin: 0;
+  font-size: clamp(30px, 3vw, 56px) !important;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.farm-hero p {
+  margin: 6px 0 0;
+  font-size: clamp(13px, 1vw, 17px);
+  line-height: 1.28;
+  color: rgba(225, 243, 214, 0.72);
+  max-width: 760px;
+}
+
+.admin-entry button,
+#openAdminPanel {
+  min-height: 46px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+
+/* General premium enhancement */
+.visual-section,
+.tab-page-card,
+.profile-card-final,
+.main-actions-card,
+.main-twitch-chat-card,
+.farm-online-side,
+.combat-card,
+.market-card,
+.building-card,
+.stat-tile,
+.quick-status,
+.info-stat,
+.history-day-group,
+.history-item {
+  box-shadow: var(--mf-premium-glow) !important;
+}
+
+/* Left online farmers: make controls fit */
+.farm-online-side {
+  padding: 14px;
+}
+
+.farm-online-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.farm-online-head > div:first-child {
+  min-width: 0;
+}
+
+.farm-online-head h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.farm-online-head p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.25;
+  color: rgba(233, 246, 226, 0.72);
+}
+
+.farm-online-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.farm-online-all-btn,
+#toggleHideSelfBtn,
+#openAllFarmersBtn {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 8px;
+  font-size: 14px;
+  line-height: 1.12;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.online-farmers-list {
+  gap: 8px;
+}
+
+.online-farmer-item {
+  padding: 9px 10px;
+  border-radius: 14px;
+}
+
+/* Right Twitch chat: make it a bit smaller and safely clickable */
+.main-twitch-chat-card {
+  padding: 12px;
+  overflow: visible;
+}
+
+.main-twitch-chat-head {
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.main-twitch-chat-head h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+}
+
+.main-twitch-chat-head p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.main-twitch-chat-link {
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 14px;
+  border-radius: 12px;
+}
+
+.main-twitch-chat-frame {
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe,
+.main-twitch-chat-placeholder {
+  position: relative;
+  z-index: 80 !important;
+  pointer-events: auto !important;
+  height: clamp(520px, calc(100vh - 260px), 720px) !important;
+  min-height: clamp(520px, calc(100vh - 260px), 720px) !important;
+}
+
+.main-dashboard-side,
+.persistent-twitch-chat-side {
+  position: relative;
+  z-index: 80 !important;
+}
+
+.main-twitch-chat-card,
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  isolation: isolate;
+}
+
+/* prevent site overlays from stealing chat clicks */
+#message.message-panel,
+#scrollTopBtn {
+  z-index: 22 !important;
+}
+
+.farm-tabs {
+  z-index: 24 !important;
+}
+
+/* Desktop layout balancing: narrower side columns */
+@media (min-width: 1450px) {
+  .app-shell {
+    width: min(1710px, calc(100% - 28px)) !important;
+    margin: 14px auto;
+  }
+
+  .main-dashboard-layout {
+    display: grid !important;
+    grid-template-columns: 244px minmax(0, 1fr) 294px !important;
+    gap: 16px !important;
+    align-items: start !important;
+    overflow: visible !important;
+  }
+
+  .farm-online-side {
+    position: sticky;
+    top: 106px;
+    margin-top: 0;
+    max-height: calc(100vh - 122px);
+  }
+
+  .online-farmers-list {
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .main-dashboard-side,
+  .persistent-twitch-chat-side {
+    position: sticky !important;
+    top: 106px !important;
+    align-self: start !important;
+    margin-top: 0 !important;
+    max-height: calc(100vh - 122px) !important;
+  }
+
+  .main-twitch-chat-card {
+    position: static !important;
+    margin-top: 0 !important;
+  }
+}
+
+/* Make profile and stat area a bit cleaner visually */
+.profile-card-final {
+  backdrop-filter: blur(14px);
+}
+
+.profile-name-final,
+.profile-name,
+.player-name,
+.username,
+.profile-nick {
+  font-size: clamp(34px, 3vw, 56px);
+  line-height: 1.02;
+}
+
+.profile-status-pill {
+  min-height: 46px;
+  border-radius: 16px;
+}
+
+/* Buttons and cards premium polishing */
+.farm-tab,
+.action-grid-top button,
+.combat-card button,
+.market-step-btn,
+.market-buy-btn,
+.market-sell-btn,
+.back-main-btn,
+.section-toggle,
+.main-twitch-chat-link,
+.farm-online-all-btn {
+  box-shadow: 0 12px 28px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.farm-tab {
+  min-height: 58px;
+  font-size: 15px;
+}
+
+.farm-tab.active {
+  box-shadow: 0 16px 34px rgba(143, 232, 94, 0.18), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
+/* Responsive safety */
+@media (max-width: 1100px) {
+  .farm-title-row > div::before {
+    margin-bottom: 6px;
+  }
+
+  .farm-online-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .farm-online-all-btn,
+  #toggleHideSelfBtn,
+  #openAllFarmersBtn {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 780px) {
+  .farm-hero {
+    padding: 16px;
+  }
+
+  .farm-title-row > div::before {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+
+  .farm-hero h1,
+  .hero-greeting-title {
+    font-size: clamp(26px, 8vw, 38px) !important;
+  }
+
+  .farm-hero p {
+    font-size: 13px;
+  }
+
+  .main-twitch-chat-head,
+  .farm-online-head {
+    gap: 8px;
+  }
+}
