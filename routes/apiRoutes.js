@@ -89,6 +89,14 @@ const {
   getTopProfiles
 } = require('../services/farm/infoService');
 
+const {
+  buildLootSnapshotForTwitchId,
+  redeemPromoForUser,
+  openLootCaseForUser,
+  takeLootForUser,
+  parseTakeRequest
+} = require('../services/lootService');
+
 const router = express.Router();
 
 // Важно для живого UI: API-ответы не должны кешироваться браузером/прокси,
@@ -390,6 +398,49 @@ router.get('/stream/status', requireAuth, async (req, res) => {
 router.get('/stream/embed-status', requireAuth, async (req, res) => {
   const streamStatus = await getActualTwitchStreamStatus();
   res.json({ ok: true, streamStatus, streamOnline: !!streamStatus.online });
+});
+
+
+router.get('/loot/me', requireAuth, (req, res) => {
+  try {
+    const loot = buildLootSnapshotForTwitchId(req.session.twitchUser.id);
+    res.json({ ok: true, loot });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.post('/loot/promo', requireAuth, (req, res) => {
+  try {
+    const result = redeemPromoForUser(req.session.twitchUser, req.body?.code);
+    if (!result.ok) return res.status(400).json(result);
+    res.json({ ok: true, ...result, loot: buildLootSnapshotForTwitchId(req.session.twitchUser.id) });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.post('/loot/open', requireAuth, async (req, res) => {
+  try {
+    const result = await openLootCaseForUser(req.session.twitchUser, req.body?.amount);
+    if (!result.ok) return res.status(400).json(result);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+router.post('/loot/take', requireAuth, async (req, res) => {
+  try {
+    const request = req.body?.request && typeof req.body.request === 'object'
+      ? req.body.request
+      : parseTakeRequest(String(req.body?.query || req.body?.request || '').trim());
+    const result = await takeLootForUser(req.session.twitchUser, request);
+    if (!result.ok) return res.status(400).json(result);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
 });
 
 router.post('/farm/presence', requireAuth, (req, res) => {

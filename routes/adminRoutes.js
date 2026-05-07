@@ -6,6 +6,7 @@ const { upsertTwitchUser, getProfile: getProfileById, updateProfile, logFarmEven
 const { getStreamStatus, setSetting } = require("../services/streamStatusService");
 const { setMarketStock } = require("../services/farm/marketService");
 const { triggerWizebotLegacyFarmMigration, sayToChannel } = require("../services/twitchChatService");
+const { awardDonateByLogin, rollbackLastTakeByLogin } = require("../services/lootService");
 
 function parseAmount(value) {
   if (typeof value === "number") return Math.trunc(value);

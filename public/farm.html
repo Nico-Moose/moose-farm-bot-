@@ -306,6 +306,7 @@
   <script src="/js/10j-main-twitch-chat.js"></script>
   <script src="/js/10l-stream-tab.js"></script>
   <script src="/js/10m-online-farmers.js"></script>
+  <script src="/js/10n-loot-profile.js"></script>
   <script src="/app.js"></script>
   <script src="/js/11-performance-boost.js"></script>
   <script src="/js/10k-admin-unified-editor.js"></script>
@@ -367,6 +368,17 @@
             <p class="admin-muted">Кнопки переноса, пуша, подтяжки урожая, склада рынка и тестов убраны. Для разовой ручной миграции используй команду в чате.</p>
             <div class="admin-inline-hint">
               <code>Nico_Moose: !сайтмигрферма Nico_Moose</code>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h3>🎁 Донат-лут</h3>
+            <p class="admin-muted">Сайтовая версия команд <code>!донат</code> и <code>!откат</code>.</p>
+            <div class="admin-inline-form">
+              <input id="admin-loot-donate-amount" placeholder="сумма ₽" inputmode="numeric" autocomplete="off" />
+              <button id="admin-loot-donate">Начислить донат</button>
+            </div>
+            <div class="admin-inline-form">
+              <button id="admin-loot-rollback">Откатить последнее забрание</button>
             </div>
           </div>
         </div>

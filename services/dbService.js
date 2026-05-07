@@ -92,6 +92,61 @@ function migrate(database) {
   addColumn('turret_json', `turret_json TEXT NOT NULL DEFAULT '{}'`);
   addColumn('last_wizebot_sync_at', 'last_wizebot_sync_at INTEGER');
 
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS loot_balances (
+      twitch_id TEXT PRIMARY KEY,
+      donate_balance INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (twitch_id) REFERENCES twitch_users(twitch_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS loot_inventory (
+      twitch_id TEXT NOT NULL,
+      entry_id INTEGER NOT NULL,
+      prize_id TEXT,
+      prize_label TEXT NOT NULL,
+      rarity TEXT NOT NULL DEFAULT 'common',
+      visual_level INTEGER NOT NULL DEFAULT 1,
+      donate_sum INTEGER NOT NULL DEFAULT 0,
+      case_name TEXT,
+      won_date TEXT,
+      status TEXT NOT NULL DEFAULT 'stored',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      last_merged_at TEXT,
+      PRIMARY KEY (twitch_id, entry_id),
+      FOREIGN KEY (twitch_id) REFERENCES twitch_users(twitch_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS loot_taken_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      twitch_id TEXT NOT NULL,
+      login TEXT,
+      display_name TEXT,
+      entry_id INTEGER NOT NULL,
+      prize_id TEXT,
+      prize_label TEXT NOT NULL,
+      donate_sum INTEGER NOT NULL DEFAULT 0,
+      case_name TEXT,
+      won_date TEXT,
+      taken_date TEXT,
+      rarity TEXT NOT NULL DEFAULT 'common',
+      visual_level INTEGER NOT NULL DEFAULT 1,
+      restored INTEGER NOT NULL DEFAULT 0,
+      restored_at INTEGER,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (twitch_id) REFERENCES twitch_users(twitch_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS loot_promo_redeemed (
+      twitch_id TEXT NOT NULL,
+      code TEXT NOT NULL,
+      amount INTEGER NOT NULL DEFAULT 0,
+      redeemed_at INTEGER NOT NULL,
+      PRIMARY KEY (twitch_id, code),
+      FOREIGN KEY (twitch_id) REFERENCES twitch_users(twitch_id)
+    );
+  `);
 
   const presenceColumns = database
     .prepare(`PRAGMA table_info(farm_presence)`)
@@ -108,6 +163,8 @@ function migrate(database) {
     CREATE INDEX IF NOT EXISTS idx_farm_events_created ON farm_events(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_farm_events_type_created ON farm_events(type, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_farm_presence_seen ON farm_presence(last_seen_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_loot_inventory_twitch_entry ON loot_inventory(twitch_id, entry_id);
+    CREATE INDEX IF NOT EXISTS idx_loot_taken_history_twitch_created ON loot_taken_history(twitch_id, created_at DESC);
   `);
 }
 
