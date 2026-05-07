@@ -27,9 +27,11 @@
     const iframe = document.createElement('iframe');
     iframe.src = buildChatUrl(channel);
     iframe.title = `Twitch chat ${channel}`;
-    iframe.loading = 'lazy';
+    iframe.loading = 'eager';
     iframe.allowFullscreen = false;
+    iframe.allow = 'clipboard-read; clipboard-write; fullscreen';
     iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    iframe.setAttribute('data-twitch-chat-safe', '1');
 
     mount.innerHTML = '';
     mount.appendChild(iframe);

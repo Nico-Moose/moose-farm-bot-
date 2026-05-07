@@ -1,0 +1,289 @@
+/* Moose Farm — FINAL Twitch visibility + Lunar color cleanup
+   Safe CSS-only fix.
+   Important: Twitch chat blocks owner/mod input when any parent looks transformed/filtered/covered.
+   This file removes those effects only from the Twitch ancestor chain and normalizes leftover green UI. */
+
+:root {
+  --lunar-bg: #070912;
+  --lunar-panel: rgba(9, 14, 30, 0.96);
+  --lunar-panel-2: rgba(14, 22, 45, 0.92);
+  --lunar-panel-3: rgba(20, 30, 58, 0.88);
+  --lunar-border: rgba(111, 139, 255, 0.28);
+  --lunar-border-soft: rgba(111, 139, 255, 0.16);
+  --lunar-cyan: #72e7ff;
+  --lunar-pink: #e178ff;
+  --lunar-violet: #8b7cff;
+  --lunar-text: #f6f8ff;
+  --lunar-muted: rgba(218, 224, 246, 0.68);
+  --lunar-danger: #ff5d7d;
+}
+
+html,
+body {
+  overflow-x: hidden !important;
+  background: radial-gradient(circle at 16% 0%, rgba(114, 231, 255, 0.08), transparent 28%),
+              radial-gradient(circle at 88% 4%, rgba(225, 120, 255, 0.08), transparent 28%),
+              linear-gradient(180deg, #090b17 0%, #050711 100%) !important;
+}
+
+/* Keep site width sane so the right Twitch column never falls outside the page. */
+@media (min-width: 1450px) {
+  .app-shell {
+    width: min(1840px, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px) !important;
+    margin: 8px auto !important;
+    overflow: visible !important;
+  }
+
+  .main-dashboard-layout,
+  .farm-content-with-chat {
+    display: grid !important;
+    grid-template-columns: 250px minmax(0, 1fr) 390px !important;
+    gap: 14px !important;
+    align-items: start !important;
+    overflow: visible !important;
+  }
+}
+
+/* CRITICAL TWITCH FIX:
+   Remove everything IntersectionObserver v2 can treat as compromised visibility. */
+.app-shell,
+.farm-content-with-chat,
+.main-dashboard-layout,
+.main-dashboard-primary,
+.farm-content-primary,
+.main-dashboard-side,
+.persistent-twitch-chat-side,
+.main-twitch-chat-card,
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  opacity: 1 !important;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  rotate: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  mix-blend-mode: normal !important;
+  contain: none !important;
+  isolation: auto !important;
+  clip-path: none !important;
+  mask: none !important;
+  -webkit-mask: none !important;
+  perspective: none !important;
+  pointer-events: auto !important;
+}
+
+/* Decorative pseudo layers can trigger Twitch's covered-window protection. */
+.app-shell::before,
+.app-shell::after,
+.farm-content-with-chat::before,
+.farm-content-with-chat::after,
+.main-dashboard-layout::before,
+.main-dashboard-layout::after,
+.main-dashboard-side::before,
+.main-dashboard-side::after,
+.persistent-twitch-chat-side::before,
+.persistent-twitch-chat-side::after,
+.main-twitch-chat-card::before,
+.main-twitch-chat-card::after,
+.main-twitch-chat-frame::before,
+.main-twitch-chat-frame::after,
+.main-twitch-chat-embed::before,
+.main-twitch-chat-embed::after {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@media (min-width: 1450px) {
+  .main-dashboard-side,
+  .persistent-twitch-chat-side {
+    position: sticky !important;
+    top: 94px !important;
+    width: 390px !important;
+    min-width: 390px !important;
+    max-width: 390px !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    z-index: 40 !important;
+  }
+}
+
+.main-twitch-chat-card {
+  position: relative !important;
+  z-index: 40 !important;
+  overflow: visible !important;
+  padding: 12px !important;
+  border-radius: 22px !important;
+  background: linear-gradient(180deg, rgba(11, 17, 36, 0.98), rgba(7, 10, 22, 0.98)) !important;
+  border: 1px solid var(--lunar-border) !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,0.35) !important;
+}
+
+.main-twitch-chat-frame {
+  position: relative !important;
+  z-index: 41 !important;
+  overflow: visible !important;
+  border-radius: 12px !important;
+  background: #18181b !important;
+  border: 0 !important;
+}
+
+.main-twitch-chat-embed {
+  position: relative !important;
+  z-index: 42 !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: clamp(650px, calc(100vh - 210px), 820px) !important;
+  min-height: clamp(650px, calc(100vh - 210px), 820px) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  background: #18181b !important;
+}
+
+.main-twitch-chat-embed iframe {
+  position: relative !important;
+  inset: auto !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  border: 0 !important;
+  z-index: 43 !important;
+  background: #18181b !important;
+}
+
+/* Put site notifications/floaters below Twitch, and keep them in the left corner. */
+#message,
+#message.message-panel,
+.site-toast-root,
+.action-toast-root,
+#scrollTopBtn,
+.logout-form,
+.farm-tabs,
+.farm-hero,
+.admin-entry {
+  z-index: 20 !important;
+}
+
+#message,
+#message.message-panel {
+  left: 18px !important;
+  right: auto !important;
+  bottom: 18px !important;
+  top: auto !important;
+  max-width: min(460px, calc(100vw - 36px)) !important;
+}
+
+/* Lunar color cleanup: remove remaining green/teal panels and pills. */
+.farm-hero,
+.profile-card-final,
+.profile-shell,
+.main-actions-card,
+.tab-page-card,
+.farm-online-side,
+.main-twitch-chat-card,
+.loot-modal-card,
+.farmer-popup-card,
+.farmers-list-modal,
+.farmers-list-dialog,
+.pretty-modal-card,
+.admin-panel,
+.admin-card,
+.admin-view-section,
+.admin-unified-section,
+.raid-modal,
+.raid-summary-card,
+.raid-detail-card,
+.info-building-grid,
+.history-day-group,
+.history-item,
+.stat-tile,
+.info-stat,
+.quick-status,
+.profile-status-pill,
+.farmer-building-chip,
+.farmer-popup-stat,
+.loot-stat-card,
+.loot-promo-card,
+.loot-cases-card,
+.loot-recent-card,
+.loot-inventory-card {
+  background: radial-gradient(circle at top right, rgba(114,231,255,0.08), transparent 36%),
+              linear-gradient(180deg, var(--lunar-panel), rgba(7, 10, 22, 0.96)) !important;
+  border-color: var(--lunar-border-soft) !important;
+  color: var(--lunar-text) !important;
+}
+
+.profile-status-pill,
+.level-badge,
+.badge,
+.chip,
+.pill,
+.status,
+.farmer-building-chip,
+.online-farmer-status,
+.loot-section-head > span,
+.building-status,
+.requirement-pill,
+.resource-pill {
+  background: linear-gradient(180deg, rgba(35, 47, 92, 0.96), rgba(14, 20, 45, 0.96)) !important;
+  border-color: rgba(139, 124, 255, 0.32) !important;
+  color: var(--lunar-text) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+
+.profile-status-pill b,
+.level-badge b,
+.badge b,
+.chip b,
+.pill b,
+.status b {
+  color: var(--lunar-text) !important;
+}
+
+/* The small green online dot is intentional status, but make it cyan-violet to match Lunar. */
+.farm-online-side h2::before,
+.online-dot,
+.online-indicator,
+.status-online,
+.farm-online-status-dot {
+  background: radial-gradient(circle at 35% 25%, #b9f7ff, #72e7ff 45%, #8b7cff 100%) !important;
+  box-shadow: 0 0 18px rgba(114, 231, 255, 0.32) !important;
+}
+
+/* 2.0 badge beside logo, not over title */
+.farm-logo {
+  position: relative !important;
+  margin-right: 22px !important;
+}
+
+.farm-logo::after {
+  content: "2.0" !important;
+  position: absolute !important;
+  right: -20px !important;
+  top: -10px !important;
+  z-index: 3 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 24px !important;
+  height: 17px !important;
+  padding: 0 5px !important;
+  border-radius: 999px !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  color: #06111c !important;
+  background: linear-gradient(180deg, #b9f7ff, #72e7ff 55%, #8b7cff) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  box-shadow: 0 8px 18px rgba(114,231,255,0.22) !important;
+}
