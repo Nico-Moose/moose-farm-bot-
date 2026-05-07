@@ -1,0 +1,132 @@
+/* Moose Farm — Twitch Chat Safe Mode
+   Safe CSS-only patch.
+   Goal: make Twitch iframe fully interactive for owner/moderators.
+   Fixes: hidden overlays/pseudo layers above iframe, too narrow chat column, clipped sticky parent. */
+
+@media (min-width: 1450px) {
+  .app-shell {
+    width: min(1960px, calc(100vw - 10px)) !important;
+    max-width: calc(100vw - 10px) !important;
+  }
+
+  .main-dashboard-layout,
+  .farm-content-with-chat {
+    display: grid !important;
+    grid-template-columns: 250px minmax(0, 1fr) 410px !important;
+    gap: 14px !important;
+    align-items: start !important;
+    overflow: visible !important;
+  }
+
+  .main-dashboard-side,
+  .persistent-twitch-chat-side {
+    position: sticky !important;
+    top: 94px !important;
+    width: 410px !important;
+    min-width: 410px !important;
+    max-width: 410px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: 999999 !important;
+    isolation: auto !important;
+    contain: none !important;
+    transform: none !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* Remove decorative layers that visually cover Twitch iframe. */
+.main-twitch-chat-card::before,
+.main-twitch-chat-card::after,
+.main-twitch-chat-frame::before,
+.main-twitch-chat-frame::after,
+.main-twitch-chat-embed::before,
+.main-twitch-chat-embed::after,
+.persistent-twitch-chat-side::before,
+.persistent-twitch-chat-side::after,
+.main-dashboard-side::before,
+.main-dashboard-side::after {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.main-twitch-chat-card,
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  pointer-events: auto !important;
+  touch-action: auto !important;
+  user-select: auto !important;
+  transform: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  mix-blend-mode: normal !important;
+  opacity: 1 !important;
+  contain: none !important;
+  isolation: auto !important;
+}
+
+.main-twitch-chat-card {
+  position: relative !important;
+  top: auto !important;
+  overflow: visible !important;
+  z-index: 999999 !important;
+}
+
+.main-twitch-chat-frame {
+  position: relative !important;
+  overflow: visible !important;
+  z-index: 999999 !important;
+  background: #111116 !important;
+}
+
+.main-twitch-chat-embed {
+  position: relative !important;
+  z-index: 999999 !important;
+  width: 100% !important;
+  min-width: 360px !important;
+  height: clamp(640px, calc(100vh - 205px), 800px) !important;
+  min-height: clamp(640px, calc(100vh - 205px), 800px) !important;
+  overflow: visible !important;
+  background: #111116 !important;
+}
+
+.main-twitch-chat-embed iframe {
+  display: block !important;
+  position: relative !important;
+  z-index: 999999 !important;
+  width: 100% !important;
+  min-width: 360px !important;
+  height: clamp(640px, calc(100vh - 205px), 800px) !important;
+  min-height: clamp(640px, calc(100vh - 205px), 800px) !important;
+  border: 0 !important;
+  background: #111116 !important;
+}
+
+/* Site overlays must never sit above the embedded chat. */
+.farm-tabs,
+#message,
+#message.message-panel,
+#scrollTopBtn,
+.site-toast-root,
+.action-toast-root,
+.logout-form {
+  z-index: 20 !important;
+}
+
+/* Keep normal layout on smaller screens, but still remove visual iframe overlays. */
+@media (max-width: 1449px) {
+  .main-twitch-chat-card,
+  .main-twitch-chat-frame,
+  .main-twitch-chat-embed,
+  .main-twitch-chat-embed iframe {
+    z-index: 50 !important;
+  }
+}
