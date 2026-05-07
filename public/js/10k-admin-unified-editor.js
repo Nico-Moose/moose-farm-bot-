@@ -337,9 +337,46 @@
         saveAllBuildings().catch((e) => status(e.message, true));
         return;
       }
+      if (event.target.closest('#admin-loot-donate')) {
+        awardLootDonate().catch((e) => status(e.message, true));
+        return;
+      }
+      if (event.target.closest('#admin-loot-rollback')) {
+        rollbackLootTake().catch((e) => status(e.message, true));
+        return;
+      }
     });
   }
 
+
+
+  async function awardLootDonate() {
+    const login = currentLogin();
+    if (!login) throw new Error('Сначала выбери игрока');
+
+    const input = document.getElementById('admin-loot-donate-amount');
+    const raw = String(input?.value || '').trim().replace(',', '.');
+    const amount = Math.trunc(Number(raw));
+
+    if (!raw) throw new Error('Введи сумму доната');
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('Сумма должна быть больше 0');
+
+    const data = await postAdmin('loot/donate', { login, amount });
+    if (input) input.value = '';
+    const balance = Number(data?.balance || data?.snapshot?.donateBalance || 0);
+    status(`Донат начислен: +${amount} ₽ · новый баланс ${fmt(balance)} ₽`);
+    await reloadPlayer();
+  }
+
+  async function rollbackLootTake() {
+    const login = currentLogin();
+    if (!login) throw new Error('Сначала выбери игрока');
+
+    const data = await postAdmin('loot/rollback', { login });
+    const label = String(data?.prizeLabel || 'предмет');
+    status(`Откат выполнен: ${label}`);
+    await reloadPlayer();
+  }
 
   async function loadFarmersList() {
     const list = document.getElementById('admin-farmers-list');

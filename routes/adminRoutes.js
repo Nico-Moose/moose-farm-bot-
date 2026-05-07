@@ -766,6 +766,57 @@ module.exports = function (db) {
     }
   });
 
+  router.post('/loot/donate', (req, res) => {
+    try {
+      const login = String(req.body?.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+      const amount = parseAmount(req.body?.amount);
+      if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник игрока' });
+      if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ ok: false, error: 'Сумма должна быть больше 0' });
+
+      const actorTwitchId = req.session?.twitchUser?.id || req.session?.user?.id || 'admin';
+      const result = awardDonateByLogin(login, amount, actorTwitchId);
+      if (!result?.ok) {
+        const status = result.error === 'player_not_found' ? 404 : 400;
+        return res.status(status).json({ ok: false, error: result.error || 'loot_donate_failed' });
+      }
+
+      return res.json({
+        ok: true,
+        login,
+        amount,
+        balance: Number(result.balance || 0),
+        snapshot: result.snapshot || null
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
+  });
+
+  router.post('/loot/rollback', (req, res) => {
+    try {
+      const login = String(req.body?.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
+      if (!login) return res.status(400).json({ ok: false, error: 'Укажи ник игрока' });
+
+      const actorTwitchId = req.session?.twitchUser?.id || req.session?.user?.id || 'admin';
+      const result = rollbackLastTakeByLogin(login, actorTwitchId);
+      if (!result?.ok) {
+        const status = result.error === 'player_not_found' || result.error === 'take_not_found' ? 404 : 400;
+        return res.status(status).json({ ok: false, error: result.error || 'loot_rollback_failed' });
+      }
+
+      return res.json({
+        ok: true,
+        login,
+        entryId: Number(result.entryId || 0),
+        prizeLabel: result.prizeLabel || '',
+        mergedBack: !!result.mergedBack,
+        snapshot: result.snapshot || null
+      });
+    } catch (error) {
+      return res.status(500).json({ ok: false, error: error.message || String(error) });
+    }
+  });
+
   router.post('/reset-case-cooldown', (req, res) => {
     const login = sanitizeAdminLogin(req.body?.login);
     const profile = getProfileByLogin(db, login);

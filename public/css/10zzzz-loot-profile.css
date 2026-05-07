@@ -305,8 +305,8 @@
 }
 
 .admin-inline-form input {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 180px;
+  min-width: 140px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(7, 15, 10, 0.92);
