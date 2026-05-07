@@ -424,13 +424,22 @@ router.get('/wizebot-level-push', (req, res) => {
   const login = String(req.query.login || '').trim().toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]/g, '');
   if (!login) return res.status(400).json({ ok: false, error: 'missing_login' });
 
-  const updated = applyWizebotLevelByLogin(login, {
-    level: req.query.level,
-    rank: req.query.rank,
-    exp: req.query.exp,
-    next_exp: req.query.next_exp,
-    custom_rank: req.query.custom_rank
-  });
+  let payload = {};
+  try {
+    payload = JSON.parse(String(req.query.payload || '{}')) || {};
+  } catch (_) {
+    payload = {};
+  }
+
+  const levelData = {
+    level: payload.level ?? req.query.level,
+    rank: payload.rank ?? req.query.rank,
+    exp: payload.exp ?? req.query.exp,
+    next_exp: payload.next_exp ?? payload.nextExp ?? req.query.next_exp,
+    custom_rank: payload.custom_rank ?? payload.customRank ?? req.query.custom_rank
+  };
+
+  const updated = applyWizebotLevelByLogin(login, levelData);
 
   if (!updated) {
     return res.status(404).json({ ok: false, error: 'profile_not_found', login });
@@ -438,11 +447,11 @@ router.get('/wizebot-level-push', (req, res) => {
 
   logFarmEvent(updated.twitch_id, 'sync_wizebot_level', {
     login,
-    level: Number(req.query.level || 0),
-    rank: Number(req.query.rank || 0),
-    exp: Number(req.query.exp || 0),
-    next_exp: Number(req.query.next_exp || 0),
-    custom_rank: String(req.query.custom_rank || '')
+    level: Number(levelData.level || 0),
+    rank: Number(levelData.rank || 0),
+    exp: Number(levelData.exp || 0),
+    next_exp: Number(levelData.next_exp || 0),
+    custom_rank: String(levelData.custom_rank || '')
   });
 
   return res.json({

@@ -570,5 +570,6 @@ module.exports = {
   getPresenceHideSetting,
   setPresenceHideSetting,
   logFarmEvent,
-  listFarmEvents
+  listFarmEvents,
+  applyWizebotLevelByLogin
 };
