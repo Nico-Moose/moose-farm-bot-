@@ -265,7 +265,8 @@ function profilePayload(profile) {
       raidInfo: { items: [] },
       streamStatus,
       streamOnline: !!streamStatus.online,
-      harvestManagedByWizebot: !!config.harvestManagedByWizebot
+      harvestManagedByWizebot: !!config.harvestManagedByWizebot,
+      wizebotLevel: { level: 0, rank: 0, exp: 0, nextExp: 0, customRank: '', syncedAt: 0 }
     };
   }
 
@@ -285,7 +286,15 @@ function profilePayload(profile) {
     raidInfo: getRaidInfo(profile),
     streamStatus: getStreamStatusSnapshot(),
     streamOnline: !!getStreamStatusSnapshot().online,
-    harvestManagedByWizebot: !!config.harvestManagedByWizebot
+    harvestManagedByWizebot: !!config.harvestManagedByWizebot,
+    wizebotLevel: {
+      level: Number(profile.wizebot_level || 0),
+      rank: Number(profile.wizebot_rank || 0),
+      exp: Number(profile.wizebot_exp || 0),
+      nextExp: Number(profile.wizebot_next_exp || 0),
+      customRank: String(profile.wizebot_custom_rank || ''),
+      syncedAt: Number(profile.wizebot_level_synced_at || 0)
+    }
   };
 }
 

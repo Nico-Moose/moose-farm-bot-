@@ -265,15 +265,33 @@ function render(data) {
   const avatar = data.user.avatarUrl
     ? `<img class="profile-avatar-big" src="${data.user.avatarUrl}" alt="avatar">`
     : '<div class="profile-avatar-big profile-avatar-fallback">🌾</div>';
+  const wb = data.wizebotLevel || {};
+  const wbSyncText = wb.syncedAt ? new Date(Number(wb.syncedAt)).toLocaleString('ru-RU') : 'ещё не синхронизирован';
+  const wbPercent = Number(wb.nextExp || 0) > 0 ? Math.max(0, Math.min(100, Math.floor((Number(wb.exp || 0) / Number(wb.nextExp || 1)) * 100))) : 0;
 
   el.innerHTML = `
     <div class="profile-card-final">
-      <div class="profile-main-left">
-        ${avatar}
-        <div>
-          <div class="profile-kicker">Игрок</div>
-          <div class="profile-name-final">${data.user.displayName}</div>
-          <div class="profile-status-pill">${next ? '🌱 Развитие доступно' : '✅ Максимальный уровень'}</div>
+      <div class="profile-main-left-col">
+        <div class="profile-main-left profile-main-left-raised">
+          ${avatar}
+          <div>
+            <div class="profile-kicker">Игрок</div>
+            <div class="profile-name-final">${data.user.displayName}</div>
+            <div class="profile-status-pill">${next ? '🌱 Развитие доступно' : '✅ Максимальный уровень'}</div>
+          </div>
+        </div>
+        <div class="profile-wizebot-level-card">
+          <div class="profile-wizebot-level-head">
+            <div>🏆 WizeBot LVL</div>
+            <button id="refreshWizebotLevelBtn" type="button">↻ Обновить</button>
+          </div>
+          <div class="profile-wizebot-level-main">
+            <b>Уровень ${formatNumber(wb.level || 0)}</b>
+            <span>${wb.customRank ? `[${wb.customRank}] ` : ''}Ранг #${formatNumber(wb.rank || 0)}</span>
+          </div>
+          <div class="profile-wizebot-level-xp">XP: <b>${formatNumber(wb.exp || 0)}</b> / <b>${formatNumber(wb.nextExp || 0)}</b></div>
+          <div class="profile-wizebot-level-bar"><i style="width:${wbPercent}%"></i></div>
+          <div class="profile-wizebot-level-sync">${wbSyncText}</div>
         </div>
       </div>
 
@@ -292,6 +310,13 @@ function render(data) {
       </div>
     </div>
   `;
+
+
+
+  document.getElementById('refreshWizebotLevelBtn')?.addEventListener('click', async () => {
+    showMessage('🏆 Обновляю блок WizeBot LVL из сохранённых данных сайта...');
+    await loadMe(true);
+  });
 
   renderQuickStatus(data);
 
