@@ -77,7 +77,7 @@ function getLootPool(amount) {
         { id: 'l96_2_silencer2_jagger2_inc32', label: 'L96 x2 + Silencer x2 + Jagger x2 + Incendiary 5.56 x32', rarity: 'legendary', visualLevel: 4 },
         { id: 'smoke18_m4_2_silencer2', label: 'Smoke x18 + M4 x2 + Silencer x2', rarity: 'legendary', visualLevel: 4 },
         { id: 'm249_jagger_silencer', label: 'M249 + Jagger + Silencer', rarity: 'mythic', visualLevel: 5 },
-        { id: 'drone2_mlrs1', label: 'Drone x2 + MLRS x1', rarity: 'mythic', visualLevel: 5 }
+        { id: 'tea4_mlrs1', label: 'Max Health Tea x4 + MLRS x1', rarity: 'mythic', visualLevel: 5 }
       ]
     };
   }
@@ -89,7 +89,7 @@ function getLootPool(amount) {
         { id: 'l96_3_silencer3_jagger3_inc64', label: 'L96 x3 + Silencer x3 + Jagger x3 + Incendiary 5.56 x64', rarity: 'mythic', visualLevel: 5 },
         { id: 'smoke18_m4_3_silencer3', label: 'Smoke x18 + M4 x3 + Silencer x3', rarity: 'mythic', visualLevel: 5 },
         { id: 'm249_2_jagger2_silencer2', label: 'M249 x2 + Jagger x2 + Silencer x2', rarity: 'mythic', visualLevel: 5 },
-        { id: 'drone5_mlrs2', label: 'Drone x5 + MLRS x2', rarity: 'mythic', visualLevel: 5 }
+        { id: 'tea8_mlrs2', label: 'Max Health Tea x8 + MLRS x2', rarity: 'mythic', visualLevel: 5 }
       ]
     };
   }
@@ -144,7 +144,7 @@ function resolveItemAlias(value) {
   const aliases = {
     'глушитель': 'silencer', 'глушак': 'silencer', 'сайл': 'silencer', 'сайленсер': 'silencer', 'silencer': 'silencer',
     'джаггер': 'jagger', 'jagger': 'jagger',
-    'дрон': 'drone', 'drone': 'drone',
+    'чай': 'tea', 'tea': 'tea', 'maxhealthtea': 'tea', 'maxhealth': 'tea', 'healthtea': 'tea',
     'млрс': 'mlrs', 'mlrs': 'mlrs',
     'm249': 'm249', 'm2': 'm249',
     'l96': 'l96', 'l9': 'l96',
@@ -158,7 +158,7 @@ function resolveItemAlias(value) {
 
 function isSpecialStackPart(name) {
   const n = normalizeItemName(name);
-  return n.includes('mlrs') || n.includes('drone') || n.includes('incendiary');
+  return n.includes('mlrs') || n.includes('tea') || n.includes('incendiary');
 }
 
 function isRestrictedItemAlias(itemKey) {
@@ -345,18 +345,6 @@ function findMergeableEntry(userItems, entry) {
 function addInventoryEntryByTwitchId(twitchId, entry) {
   const db = getDb();
   const now = Date.now();
-  const existing = findMergeableEntry(getInventoryRowsByTwitchId(twitchId), entry);
-  if (existing) {
-    const mergedPrizeLabel = mergePrizeLabels(existing.prize_label, entry.prizeLabel);
-    const visualLevel = Math.max(toInt(existing.visual_level, 1), toInt(entry.visualLevel, 1));
-    db.prepare(`
-      UPDATE loot_inventory
-      SET prize_label = ?, rarity = ?, visual_level = ?, donate_sum = ?, won_date = ?, status = 'stored', last_merged_at = ?, updated_at = ?
-      WHERE twitch_id = ? AND entry_id = ?
-    `).run(mergedPrizeLabel, entry.rarity || existing.rarity || 'common', visualLevel, toInt(entry.donateSum, 0), entry.wonDate, entry.wonDate, now, twitchId, existing.entry_id);
-    return { entryId: Number(existing.entry_id), merged: true, prizeLabel: mergedPrizeLabel };
-  }
-
   const entryId = getNextEntryId(db);
   db.prepare(`
     INSERT INTO loot_inventory (

@@ -3,7 +3,7 @@
   let modalReady = false;
   let selectedLootTileIds = new Set();
 
-  const SUPPORT_LINK = 'https://donatex.gg/';
+  const SUPPORT_LINK = 'https://donatex.gg/donate/nico_moose';
 
   const ITEM_ICON_MAP = [
     { test: /m4/i, icon: 'https://ru-wiki.rustclash.com/img/items180/shotgun.m4.png', key: 'm4' },
@@ -13,7 +13,7 @@
     { test: /silencer|сайленсер|сайл|глуш/i, icon: 'https://ru-wiki.rustclash.com/img/items180/weapon.mod.silencer.png', key: 'silencer' },
     { test: /m249|m2/i, icon: 'https://ru-wiki.rustclash.com/img/items180/lmg.m249.png', key: 'm249' },
     { test: /mlrs|млрс/i, icon: 'https://wiki.rustclash.com/img/items180/ammo.rocket.mlrs.png', key: 'mlrs' },
-    { test: /drone|дрон/i, icon: 'https://ru-wiki.rustclash.com/img/items180/drone.png', key: 'drone' },
+    { test: /max health tea|health tea|чай|tea/i, icon: '/img/maxhealthtea.pure.png', key: 'tea' },
     { test: /jagger|джаггер/i, icon: 'https://ru-wiki.rustclash.com/img/items180/heavy.plate.helmet.png', key: 'jagger' },
     { test: /incendiary|inc|зажига/i, icon: 'https://ru-wiki.rustclash.com/img/items180/ammo.rifle.incendiary.png', key: 'incendiary' }
   ];
@@ -63,6 +63,59 @@
     }).filter(Boolean).join(' + ');
   }
 
+  function expandPartToTiles(part, meta) {
+    const name = trimText(part?.name);
+    const total = Math.max(1, Number(part?.count || 1));
+    const key = getItemVisualKey(name);
+    const tiles = [];
+
+    function pushTile(count) {
+      tiles.push({
+        name,
+        count,
+        stackRule: key,
+        icon: getItemIcon(name),
+        ...meta
+      });
+    }
+
+    if (!name) return tiles;
+
+    if (key === 'smoke') {
+      let left = total;
+      while (left > 0) {
+        const amount = left >= 6 ? 6 : left;
+        pushTile(amount);
+        left -= amount;
+      }
+      return tiles;
+    }
+
+    if (key === 'incendiary' || key === 'tea') {
+      pushTile(total);
+      return tiles;
+    }
+
+    for (let i = 0; i < total; i += 1) pushTile(1);
+    return tiles;
+  }
+
+  function getTileSortWeight(tile) {
+    const order = {
+      l96: 1,
+      bolt: 2,
+      m4: 3,
+      m249: 4,
+      silencer: 5,
+      jagger: 6,
+      smoke: 7,
+      mlrs: 8,
+      tea: 9,
+      incendiary: 10
+    };
+    return order[getItemVisualKey(tile?.name)] || 99;
+  }
+
   function mergePartMaps(parts) {
     const order = [];
     const map = new Map();
@@ -101,20 +154,44 @@
       const caseName = trimText(entry?.caseName || 'Лут');
       const wonDate = trimText(entry?.wonDate || '');
       parsePrizeLabel(entry?.prizeLabel || '').forEach((part, index) => {
-        const selectionId = `${entryId}::${getItemVisualKey(part.name)}::${index}`;
-        tiles.push({
-          selectionId,
+        const expanded = expandPartToTiles(part, {
           entryId,
-          name: trimText(part.name),
-          count: Math.max(1, Number(part.count || 1)),
           rarity,
           visualLevel,
           caseName,
           wonDate,
-          icon: getItemIcon(part.name)
+          sourceIndex: index
+        });
+        expanded.forEach((tile, tileIndex) => {
+          tiles.push({
+            selectionId: `${entryId}::${getItemVisualKey(tile.name)}::${index}::${tileIndex}::${tile.count}`,
+            entryId,
+            name: trimText(tile.name),
+            count: Math.max(1, Number(tile.count || 1)),
+            rarity,
+            visualLevel,
+            caseName,
+            wonDate,
+            icon: tile.icon || getItemIcon(tile.name)
+          });
         });
       });
     });
+
+    tiles.sort((a, b) => {
+      const weightDiff = getTileSortWeight(a) - getTileSortWeight(b);
+      if (weightDiff !== 0) return weightDiff;
+      const nameDiff = trimText(a.name).localeCompare(trimText(b.name), 'ru');
+      if (nameDiff !== 0) return nameDiff;
+      const countDiff = Number(a.count || 1) - Number(b.count || 1);
+      if (countDiff !== 0) return countDiff;
+      const caseDiff = trimText(a.caseName).localeCompare(trimText(b.caseName), 'ru');
+      if (caseDiff !== 0) return caseDiff;
+      const dateDiff = trimText(a.wonDate).localeCompare(trimText(b.wonDate), 'ru');
+      if (dateDiff !== 0) return dateDiff;
+      return Number(a.entryId || 0) - Number(b.entryId || 0);
+    });
+
     return tiles;
   }
 

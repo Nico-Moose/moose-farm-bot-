@@ -594,7 +594,7 @@
       silencer: 'https://ru-wiki.rustclash.com/img/items180/weapon.mod.silencer.png',
       m249: 'https://ru-wiki.rustclash.com/img/items180/lmg.m249.png',
       mlrs: 'https://wiki.rustclash.com/img/items180/ammo.rocket.mlrs.png',
-      drone: 'https://ru-wiki.rustclash.com/img/items180/drone.png',
+      tea: '/img/maxhealthtea.pure.png',
       jagger: 'https://ru-wiki.rustclash.com/img/items180/heavy.plate.helmet.png',
       incendiary: 'https://ru-wiki.rustclash.com/img/items180/ammo.rifle.incendiary.png'
     };
@@ -651,7 +651,7 @@
       if (n.includes('silencer') || n.includes('глуш')) return weaponIcons.silencer;
       if (n.includes('m249') || n === 'm2') return weaponIcons.m249;
       if (n.includes('mlrs') || n.includes('млрс')) return weaponIcons.mlrs;
-      if (n.includes('drone') || n.includes('дрон')) return weaponIcons.drone;
+      if (n.includes('max health tea') || n.includes('health tea') || n.includes('чай') || n.includes('tea')) return weaponIcons.tea;
       if (n.includes('jagger') || n.includes('джаггер')) return weaponIcons.jagger;
       if (n.includes('incendiary') || n.includes('зажига') || n === 'inc') return weaponIcons.incendiary;
       return '';
@@ -671,7 +671,7 @@
       }
 
       const id = String(item?.id || '').toLowerCase().trim().replace(/mrls/g, 'mlrs');
-      const order = ['bolt', 'l96', 'm4', 'm249', 'smoke', 'silencer', 'jagger', 'drone', 'mlrs', 'incendiary'];
+      const order = ['bolt', 'l96', 'm4', 'm249', 'smoke', 'silencer', 'jagger', 'tea', 'mlrs', 'incendiary'];
       const counts = {};
 
       function add(name, count) {
@@ -693,6 +693,7 @@
       order.forEach((name) => {
         let count = 0;
         if (name === 'incendiary') count = extractCount('incendiary') + extractCount('inc');
+        else if (name === 'tea') count = extractCount('tea');
         else count = extractCount(name);
         if (count > 0) add(name, count);
       });

@@ -5,7 +5,7 @@
 .profile-loot-summary-card {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .profile-loot-chip {
@@ -15,11 +15,11 @@
     radial-gradient(circle at top right, rgba(147, 255, 121, 0.16), transparent 36%),
     linear-gradient(160deg, rgba(7, 23, 15, 0.96), rgba(5, 14, 10, 0.96));
   border-radius: 18px;
-  padding: 14px 16px;
+  padding: 9px 8px;
   color: #f0ffe7;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   text-decoration: none;
   cursor: pointer;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255,255,255,0.04);
@@ -27,16 +27,30 @@
 }
 
 .profile-loot-chip span {
-  font-size: 12px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: .08em;
   color: rgba(210, 239, 188, 0.74);
 }
 
 .profile-loot-chip b {
-  font-size: 22px;
+  font-size: 15px;
   line-height: 1.1;
   color: #ffffff;
+}
+
+.profile-loot-chip span,
+.profile-loot-chip b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-loot-chip b {
+  line-height: 1.05;
+}
+
+.loot-chip-support b {
+  font-size: 14px;
 }
 
 .profile-loot-chip:hover {
@@ -184,7 +198,8 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .loot-stat-card span,
@@ -193,7 +208,7 @@
   color: rgba(199, 228, 180, 0.72);
   text-transform: uppercase;
   letter-spacing: .08em;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .loot-stat-card b {
@@ -269,7 +284,7 @@
 
 .loot-inline-form.premium {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .loot-inline-form input {
@@ -305,7 +320,7 @@
 }
 
 .loot-case-btn span {
-  font-size: 28px;
+  font-size: 18px;
   line-height: 1;
 }
 
@@ -413,8 +428,8 @@
 
 .loot-icon-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px;
 }
 
 .loot-icon-tile {
@@ -422,7 +437,7 @@
   width: 100%;
   text-align: left;
   border-radius: 20px;
-  padding: 12px;
+  padding: 8px;
   border: 1px solid rgba(145, 215, 112, 0.12);
   background:
     radial-gradient(circle at top right, rgba(145,255,106,0.08), transparent 34%),
@@ -458,7 +473,7 @@
   justify-content: space-between;
   gap: 8px;
   align-items: center;
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
 }
 
@@ -473,7 +488,7 @@
 
 .loot-icon-frame {
   position: relative;
-  height: 112px;
+  height: 58px;
   border-radius: 16px;
   background: rgba(255,255,255,0.045);
   display: flex;
@@ -483,14 +498,14 @@
 }
 
 .loot-icon-frame img {
-  max-width: 92px;
-  max-height: 92px;
+  max-width: 28px;
+  max-height: 28px;
   object-fit: contain;
   filter: drop-shadow(0 12px 18px rgba(0,0,0,0.4));
 }
 
 .loot-icon-fallback {
-  font-size: 28px;
+  font-size: 18px;
   font-weight: 900;
   color: #e7ffdb;
 }
@@ -502,10 +517,10 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  min-width: 34px;
-  height: 30px;
-  padding: 0 10px;
-  font-size: 13px;
+  min-width: 24px;
+  height: 20px;
+  padding: 0 8px;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -535,7 +550,7 @@
 .loot-icon-name {
   font-weight: 800;
   line-height: 1.24;
-  min-height: 40px;
+  min-height: 26px;
 }
 
 .loot-empty {
@@ -604,5 +619,44 @@
   .loot-case-grid.premium,
   .profile-loot-summary-card {
     grid-template-columns: 1fr;
+  }
+}
+
+.loot-icon-name {
+  font-size: 15px;
+}
+
+.loot-icon-date {
+  font-size: 11px;
+}
+
+.profile-loot-chip {
+  min-height: 86px;
+  justify-content: center;
+}
+
+.loot-selection-bar {
+  grid-template-columns: 100px 1fr auto;
+}
+
+@media (max-width: 1180px) {
+  .profile-loot-chip {
+    min-height: 58px;
+  }
+}
+
+
+
+@media (max-width: 520px) {
+  .profile-loot-summary-card {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .profile-loot-chip {
+    border-radius: 14px;
+    padding: 8px 6px;
+  }
+  .profile-loot-chip b {
+    font-size: 13px;
   }
 }
