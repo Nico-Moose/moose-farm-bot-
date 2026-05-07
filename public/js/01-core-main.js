@@ -71,10 +71,35 @@ function formatTime(ms) {
 }
 
 function showMessage(text) {
+  const value = String(text || '').trim();
   const el = document.getElementById('message');
-  if (!el) return;
-  el.textContent = text || '';
-  el.className = text ? 'message-panel' : '';
+  if (el) {
+    el.textContent = '';
+    el.className = '';
+  }
+  if (!value) return;
+
+  const root = ensureModalRoot('siteToastRoot', 'site-toast-root');
+  const toast = document.createElement('div');
+  const lower = value.toLowerCase();
+  const kind = value.includes('❌') || lower.includes('не хватает') || lower.includes('ошибка') || lower.includes('недоступ')
+    ? 'danger'
+    : (value.includes('✅') || lower.includes('получ') || lower.includes('куплено') || lower.includes('продано') ? 'success' : 'info');
+  toast.className = `site-toast ${kind}`;
+
+  const title = kind === 'danger' ? 'Премиум-уведомление' : (kind === 'success' ? 'Готово' : 'Уведомление');
+  const body = document.createElement('div');
+  body.className = 'site-toast-body';
+  body.textContent = value;
+
+  toast.innerHTML = `<button class="site-toast-close" type="button">×</button><div class="site-toast-title">${title}</div>`;
+  toast.appendChild(body);
+  root.appendChild(toast);
+
+  const close = () => toast.remove();
+  toast.querySelector('.site-toast-close')?.addEventListener('click', close);
+  setTimeout(() => toast.classList.add('visible'), 20);
+  setTimeout(close, 6500);
 }
 
 function ensureModalRoot(id, className) {

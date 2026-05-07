@@ -1,0 +1,513 @@
+/* Moose Farm — Premium Royal Noir redesign
+   SAFE PATCH: CSS/UI only. New palette, compact profile chips, no bottom message bar. */
+
+:root {
+  --rn-bg-0: #050713;
+  --rn-bg-1: #0b1024;
+  --rn-bg-2: #101a3c;
+  --rn-card: rgba(12, 17, 39, 0.92);
+  --rn-card-2: rgba(17, 25, 55, 0.86);
+  --rn-line: rgba(143, 183, 255, 0.18);
+  --rn-line-2: rgba(180, 215, 255, 0.34);
+  --rn-text: #f7fbff;
+  --rn-soft: rgba(222, 232, 255, 0.78);
+  --rn-muted: rgba(177, 193, 224, 0.62);
+  --rn-cyan: #63e7ff;
+  --rn-blue: #6a8dff;
+  --rn-violet: #a26bff;
+  --rn-pink: #ff68c8;
+  --rn-gold: #ffd36d;
+  --rn-good: #7fffc2;
+  --rn-danger: #ff6f8d;
+  --rn-shadow: 0 24px 70px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.055);
+  --rn-glow: 0 0 0 1px rgba(99,231,255,.08) inset, 0 0 32px rgba(106,141,255,.12);
+}
+
+html,
+body {
+  overflow-x: hidden !important;
+  background: var(--rn-bg-0) !important;
+}
+
+body {
+  color: var(--rn-text) !important;
+  background:
+    radial-gradient(circle at 12% -8%, rgba(99,231,255,.18), transparent 28%),
+    radial-gradient(circle at 84% 0%, rgba(162,107,255,.16), transparent 26%),
+    radial-gradient(circle at 44% 115%, rgba(255,104,200,.11), transparent 35%),
+    linear-gradient(180deg, #0a1022 0%, #060815 52%, #03050d 100%) !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at 50% 18%, #000 0%, transparent 76%);
+  opacity: .48;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 19% 18%, rgba(99,231,255,.15), transparent 20%),
+    radial-gradient(circle at 78% 20%, rgba(162,107,255,.14), transparent 22%),
+    radial-gradient(circle at 58% 70%, rgba(255,211,109,.07), transparent 25%);
+  filter: blur(18px);
+  opacity: .9;
+}
+
+@media (min-width: 1201px) {
+  .app-shell {
+    width: min(1910px, calc(100vw - 18px)) !important;
+    max-width: calc(100vw - 18px) !important;
+    margin: 8px auto !important;
+    padding: 18px !important;
+    border-radius: 30px !important;
+  }
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(99,231,255,.09), transparent 30%),
+    radial-gradient(circle at 100% 0%, rgba(162,107,255,.11), transparent 28%),
+    linear-gradient(180deg, rgba(8, 12, 27, .94), rgba(4, 7, 17, .96)) !important;
+  border: 1px solid rgba(143, 183, 255, .16) !important;
+  box-shadow: 0 30px 100px rgba(0,0,0,.52), inset 0 1px 0 rgba(255,255,255,.05) !important;
+}
+
+/* Brand logo: add 2.0 next to icon */
+.farm-logo {
+  position: relative !important;
+  overflow: visible !important;
+  background:
+    radial-gradient(circle at 35% 22%, rgba(255,211,109,.24), transparent 42%),
+    linear-gradient(145deg, rgba(18, 31, 68, .96), rgba(5, 9, 22, .98)) !important;
+  border-color: rgba(99,231,255,.25) !important;
+  box-shadow: 0 16px 42px rgba(0,0,0,.35), 0 0 28px rgba(99,231,255,.12) !important;
+}
+
+.farm-logo::after {
+  content: "2.0";
+  position: absolute;
+  left: calc(100% - 8px);
+  top: -8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: .04em;
+  color: #07101f;
+  background: linear-gradient(180deg, #f7fbff, #63e7ff 58%, #6a8dff);
+  border: 1px solid rgba(255,255,255,.42);
+  box-shadow: 0 10px 24px rgba(99,231,255,.20);
+}
+
+/* Universal panels */
+.visual-section,
+.profile-card-final,
+.profile-shell,
+.main-actions-card,
+.tab-page-card,
+.market-card,
+.info-card,
+.history-controls,
+.license-card,
+.combat-card,
+.building-card,
+.building-card-v3,
+.market-section,
+.info-section,
+.history-section,
+.stream-section,
+.main-twitch-chat-card,
+.farm-online-side,
+.online-farmers-card,
+.farmer-popup-card,
+.pretty-modal-card,
+.admin-panel,
+.admin-card,
+.admin-player-card,
+.admin-mini-card,
+.admin-view-section,
+.admin-unified-section,
+.admin-field-card,
+.admin-building-card,
+.top-card,
+.analytics-card,
+.raid-primary-card,
+.raid-log-row,
+.pretty-event-row,
+.history-human-row,
+.loot-modal-card,
+.loot-promo-card,
+.loot-cases-card,
+.loot-recent-card,
+.loot-inventory-card,
+.loot-stat-card,
+.loot-icon-tile,
+.stream-video-card,
+.stat-tile,
+.info-stat,
+.quick-status {
+  color: var(--rn-text) !important;
+  border: 1px solid var(--rn-line) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(99,231,255,.075), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(162,107,255,.07), transparent 28%),
+    linear-gradient(180deg, var(--rn-card), rgba(5, 8, 18, .94)) !important;
+  box-shadow: var(--rn-shadow) !important;
+}
+
+/* Headings/text */
+h1,h2,h3,h4,
+.farm-title-row h1,
+.farm-hero h1,
+.hero-greeting-title,
+.profile-name-final,
+.section-head h2,
+.main-actions-card h2,
+.main-twitch-chat-head h2,
+.farm-online-head h2 {
+  color: #fbfdff !important;
+  text-shadow: 0 0 24px rgba(99,231,255,.10), 0 4px 18px rgba(0,0,0,.34) !important;
+}
+
+p, small, label,
+.farm-hero p,
+.section-head p,
+.main-twitch-chat-head p,
+.farm-online-head p,
+.profile-kicker,
+.stat-tile span,
+.info-stat span {
+  color: var(--rn-soft) !important;
+}
+
+/* Buttons — completely new premium palette */
+button,
+.btn,
+.button,
+.farm-tab,
+.back-main-btn,
+.admin-entry button,
+.farm-online-all-btn,
+.main-twitch-chat-link,
+.stream-card-head-btn,
+.loot-modal-close,
+.loot-inline-form button,
+.loot-case-btn,
+.loot-action-btn,
+.loot-support-link,
+.market-step-btn,
+.market-buy-btn,
+.market-sell-btn,
+.action-grid-top button,
+.combat-card button,
+.building-card button,
+.building-card-clean__actions button,
+.compact-extra-actions button,
+.quick-actions-section button,
+.pretty-modal-actions button,
+#openAdminPanel,
+#toggleHideSelfBtn,
+#openAllFarmersBtn,
+select,
+input[type="button"],
+input[type="submit"] {
+  color: #f8fbff !important;
+  border: 1px solid rgba(130, 165, 255, .32) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(99,231,255,.18), transparent 46%),
+    linear-gradient(180deg, rgba(26, 39, 90, .98), rgba(9, 14, 32, .98)) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.06), 0 0 0 1px rgba(99,231,255,.035) !important;
+  text-shadow: none !important;
+}
+
+button:hover,
+.btn:hover,
+.button:hover,
+.farm-tab:hover,
+.back-main-btn:hover,
+.admin-entry button:hover,
+.farm-online-all-btn:hover,
+.main-twitch-chat-link:hover,
+.stream-card-head-btn:hover,
+.loot-modal-close:hover,
+.loot-inline-form button:hover,
+.loot-case-btn:hover,
+.loot-action-btn:hover,
+.loot-support-link:hover,
+.market-step-btn:hover,
+.market-buy-btn:hover,
+.market-sell-btn:hover,
+.action-grid-top button:hover,
+.combat-card button:hover,
+.building-card button:hover,
+.building-card-clean__actions button:hover,
+.compact-extra-actions button:hover,
+.quick-actions-section button:hover,
+.pretty-modal-actions button:hover,
+#openAdminPanel:hover,
+#toggleHideSelfBtn:hover,
+#openAllFarmersBtn:hover {
+  color: #ffffff !important;
+  border-color: rgba(143, 232, 255, .58) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.20), transparent 36%),
+    linear-gradient(180deg, rgba(72, 91, 190, .98), rgba(22, 31, 74, .98)) !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,.36), 0 0 28px rgba(99,231,255,.16), inset 0 1px 0 rgba(255,255,255,.09) !important;
+  transform: translateY(-1px);
+}
+
+.farm-tab.active,
+.farm-tab[aria-selected="true"] {
+  color: #05101e !important;
+  border-color: rgba(255,255,255,.48) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.62), transparent 35%),
+    linear-gradient(180deg, #fff3b4 0%, #63e7ff 58%, #7c8cff 100%) !important;
+  box-shadow: 0 18px 46px rgba(99,231,255,.20), 0 0 34px rgba(162,107,255,.16), inset 0 1px 0 rgba(255,255,255,.45) !important;
+}
+
+#openAdminPanel {
+  color: #07101f !important;
+  background: linear-gradient(180deg, #fff0a6, #63e7ff) !important;
+  border-color: rgba(255,255,255,.52) !important;
+}
+
+button:disabled,
+button.is-busy,
+.btn:disabled,
+.button:disabled,
+.disabled,
+[disabled] {
+  opacity: .48 !important;
+  filter: saturate(.55) grayscale(.2) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Inputs */
+input,
+textarea,
+select,
+.input,
+.form-control,
+.admin-input,
+.loot-inline-form input {
+  color: var(--rn-text) !important;
+  background: linear-gradient(180deg, rgba(8, 12, 28, .96), rgba(4, 7, 17, .96)) !important;
+  border: 1px solid rgba(143,183,255,.22) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(99,231,255,.56) !important;
+  box-shadow: 0 0 0 3px rgba(99,231,255,.12), inset 0 1px 0 rgba(255,255,255,.05) !important;
+  outline: none !important;
+}
+
+/* Profile donate/inventory chips — smaller text that fits */
+.profile-loot-summary {
+  margin-top: 8px !important;
+  width: 100%;
+}
+
+.profile-loot-summary-card,
+.profile-loot-summary-card.compact-main-profile-loot {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  max-width: 285px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.profile-loot-chip {
+  min-width: 0 !important;
+  min-height: 64px !important;
+  padding: 8px 9px !important;
+  border-radius: 16px !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(99,231,255,.18), transparent 44%),
+    linear-gradient(180deg, rgba(15, 25, 58, .98), rgba(5, 9, 22, .98)) !important;
+  border-color: rgba(143,183,255,.24) !important;
+}
+
+.profile-loot-chip span {
+  font-size: 9px !important;
+  line-height: 1 !important;
+  letter-spacing: .065em !important;
+  color: rgba(220,232,255,.72) !important;
+  white-space: nowrap !important;
+}
+
+.profile-loot-chip b {
+  font-size: 18px !important;
+  line-height: 1.02 !important;
+  white-space: nowrap !important;
+  color: #ffffff !important;
+  text-shadow: 0 0 16px rgba(99,231,255,.12) !important;
+}
+
+.loot-chip-inventory b {
+  font-size: 18px !important;
+}
+
+/* Remove old bottom menu/message bar; show toast instead */
+#message,
+#message.message-panel {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.site-toast-root {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 4200;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(430px, calc(100vw - 28px));
+  pointer-events: none;
+}
+
+.site-toast {
+  position: relative;
+  opacity: 0;
+  transform: translateY(14px) scale(.98);
+  pointer-events: auto;
+  padding: 16px 42px 16px 16px;
+  border-radius: 20px;
+  color: #f8fbff;
+  border: 1px solid rgba(143,183,255,.24);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(99,231,255,.14), transparent 38%),
+    linear-gradient(180deg, rgba(12, 17, 39, .97), rgba(5, 8, 18, .97));
+  box-shadow: 0 24px 70px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.055);
+  transition: opacity .18s ease, transform .18s ease;
+  overflow: hidden;
+}
+
+.site-toast.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.site-toast::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--rn-cyan), var(--rn-violet));
+}
+
+.site-toast.success::before { background: linear-gradient(180deg, var(--rn-good), var(--rn-cyan)); }
+.site-toast.danger::before { background: linear-gradient(180deg, var(--rn-danger), var(--rn-pink)); }
+
+.site-toast-title {
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  color: #ffffff;
+}
+
+.site-toast-body {
+  white-space: pre-line;
+  font-size: 14px;
+  line-height: 1.35;
+  color: rgba(232,240,255,.88);
+  font-weight: 750;
+}
+
+.site-toast-close {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+}
+
+/* Keep layout from creating side scrollbar */
+.main-dashboard-layout,
+.farm-content-with-chat,
+.farm-content-primary,
+.main-dashboard-primary,
+.profile-shell,
+.farm-tab-panel,
+.tab-page-card {
+  min-width: 0 !important;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Chat remains interactive */
+.main-dashboard-side,
+.persistent-twitch-chat-side,
+.main-twitch-chat-card,
+.main-twitch-chat-frame,
+.main-twitch-chat-embed,
+.main-twitch-chat-embed iframe {
+  pointer-events: auto !important;
+  z-index: 95 !important;
+}
+
+/* Premium active/status accents */
+.profile-status-pill,
+.level-badge,
+.building-badge,
+.all-farmer-badge.online,
+.loot-stream-state.online {
+  color: #06111e !important;
+  background: linear-gradient(180deg, #e6fff8, #7fffc2 58%, #63e7ff) !important;
+  border-color: rgba(255,255,255,.42) !important;
+}
+
+.shortage,
+.danger,
+.error {
+  color: #ff9fb4 !important;
+}
+
+.okline,
+.success {
+  color: #a4ffd8 !important;
+}
+
+@media (max-width: 700px) {
+  .farm-logo::after {
+    font-size: 9px;
+    padding: 3px 6px;
+    top: -5px;
+  }
+  .site-toast-root {
+    right: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+  }
+}
