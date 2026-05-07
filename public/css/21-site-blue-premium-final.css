@@ -702,3 +702,10 @@ textarea::placeholder,
     font-size: 24px !important;
   }
 }
+
+
+.profile-loot-chip,
+.profile-loot-chip.loot-chip-inventory,
+.profile-loot-chip * {
+  cursor: pointer !important;
+}

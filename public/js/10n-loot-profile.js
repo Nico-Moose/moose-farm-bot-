@@ -657,6 +657,14 @@
     scheduleAfterProfileRender();
   });
 
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-loot-open-modal]');
+    if (!trigger) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openLootModal();
+  });
+
   const prevLoadMe = window.loadMe;
   if (typeof prevLoadMe === 'function') {
     window.loadMe = async function patchedLoadMe() {
