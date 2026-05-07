@@ -160,7 +160,13 @@
 
   function buildingFailMessage(key, data) {
     const reason = buildingErrorLabel(data?.error || data?.stopReason, data || {});
-    return `❌ ${key}: ${reason || 'ошибка'}`;
+    const p = data?.profile || state?.profile || {};
+    const rows = Array.isArray(data?.buildings) ? data.buildings : (Array.isArray(state?.buildings) ? state.buildings : []);
+    const b = rows.find((item) => item && item.key === key) || {};
+    const needCoins = Number(data?.totalCost || data?.nextCost || data?.neededCoins || b?.upgradeCost?.coins || b?.buyCost?.coins || 0);
+    const needParts = Number(data?.totalParts || data?.nextParts || data?.neededParts || b?.upgradeCost?.parts || b?.buyCost?.parts || 0);
+    const details = (needCoins || needParts) ? `\n${formatNeedLine(p, needCoins, needParts)}` : '';
+    return `❌ ${key}: ${reason || 'ошибка'}${details}`;
   }
 
   function raidPowerFailMessage(data) {

@@ -87,10 +87,10 @@ function showMessage(text) {
     : (value.includes('✅') || lower.includes('получ') || lower.includes('куплено') || lower.includes('продано') ? 'success' : 'info');
   toast.className = `site-toast ${kind}`;
 
-  const title = kind === 'danger' ? 'Премиум-уведомление' : (kind === 'success' ? 'Готово' : 'Уведомление');
+  const title = kind === 'success' ? 'Готово' : 'Уведомление';
   const body = document.createElement('div');
   body.className = 'site-toast-body';
-  body.textContent = value;
+  body.textContent = value.replace(/^❌\s*/, '').replace(/^⛔\s*/, '');
 
   toast.innerHTML = `<button class="site-toast-close" type="button">×</button><div class="site-toast-title">${title}</div>`;
   toast.appendChild(body);
