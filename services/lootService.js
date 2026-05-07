@@ -413,15 +413,36 @@ function buildLootSnapshotForTwitchId(twitchId) {
   };
 }
 
+function normalizeVisualChatText(value, maxLen = 180) {
+  return String(value || '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLen);
+}
+
+function normalizeVisualCommand(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return raw.startsWith('!') ? raw : `!${raw}`;
+}
+
 async function maybeTriggerChatVisual(kind, payload) {
   const envKey = kind === 'take' ? 'WIZEBOT_LOOT_TAKE_COMMAND' : 'WIZEBOT_LOOT_OPEN_COMMAND';
-  const command = String(process.env[envKey] || '').trim();
+  const command = normalizeVisualCommand(process.env[envKey]);
   if (!command) return { ok: false, skipped: true, reason: 'command_not_configured' };
+
   const login = normalizeUser(payload?.login);
   if (!login) return { ok: false, skipped: true, reason: 'missing_login' };
-  const encodedLabel = encodeURIComponent(String(payload?.prizeLabel || payload?.itemName || '').slice(0, 180));
-  const encodedCase = encodeURIComponent(String(payload?.caseName || '').slice(0, 120));
-  const message = `${command} ${login} ${encodedLabel}${encodedCase ? ' ' + encodedCase : ''}`;
+
+  const rawLabel = normalizeVisualChatText(payload?.prizeLabel || payload?.itemName || '', 220);
+  const rawCase = normalizeVisualChatText(payload?.caseName || '', 120);
+  const parts = [command, login];
+
+  if (rawLabel) parts.push(rawLabel);
+  if (rawCase) parts.push(rawCase);
+
+  const message = parts.join(' ');
   return sayToChannel(message);
 }
 
