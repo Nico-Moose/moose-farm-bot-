@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OBS — Выдачи предметов</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --line: rgba(126, 156, 232, .18);
+      --text: #f5f8ff;
+      --muted: rgba(208, 220, 246, .68);
+      --accent: #88dcf7;
+      --ok: #9bf28e;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; background: linear-gradient(180deg,#0c1323,#09111d); color:var(--text); font-family: Inter, Segoe UI, Arial, sans-serif; }
+    body { padding: 12px; }
+    .wrap { border: 1px solid var(--line); border-radius: 18px; background: radial-gradient(circle at top right, rgba(108,135,255,.10), transparent 28%), linear-gradient(180deg, rgba(17,27,49,.96), rgba(10,16,30,.98)); box-shadow: 0 16px 38px rgba(0,0,0,.28); overflow: hidden; }
+    .head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 14px 16px; border-bottom:1px solid var(--line); background: linear-gradient(180deg, rgba(21,34,62,.98), rgba(13,21,40,.98)); }
+    .title { font-size: 22px; font-weight: 900; }
+    .meta { color: var(--muted); font-size: 13px; }
+    .list { display:flex; flex-direction:column; gap:10px; padding: 12px; }
+    .item { border: 1px solid rgba(126,156,232,.14); border-radius: 16px; padding: 12px 14px; background: linear-gradient(180deg, rgba(19,31,57,.98), rgba(12,20,37,.98)); }
+    .row { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+    .name { font-size: 16px; font-weight: 900; color:#fff; }
+    .time { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .label { margin-top: 6px; font-size: 17px; font-weight: 800; color: var(--accent); line-height: 1.25; }
+    .case { margin-top: 6px; color: var(--muted); font-size: 13px; }
+    .items { margin-top: 8px; display:flex; flex-wrap: wrap; gap: 8px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding: 7px 10px; border-radius:999px; border:1px solid rgba(126,156,232,.16); background: rgba(255,255,255,.04); color:#fff; font-size:13px; font-weight:700; }
+    .status { color: var(--ok); font-size: 12px; font-weight: 800; }
+    .empty { padding: 28px 18px; color: var(--muted); text-align:center; }
+    .error { color: #ff9fb0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="title">📦 Выдачи предметов</div>
+        <div class="meta">Только успешно забранные предметы из донат-инвентаря</div>
+      </div>
+      <div class="meta" id="lastSync">обновление…</div>
+    </div>
+    <div class="list" id="list"><div class="empty">Загрузка…</div></div>
+  </div>
+<script>
+const listEl = document.getElementById('list');
+const syncEl = document.getElementById('lastSync');
+function esc(v){ return String(v||'').replace(/[&<>"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s])); }
+function fmtTime(ts, fallback){ if (ts) { try { return new Date(Number(ts)).toLocaleString('ru-RU'); } catch(_) {} } return esc(fallback || '—'); }
+function render(items){
+  if (!items.length) { listEl.innerHTML = '<div class="empty">Пока нет ни одной успешной выдачи.</div>'; return; }
+  listEl.innerHTML = items.map((item) => {
+    const pills = Array.isArray(item.items) ? item.items.map((part) => `<span class="pill">${esc(part.name)} ×${Number(part.amount||1)}</span>`).join('') : '';
+    return `<article class="item"><div class="row"><div><div class="name">${esc(item.display_name || item.login || 'Игрок')}</div><div class="status">Успешно выдано</div></div><div class="time">${fmtTime(item.created_at, item.taken_date)}</div></div><div class="label">${esc(item.prize_label || 'Предмет')}</div>${item.case_name ? `<div class="case">Источник: ${esc(item.case_name)}</div>` : ''}${pills ? `<div class="items">${pills}</div>` : ''}</article>`;
+  }).join('');
+}
+async function load(){
+  try {
+    const res = await fetch('/api/obs/loot-takes?limit=30', { credentials:'same-origin', cache:'no-store' });
+    if (res.status === 401) { listEl.innerHTML = '<div class="empty error">Нужно войти на сайт, чтобы OBS dock видел выдачи.</div>'; return; }
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'load_failed');
+    render(data.items || []);
+    syncEl.textContent = 'обновлено: ' + new Date().toLocaleTimeString('ru-RU');
+  } catch (error) {
+    listEl.innerHTML = `<div class="empty error">Не удалось загрузить выдачи: ${esc(error.message || error)}</div>`;
+  }
+}
+load();
+setInterval(load, 4000);
+</script>
+</body>
+</html>

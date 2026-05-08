@@ -146,6 +146,19 @@ function migrate(database) {
       PRIMARY KEY (twitch_id, code),
       FOREIGN KEY (twitch_id) REFERENCES twitch_users(twitch_id)
     );
+
+    CREATE TABLE IF NOT EXISTS loot_take_dock_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      twitch_id TEXT NOT NULL,
+      login TEXT NOT NULL,
+      display_name TEXT,
+      prize_label TEXT NOT NULL,
+      items_json TEXT NOT NULL DEFAULT '[]',
+      case_name TEXT,
+      taken_date TEXT,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (twitch_id) REFERENCES twitch_users(twitch_id)
+    );
   `);
 
   const presenceColumns = database
@@ -165,6 +178,8 @@ function migrate(database) {
     CREATE INDEX IF NOT EXISTS idx_farm_presence_seen ON farm_presence(last_seen_at DESC);
     CREATE INDEX IF NOT EXISTS idx_loot_inventory_twitch_entry ON loot_inventory(twitch_id, entry_id);
     CREATE INDEX IF NOT EXISTS idx_loot_taken_history_twitch_created ON loot_taken_history(twitch_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_loot_take_dock_log_created ON loot_take_dock_log(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_loot_take_dock_log_twitch_created ON loot_take_dock_log(twitch_id, created_at DESC);
   `);
 }
 

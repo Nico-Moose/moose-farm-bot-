@@ -95,6 +95,7 @@ const {
   openLootCaseForUser,
   takeLootForUser,
   takeLootSelectionForUser,
+  listLootTakeDockLog,
   parseTakeRequest
 } = require('../services/lootService');
 
@@ -459,6 +460,17 @@ router.post('/loot/take-selection', requireAuth, async (req, res) => {
     const result = await takeLootSelectionForUser(req.session.twitchUser, req.body?.selections);
     if (!result.ok) return res.status(400).json(result);
     res.json(result);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message || String(error) });
+  }
+});
+
+
+router.get('/obs/loot-takes', requireAuth, (req, res) => {
+  try {
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 30)));
+    const items = listLootTakeDockLog(limit);
+    res.json({ ok: true, items, total: items.length, limit });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message || String(error) });
   }

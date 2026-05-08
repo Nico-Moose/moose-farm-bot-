@@ -6,6 +6,70 @@ const PLAYER_ALLOWED_AMOUNTS = [100, 200, 300, 500];
 const PROMO_CODE = 'nico_moose';
 const PROMO_AMOUNT = 149;
 const HISTORY_LIMIT = 200;
+const DOCK_LOG_LIMIT = 300;
+
+function buildDockItemsJsonFromPrizeLabel(prizeLabel) {
+  try {
+    return JSON.stringify((parsePrizeLabel(prizeLabel) || []).map((part) => ({
+      name: trimText(part?.name || ''),
+      amount: Math.max(1, toInt(part?.count || 1, 1))
+    })).filter((part) => part.name));
+  } catch (_) {
+    return '[]';
+  }
+}
+
+function appendLootTakeDockLog(entry) {
+  const db = getDb();
+  db.prepare(`
+    INSERT INTO loot_take_dock_log (
+      twitch_id, login, display_name, prize_label, items_json, case_name, taken_date, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    entry.twitchId,
+    trimText(entry.login || ''),
+    trimText(entry.displayName || entry.login || ''),
+    trimText(entry.prizeLabel || 'Неизвестный предмет'),
+    buildDockItemsJsonFromPrizeLabel(entry.prizeLabel),
+    trimText(entry.caseName || ''),
+    trimText(entry.takenDate || ''),
+    Date.now()
+  );
+  db.prepare(`DELETE FROM loot_take_dock_log WHERE id NOT IN (SELECT id FROM loot_take_dock_log ORDER BY id DESC LIMIT ?)`)
+    .run(DOCK_LOG_LIMIT);
+}
+
+function listLootTakeDockLog(limit = 30) {
+  const db = getDb();
+  const safeLimit = Math.max(1, Math.min(100, toInt(limit, 30)));
+  const rows = db.prepare(`
+    SELECT id, twitch_id, login, display_name, prize_label, items_json, case_name, taken_date, created_at
+    FROM loot_take_dock_log
+    ORDER BY id DESC
+    LIMIT ?
+  `).all(safeLimit);
+
+  return rows.map((row) => {
+    let items = [];
+    try {
+      items = JSON.parse(row.items_json || '[]');
+      if (!Array.isArray(items)) items = [];
+    } catch (_) {
+      items = [];
+    }
+    return {
+      id: row.id,
+      twitch_id: row.twitch_id,
+      login: row.login,
+      display_name: row.display_name || row.login,
+      prize_label: row.prize_label,
+      items,
+      case_name: row.case_name || '',
+      taken_date: row.taken_date || '',
+      created_at: toInt(row.created_at, 0)
+    };
+  });
+}
 
 function toInt(value, defVal = 0) {
   const n = parseInt(value, 10);
@@ -596,6 +660,15 @@ function takeLootSelectionForUser(user, rawSelections) {
   const caseName = buildCombinedCaseName(caseNames);
   const remainLabel = remainLabels.join(' · ');
 
+  appendLootTakeDockLog({
+    twitchId,
+    login,
+    displayName,
+    prizeLabel: combinedPrizeLabel,
+    caseName,
+    takenDate: now
+  });
+
   logFarmEvent(twitchId, 'loot_take_multi', {
     entryId: firstEntryId || 0,
     prizeLabel: combinedPrizeLabel,
@@ -806,6 +879,15 @@ async function takeLootForUser(user, rawRequest) {
   );
   db.prepare(`DELETE FROM loot_taken_history WHERE id NOT IN (SELECT id FROM loot_taken_history ORDER BY id DESC LIMIT ?)` ).run(HISTORY_LIMIT);
 
+  appendLootTakeDockLog({
+    twitchId,
+    login,
+    displayName,
+    prizeLabel: takenLabel,
+    caseName: foundItem.case_name || '',
+    takenDate: takenTime
+  });
+
   logFarmEvent(twitchId, 'loot_take', {
     entryId: toInt(foundItem.entry_id, 0),
     prizeId: foundItem.prize_id || '',
@@ -912,5 +994,6 @@ module.exports = {
   openLootCaseForUser,
   takeLootForUser,
   takeLootSelectionForUser,
+  listLootTakeDockLog,
   rollbackLastTakeByLogin
 };
