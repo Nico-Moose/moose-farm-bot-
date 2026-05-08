@@ -482,7 +482,12 @@
 
     body.querySelectorAll('[data-loot-open]').forEach((btn) => btn.addEventListener('click', () => openLootCase(Number(btn.getAttribute('data-loot-open')))));
     body.querySelectorAll('[data-loot-select-button]').forEach((btn) => btn.addEventListener('click', () => toggleLootSelection(btn.getAttribute('data-loot-select-button'))));
-    body.querySelectorAll('[data-loot-amount-id]').forEach((input) => input.addEventListener('input', () => updateLootAmount(input.getAttribute('data-loot-amount-id'), input.value)));
+    body.querySelectorAll('[data-loot-amount-id]').forEach((input) => {
+      const selectionId = input.getAttribute('data-loot-amount-id');
+      syncLootRangeUi(input);
+      input.addEventListener('input', () => updateLootAmount(selectionId, input.value, { silent: true, input }));
+      input.addEventListener('change', () => updateLootAmount(selectionId, input.value, { rerender: true }));
+    });
     document.getElementById('lootPromoBtn')?.addEventListener('click', activatePromo);
     document.getElementById('lootTakeSelectedBtn')?.addEventListener('click', takeSelectedLoot);
     document.getElementById('lootClearSelectionBtn')?.addEventListener('click', clearLootSelection);
@@ -502,14 +507,34 @@
     renderLootModalBody();
   }
 
-  function updateLootAmount(selectionId, rawValue) {
+  function syncLootRangeUi(input, valueOverride, maxOverride) {
+    if (!input) return;
+    const value = Number(valueOverride ?? input.value ?? 0);
+    const max = Math.max(1, Number(maxOverride ?? input.max ?? 1));
+    const min = Number(input.min || 0);
+    const progress = Math.max(0, Math.min(100, ((value - min) / Math.max(1, max - min)) * 100));
+    input.style.setProperty('--loot-range-progress', `${progress}%`);
+    const wrap = input.closest('[data-loot-amount-wrap]');
+    const valueBox = wrap?.querySelector('.loot-amount-row b');
+    if (valueBox) valueBox.textContent = `${value} / ${max}`;
+  }
+
+  function updateLootAmount(selectionId, rawValue, opts = {}) {
     if (!selectionId || !selectedLootTileIds.has(selectionId)) return;
     const tile = getLootTiles().find((item) => item.selectionId === selectionId);
     const step = Math.max(1, Number(tile?.step || getStackStepByName(tile?.name) || 1));
+    const max = Math.max(1, Number(tile?.available || tile?.count || 1));
     let n = Math.max(step, Number(rawValue || step));
     if (step > 1) n = Math.max(step, Math.floor(n / step) * step);
+    n = Math.min(max, n);
     selectedLootCounts.set(selectionId, n);
-    renderLootModalBody();
+
+    if (opts.input) {
+      opts.input.value = String(n);
+      syncLootRangeUi(opts.input, n, max);
+    }
+
+    if (opts.rerender) renderLootModalBody();
   }
 
   function clearLootSelection() {

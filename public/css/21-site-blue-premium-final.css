@@ -711,36 +711,180 @@ textarea::placeholder,
 }
 
 
-/* inventory open hotfix: keep mini-inventory above visual layers and fully clickable */
-.profile-main-left,
-.profile-main-left > div,
-.profile-loot-summary,
-.profile-loot-summary-card,
-.profile-loot-chip,
-.profile-loot-chip.loot-chip-inventory,
-.profile-loot-chip * {
-  position: relative !important;
-  z-index: 25 !important;
-  pointer-events: auto !important;
+/* Loot inventory readability micro-patch: bigger item previews, clearer counts,
+   centered case prices, and smooth draggable range slider. */
+.loot-case-grid.premium {
+  gap: 12px !important;
 }
 
-.profile-loot-summary {
-  display: block !important;
-  isolation: isolate !important;
+.loot-case-btn {
+  min-height: 64px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 8px !important;
 }
 
-.profile-loot-chip,
-.profile-loot-chip.loot-chip-inventory {
+.loot-case-btn span,
+.loot-case-btn small {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: 1 !important;
+}
+
+.loot-case-btn span {
+  font-size: 18px !important;
+  font-weight: 900 !important;
+}
+
+.loot-case-btn small {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
+
+.loot-stacked-grid,
+.loot-icon-grid.loot-stacked-grid {
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr)) !important;
+  gap: 14px !important;
+}
+
+.loot-icon-tile {
+  padding: 12px !important;
+  gap: 10px !important;
+}
+
+.loot-icon-main-btn {
+  gap: 10px !important;
+}
+
+.loot-icon-topline {
+  font-size: 11px !important;
+}
+
+.loot-icon-topline strong {
+  font-size: 12px !important;
+  letter-spacing: .04em !important;
+}
+
+.loot-icon-frame {
+  height: 108px !important;
+  border-radius: 18px !important;
+}
+
+.loot-icon-frame img {
+  max-width: 72px !important;
+  max-height: 72px !important;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,0.44)) !important;
+}
+
+.loot-icon-count {
+  left: 10px !important;
+  bottom: 10px !important;
+  min-width: 38px !important;
+  height: 26px !important;
+  padding: 0 10px !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  letter-spacing: .01em !important;
+  background: rgba(8, 16, 31, 0.96) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(147, 179, 255, 0.34) !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.26) !important;
+}
+
+.loot-icon-check {
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 12px !important;
+}
+
+.loot-icon-name {
+  min-height: 40px !important;
+  font-size: 17px !important;
+  font-weight: 900 !important;
+  line-height: 1.18 !important;
+}
+
+.loot-icon-date {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: rgba(216, 226, 244, 0.82) !important;
+}
+
+.loot-amount-control {
+  padding: 10px 12px 12px !important;
+  border-radius: 16px !important;
+}
+
+.loot-amount-control input[type="range"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 100% !important;
+  height: 8px !important;
+  border-radius: 999px !important;
   cursor: pointer !important;
-  touch-action: manipulation !important;
+  outline: none !important;
+  background: linear-gradient(
+    90deg,
+    #7fe068 0%,
+    #7fe068 var(--loot-range-progress, 0%),
+    rgba(255,255,255,0.16) var(--loot-range-progress, 0%),
+    rgba(255,255,255,0.16) 100%
+  ) !important;
 }
 
-#lootModal,
-.loot-modal {
-  z-index: 2147483646 !important;
-  pointer-events: auto !important;
+.loot-amount-control input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px !important;
+  border-radius: 999px !important;
+  background: transparent !important;
 }
 
-.loot-modal.hidden {
-  display: none !important;
+.loot-amount-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin-top: -6px !important;
+  border-radius: 50% !important;
+  border: 2px solid #efffe8 !important;
+  background: linear-gradient(180deg, #9bf07d, #6dce57) !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.28) !important;
+}
+
+.loot-amount-control input[type="range"]::-moz-range-track {
+  height: 8px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.16) !important;
+}
+
+.loot-amount-control input[type="range"]::-moz-range-progress {
+  height: 8px !important;
+  border-radius: 999px !important;
+  background: #7fe068 !important;
+}
+
+.loot-amount-control input[type="range"]::-moz-range-thumb {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  border: 2px solid #efffe8 !important;
+  background: linear-gradient(180deg, #9bf07d, #6dce57) !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.28) !important;
+}
+
+.loot-amount-row {
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  margin-top: 8px !important;
+}
+
+.loot-amount-row b {
+  font-size: 18px !important;
+  letter-spacing: .01em !important;
+  color: #ffffff !important;
 }
