@@ -284,6 +284,9 @@
     if (!modal) return;
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
+    modal.style.display = 'block';
+    modal.style.pointerEvents = 'auto';
+    modal.style.zIndex = '2147483646';
     fetchLootStreamStatus().catch(() => {});
     if (!lootState) {
       fetchLootState().catch((e) => {
@@ -298,6 +301,9 @@
     if (!modal) return;
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
+    modal.style.display = '';
+    modal.style.pointerEvents = '';
+    modal.style.zIndex = '';
   }
 
   function renderLootSummary() {
@@ -311,7 +317,13 @@
     const tiles = getLootTiles();
     host.innerHTML = `
       <div class="profile-loot-summary-card compact-main-profile-loot">
-        <button type="button" class="profile-loot-chip loot-chip-inventory" data-loot-open-modal>
+        <button
+          type="button"
+          class="profile-loot-chip loot-chip-inventory"
+          data-loot-open-modal
+          onclick="window.openLootModal && window.openLootModal()"
+          aria-label="Открыть инвентарь"
+        >
           <span>🎒 Инвентарь</span>
           <b>${lootNumber(tiles.length)} шт.</b>
         </button>

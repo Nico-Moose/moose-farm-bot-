@@ -709,3 +709,38 @@ textarea::placeholder,
 .profile-loot-chip * {
   cursor: pointer !important;
 }
+
+
+/* inventory open hotfix: keep mini-inventory above visual layers and fully clickable */
+.profile-main-left,
+.profile-main-left > div,
+.profile-loot-summary,
+.profile-loot-summary-card,
+.profile-loot-chip,
+.profile-loot-chip.loot-chip-inventory,
+.profile-loot-chip * {
+  position: relative !important;
+  z-index: 25 !important;
+  pointer-events: auto !important;
+}
+
+.profile-loot-summary {
+  display: block !important;
+  isolation: isolate !important;
+}
+
+.profile-loot-chip,
+.profile-loot-chip.loot-chip-inventory {
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+}
+
+#lootModal,
+.loot-modal {
+  z-index: 2147483646 !important;
+  pointer-events: auto !important;
+}
+
+.loot-modal.hidden {
+  display: none !important;
+}
