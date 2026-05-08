@@ -284,9 +284,6 @@
     if (!modal) return;
     modal.classList.remove('hidden');
     modal.setAttribute('aria-hidden', 'false');
-    modal.style.display = 'block';
-    modal.style.pointerEvents = 'auto';
-    modal.style.zIndex = '2147483646';
     fetchLootStreamStatus().catch(() => {});
     if (!lootState) {
       fetchLootState().catch((e) => {
@@ -301,9 +298,6 @@
     if (!modal) return;
     modal.classList.add('hidden');
     modal.setAttribute('aria-hidden', 'true');
-    modal.style.display = '';
-    modal.style.pointerEvents = '';
-    modal.style.zIndex = '';
   }
 
   function renderLootSummary() {
@@ -317,13 +311,7 @@
     const tiles = getLootTiles();
     host.innerHTML = `
       <div class="profile-loot-summary-card compact-main-profile-loot">
-        <button
-          type="button"
-          class="profile-loot-chip loot-chip-inventory"
-          data-loot-open-modal
-          onclick="window.openLootModal && window.openLootModal()"
-          aria-label="Открыть инвентарь"
-        >
+        <button type="button" class="profile-loot-chip loot-chip-inventory" data-loot-open-modal>
           <span>🎒 Инвентарь</span>
           <b>${lootNumber(tiles.length)} шт.</b>
         </button>
@@ -631,60 +619,24 @@
     renderLootSummary();
   }
 
-  let lootProfileObserver = null;
-  let afterProfileRenderQueued = false;
-
   function afterProfileRender() {
     injectLootSummaryHost();
-    if (lootState) {
-      renderLootSummary();
-      return;
-    }
     fetchLootState().catch(() => {
       const host = document.getElementById('profileLootSummary');
       if (host) host.innerHTML = '<div class="profile-loot-loading">Донат-инвентарь временно недоступен</div>';
     });
   }
 
-  function scheduleAfterProfileRender() {
-    if (afterProfileRenderQueued) return;
-    afterProfileRenderQueued = true;
-    setTimeout(() => {
-      afterProfileRenderQueued = false;
-      afterProfileRender();
-    }, 0);
-  }
-
-  function ensureProfileObserver() {
-    if (lootProfileObserver) return;
-    const profile = document.getElementById('profile');
-    if (!profile) return;
-    lootProfileObserver = new MutationObserver(() => scheduleAfterProfileRender());
-    lootProfileObserver.observe(profile, { childList: true, subtree: true });
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    ensureLootModal();
-    ensureProfileObserver();
-    scheduleAfterProfileRender();
-  });
-
-  document.addEventListener('click', (event) => {
-    const trigger = event.target.closest('[data-loot-open-modal]');
-    if (!trigger) return;
-    event.preventDefault();
-    event.stopPropagation();
-    openLootModal();
-  });
-
+  document.addEventListener('DOMContentLoaded', ensureLootModal);
   const prevLoadMe = window.loadMe;
   if (typeof prevLoadMe === 'function') {
     window.loadMe = async function patchedLoadMe() {
       const result = await prevLoadMe.apply(this, arguments);
-      ensureProfileObserver();
-      scheduleAfterProfileRender();
+      setTimeout(afterProfileRender, 0);
       return result;
     };
+  } else {
+    document.addEventListener('DOMContentLoaded', afterProfileRender);
   }
 
   const prevRender = window.render;
@@ -692,8 +644,7 @@
     window.__mooseLootRenderPatch = true;
     window.render = function patchedRender() {
       const result = prevRender.apply(this, arguments);
-      ensureProfileObserver();
-      scheduleAfterProfileRender();
+      setTimeout(afterProfileRender, 0);
       return result;
     };
   }
